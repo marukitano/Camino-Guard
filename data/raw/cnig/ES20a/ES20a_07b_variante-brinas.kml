@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES20a_07b_variante-brinas</name>
+<visibility>1</visibility>
+<Schema name="ES20a_07b_variante-brinas" id="kml_schema_ft_ES20a_07b_variante-brinas">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES20a_07b_variante-brinas">
+<name>ES20a_07b_variante-brinas</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Norte</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES20a Camino del Interior Vasco Riojano</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>07b Variante-Brinas</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.24 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES20a_07b_variante-brinas">
+<SimpleData name="id">ES20a_07b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-2.82748667512785,42.6124671847432,528.336599999995 -2.82830407825604,42.6120536215966,526.878400000001 -2.82992748578971,42.6115079597386,526.494500000001 -2.83198608126448,42.6106734575562,523.841499999995 -2.83414073269426,42.6096587441623,518.102100000004 -2.83451238638854,42.6093932053852,515.808799999999 -2.83528637124408,42.6092849113024,514.538 -2.83592239014334,42.6092077975126,511.957399999999 -2.83662160821776,42.6092795467415,506.562399999995 -2.83705562385742,42.6094057784272,503.1345 -2.8376185522319,42.6089291831849,504.918300000005 -2.83900743389942,42.6087669097051,494.221000000005 -2.83915612843514,42.6084775661292,492.068599999999 -2.83893501351782,42.607882283708,492.227199999994 -2.83864131203063,42.6065509021754,491.508799999996 -2.83829446890618,42.605242822338,485.285000000003 -2.83682378036069,42.6041446256084,479.361399999994 -2.83464431746276,42.6024658977933,470.001000000004 -2.83374426843014,42.6019323059547,467.937000000005 -2.83215606587245,42.6012411343551,459.281000000003 -2.83217920018593,42.600403446959,444.359599999996</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

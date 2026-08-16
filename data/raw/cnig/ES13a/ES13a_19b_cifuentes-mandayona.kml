@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES13a_19b_cifuentes-mandayona</name>
+<visibility>1</visibility>
+<Schema name="ES13a_19b_cifuentes-mandayona" id="kml_schema_ft_ES13a_19b_cifuentes-mandayona">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES13a_19b_cifuentes-mandayona">
+<name>ES13a_19b_cifuentes-mandayona</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Sureste</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES13a Camino de la Lana</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>19b Cifuentes-Mandayona</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>3.29 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES13a_19b_cifuentes-mandayona">
+<SimpleData name="id">ES13a_19b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-2.72566499215726,40.9452151132621,1051.32249999999 -2.7252599786266,40.9450010399787,1051.3637 -2.7248908393168,40.9449200706386,1055.5809 -2.72472990703195,40.9452141076801,1056.11500000001 -2.72488698374759,40.94573613228,1052.32670000001 -2.72534295960265,40.9461381286258,1044.1936 -2.72576389846669,40.9465941039378,1037.3841 -2.72569198203999,40.9469820186479,1034.89079999999 -2.72567287128064,40.947182011175,1030.6482 -2.7258669954169,40.9470220841031,1028.92260000001 -2.72609883891363,40.9463411383678,1022.3316 -2.72632699482613,40.9466100300679,1017.9397 -2.72625390430136,40.9471711143011,1011.31020000001 -2.72614594566882,40.9476790580227,998.261499999993 -2.72568494104481,40.9481990710619,989.199099999998 -2.72499494238013,40.9488131294343,975.438099999999 -2.72478187457114,40.949027035664,970.344500000007 -2.72478086845802,40.9492270274253,968.977700000003 -2.7251479964399,40.9498831631931,958.4908 -2.72544488335309,40.9507000631576,948.2166 -2.72566985294129,40.9515161252871,943.176699999996 -2.7261249906682,40.952453054552,939.974700000006 -2.72647384512058,40.953243132855,937.970700000005 -2.72652195798885,40.95437904835,932.807499999995 -2.72669294870993,40.9556230905082,916.161200000002 -2.72686393943101,40.9567340279898,908.697899999999 -2.7270709723579,40.9578040615951,904.516499999998 -2.72722586976068,40.9587800502205,889.692500000005 -2.72748889378092,40.9591691381774,886.640799999994 -2.72798191795491,40.9592241234533,885.730299999996 -2.72835189449458,40.9593580666422,886.081300000005 -2.72870494048608,40.9590521271759,884.314899999998 -2.729870862995,40.9586410782928,881.442500000005 -2.73144096180479,40.9583101610451,879.1054 -2.73336494383591,40.9578610581086,878.074200000003 -2.73535899805245,40.9574111176784,877.167799999996 -2.73728298008361,40.9570010748333,875.634300000005 -2.73853691323586,40.9562820751563,877.289600000004 -2.73922992844326,40.9550680408099,883.305600000007 -2.73974591894584,40.9538930657532,889.017099999997 -2.73997591820129,40.9536260178703,890.211500000005</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

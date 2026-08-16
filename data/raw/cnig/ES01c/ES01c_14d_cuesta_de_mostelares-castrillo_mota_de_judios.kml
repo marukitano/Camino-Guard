@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_14d_cuesta_de_mostelares-castrillo_mota_de_judios</name>
+<visibility>1</visibility>
+<Schema name="ES01c_14d_cuesta_de_mostelares-castrillo_mota_de_judios" id="kml_schema_ft_ES01c_14d_cuesta_de_mostelares-castrillo_mota_de_judios">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_14d_cuesta_de_mostelares-castrillo_mota_de_judios">
+<name>ES01c_14d_cuesta_de_mostelares-castrillo_mota_de_judios</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>14d Cuesta de Mostelares-Castrillo Mota de Judíos</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.23 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_14d_cuesta_de_mostelares-castrillo_mota_de_judios">
+<SimpleData name="id">ES01c_14d</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-4.16555089854957,42.2911242966562,775.616599999994 -4.16524998808221,42.2917603152467,776.888200000001 -4.1646538678563,42.2924861879756,777.320600000006 -4.16410686481519,42.2933143198051,775.758000000002 -4.16372884026889,42.2944111759953,776.284899999999 -4.16350889944967,42.2954372882582,777.541200000007 -4.16392967122705,42.2964173008801,780.012900000002 -4.16403193004911,42.2974382163598,780.070600000006 -4.16421884700186,42.2982862973397,786.552299999996 -4.16473986537506,42.2988053045667,786.745299999995 -4.16579196235437,42.3001162341885,789.411900000006 -4.16696190841745,42.3015771999366,793.937999999995 -4.16732484486024,42.3021672860585,792.136899999998 -4.16841398926017,42.3032042954707,792.637600000002 -4.16926693153759,42.3040582436559,795.796799999996 -4.16975794348538,42.3043563040075,797.841199999995 -4.17069084929784,42.3048173088039,799.095000000001 -4.17174294627714,42.3054291876119,792.269400000005 -4.17245088160309,42.3060293318927,792.022899999996 -4.17270887685435,42.3062132306501,792.109100000001 -4.17275983828042,42.3063822101258,792.287599999996 -4.17344581339094,42.307034321913,796.373600000006 -4.17409574629564,42.3072696859072,798.609599999996 -4.17442548998867,42.3076389923293,796.119000000006 -4.17432490742293,42.3079732627418,795.129799999995</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

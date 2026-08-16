@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_17b_bercianos_del_real_camino-calzadilla_de_los_hermanillos</name>
+<visibility>1</visibility>
+<Schema name="ES01c_17b_bercianos_del_real_camino-calzadilla_de_los_hermanillos" id="kml_schema_ft_ES01c_17b_bercianos_del_real_camino-calzadilla_de_los_hermanillos">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_17b_bercianos_del_real_camino-calzadilla_de_los_hermanillos">
+<name>ES01c_17b_bercianos_del_real_camino-calzadilla_de_los_hermanillos</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>17b Bercianos del Real Camino-Calzadilla de los Hermanillos</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>5.7 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_17b_bercianos_del_real_camino-calzadilla_de_los_hermanillos">
+<SimpleData name="id">ES01c_17b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-5.14236498586812,42.3879582443703,850.862299999993 -5.14338389009767,42.3878512911963,850.913499999995 -5.14346083619165,42.3880901758359,851.0 -5.14394095157505,42.3887002102861,851.742499999993 -5.1443407683518,42.3889203191145,852.309999999998 -5.1445898783666,42.3892441961013,853.761400000003 -5.14468694133305,42.3895833280458,853.210699999996 -5.14445191241031,42.3911923179288,856.442800000004 -5.14426784581199,42.392813210509,858.189100000003 -5.1441709508305,42.3944572366354,857.744300000006 -5.14413692085088,42.3959741937247,858.488400000002 -5.14420883727758,42.3970722230041,859.298699999999 -5.14460798391116,42.3983031892279,856.181200000006 -5.14443984264618,42.3988622619389,856.622199999998 -5.14425996668861,42.3990501846325,852.252500000002 -5.14471292510266,42.3993812699575,855.436600000001 -5.14690294859507,42.4008013315693,857.547200000001 -5.1489409241408,42.4022872753358,861.3416 -5.15062987814748,42.4034781763521,865.918300000005 -5.1524209229913,42.4046662270459,870.017800000001 -5.15439989090096,42.4058883085875,869.938999999998 -5.15312986443038,42.4085192207387,870.763800000001 -5.15288192761532,42.4111942213697,871.350699999995 -5.15276994542864,42.41338826827,863.782099999997 -5.15345189698499,42.4164362636678,864.767000000007 -5.15402488379571,42.419271190547,870.962400000004 -5.15446191687638,42.4221222114576,873.517000000007 -5.15489995517187,42.424973232037,880.034599999999 -5.15533681936925,42.4278242522664,885.3364 -5.15577184022369,42.4305862567771,888.939899999998 -5.15615288131271,42.4322923095968,890.546799999996 -5.15692586095343,42.4330082920983,890.687099999996 -5.15736088180787,42.4333033344727,891.132400000002 -5.15693776273264,42.4338652577923,889.838600000003</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

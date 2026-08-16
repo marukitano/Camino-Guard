@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES12a_03b_variante-mataelpino</name>
+<visibility>1</visibility>
+<Schema name="ES12a_03b_variante-mataelpino" id="kml_schema_ft_ES12a_03b_variante-mataelpino">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES12a_03b_variante-mataelpino">
+<name>ES12a_03b_variante-mataelpino</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Centro</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES12a Camino de Madrid</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>03b Variante-Mataelpino</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>1.94 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES12a_03b_variante-mataelpino">
+<SimpleData name="id">ES12a_03b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-3.93996951005188,40.7326154536586,1028.99860000001 -3.94084995425175,40.732560300462,1032.90399999999 -3.94119378442673,40.7324779895592,1034.1082 -3.94171514415976,40.7323207450173,1037.50440000001 -3.94167105484562,40.7320609047448,1035.9276 -3.94211597154122,40.7321953507376,1036.1584 -3.94257765259665,40.7320845419148,1037.56969999999 -3.94302223422066,40.7321884768834,1040.356 -3.94340897961171,40.7324766465154,1038.1384 -3.94418096212249,40.7329453617097,1049.1474 -3.94497037913631,40.7332303457734,1053.52310000001 -3.94581679335656,40.7332695726799,1056.55009999999 -3.94682481269981,40.7333381358138,1065.3777 -3.94767323914632,40.7335153286166,1071.3691 -3.94828210826274,40.7338475867383,1076.7473 -3.94862644059597,40.7339828704613,1079.57460000001 -3.94912634317013,40.7337339271785,1081.8444 -3.94950017887223,40.7331181929206,1079.6881 -3.94975130290993,40.7323656652601,1078.8955 -3.94988776239144,40.7320583840542,1080.31939999999 -3.95073769710932,40.7323425298753,1087.7035 -3.95173029327744,40.7327482137769,1095.25840000001 -3.95239833891322,40.7329881032707,1100.9577 -3.95326185256492,40.7328127531021,1108.6154 -3.95410374017446,40.7325302824767,1115.0052 -3.95557394273139,40.732518378883,1122.0129 -3.95684197224709,40.7324622188333,1130.318 -3.95805065636021,40.732483005722,1136.4798 -3.95913914319334,40.7325508984857,1143.81939999999 -3.95936629568765,40.7329476972144,1150.0426</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

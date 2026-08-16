@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES01b_03b_variante-la_petrosa</name>
+<visibility>1</visibility>
+<Schema name="ES01b_03b_variante-la_petrosa" id="kml_schema_ft_ES01b_03b_variante-la_petrosa">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01b_03b_variante-la_petrosa">
+<name>ES01b_03b_variante-la_petrosa</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01b Camino Francés por Aragón</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>03b Variante-La Petrosa</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.92 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01b_03b_variante-la_petrosa">
+<SimpleData name="id">ES01b_03b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-0.867427066112964,42.5725458559004,576.0 -0.867072846921716,42.5728427424459,573.725300000006 -0.867091622609483,42.572877275907,573.015799999994 -0.867063458628683,42.5728841492555,573.001600000003 -0.866724159555993,42.5731491853953,570.868000000002 -0.866613183482401,42.5732918453005,569.474000000002 -0.866538081629729,42.5735820263597,567.0 -0.866716448417575,42.5738582942075,564.023199999996 -0.866988524760936,42.5741347295195,563.476200000005 -0.867246520012227,42.5744777169883,561.436499999996 -0.86768271406644,42.5747080511951,562.937699999995 -0.86788739969548,42.5752468401007,558.854999999996 -0.868314709411533,42.5758587191973,559.108200000002 -0.869050640733298,42.5763656563008,558.0 -0.869572833204608,42.5767151822786,558.598700000002 -0.869896710000496,42.5770844888323,560.320399999997 -0.870213713786158,42.5777989618438,557.909100000004 -0.870600286700702,42.5788391560721,556.785399999993 -0.870783515170873,42.5790401545342,557.463000000003 -0.871163215075191,42.579495458972,555.0 -0.871735363757721,42.5797026598383,561.0 -0.872439108442884,42.5799098606774,561.0 -0.873161460830824,42.5801447216822,561.0 -0.873961765425893,42.5803913173438,561.0 -0.874868854555397,42.5806628904636,562.0 -0.875684917397149,42.5808977519392,561.0 -0.876341723312076,42.5811602729337,560.0 -0.877167172650233,42.5814434133481,559.0 -0.878443066017959,42.5818164085315,554.0 -0.879450905698128,42.5819902486647,560.0 -0.879887938778797,42.5820443959695,560.0 -0.880921930213533,42.5821392791475,562.0 -0.881745368223788,42.5820926756176,565.0 -0.882474928693572,42.5820472461049,576.108399999997 -0.882777348330623,42.5818993887955,578.908800000005 -0.883218236082171,42.581595461316,582.114400000006 -0.883696675209219,42.5812293398855,585.0 -0.884279888441132,42.580989281993,589.219100000002 -0.884747431003788,42.5811740191272,591.0 -0.885893404625232,42.5814678887615,590.0 -0.888298172182919,42.5820353435314,589.105100000001 -0.88959870903382,42.582327536999,590.0 -0.891041904640043,42.5827390882982,589.0 -0.892660953548,42.583096492521,587.0 -0.893834922266922,42.5833432557542,586.126000000004</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

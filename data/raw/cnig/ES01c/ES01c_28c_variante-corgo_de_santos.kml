@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_28c_variante-corgo_de_santos</name>
+<visibility>1</visibility>
+<Schema name="ES01c_28c_variante-corgo_de_santos" id="kml_schema_ft_ES01c_28c_variante-corgo_de_santos">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_28c_variante-corgo_de_santos">
+<name>ES01c_28c_variante-corgo_de_santos</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>28c Variante-Corgo de Santos</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>1.04 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_28c_variante-corgo_de_santos">
+<SimpleData name="id">ES01c_28c</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-7.60905917700425,42.7965825619511,423.0 -7.60897468775684,42.7965844062727,423.0 -7.60879179435826,42.796636709051,423.0 -7.60858358823159,42.7969014092879,421.692599999995 -7.60819986477314,42.7975112770925,420.0 -7.60811956616653,42.7977372527951,419.862599999993 -7.60839918656165,42.7980287753993,418.0 -7.60862214482191,42.7983261656004,417.0 -7.60868165641286,42.7988377967397,413.589000000007 -7.60872038098814,42.799057905289,412.318400000004 -7.60884527106714,42.7991559739855,410.555300000007 -7.60946687290438,42.7993611627116,400.636400000003 -7.60984757892181,42.7994951058548,393.571500000005 -7.61021353280561,42.7995546170063,388.757599999997 -7.61045141118443,42.799596191333,385.816699999996 -7.61063581375268,42.7997033122439,382.568400000004 -7.61070119224073,42.799890731208,379.532399999996 -7.61076673871378,42.8000602136305,376.7883 -7.61093320282412,42.8003188788451,371.484700000001 -7.61102255465218,42.8004140975013,368.967600000004 -7.61120092144002,42.8004409195759,365.584099999993 -7.61137643787351,42.8004409195759,362.587 -7.61157274222097,42.8004379021425,358.950400000002 -7.6116768452843,42.8004617067745,357.684200000003 -7.6117512769938,42.800518200885,356.183799999999 -7.61183157560042,42.8007471942297,353.766199999998 -7.61187918451386,42.8009792054522,352.0 -7.6119534482384,42.8010179294896,351.0 -7.61203961464043,42.8010797882417,350.549400000004 -7.61220976723335,42.8010533012718,352.036500000002 -7.61236282039481,42.8010903491483,353.0 -7.61247547362302,42.8011527107279,354.0 -7.61264428503124,42.801414058549,355.162599999996 -7.61291217073377,42.8018795897361,356.657200000001 -7.61306187138261,42.8020738817803,356.0 -7.61325029660672,42.8022152009396,354.882299999997 -7.61343654251794,42.8022785678257,354.891799999998 -7.61365329880948,42.8023068990813,353.050300000003 -7.61404439833473,42.8022981818747,350.851200000005 -7.6149340529612,42.8021546832685,348.181500000006 -7.61500932279886,42.8021878760838,347.495599999995 -7.61505139988678,42.8022219065937,345.573699999994</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

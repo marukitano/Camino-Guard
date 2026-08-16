@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_28d_variante-san_pedro</name>
+<visibility>1</visibility>
+<Schema name="ES01c_28d_variante-san_pedro" id="kml_schema_ft_ES01c_28d_variante-san_pedro">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_28d_variante-san_pedro">
+<name>ES01c_28d_variante-san_pedro</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>28d Variante-San Pedro</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>0.91 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_28d_variante-san_pedro">
+<SimpleData name="id">ES01c_28d</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-7.61248553205925,42.7980064799256,402.0 -7.61259399374837,42.7980116766008,402.525899999993 -7.61289440115915,42.7980604590168,404.0 -7.6134454268561,42.7980691761614,404.0 -7.61391196420397,42.7980257578483,405.0 -7.61478787280996,42.7978502406665,402.986999999994 -7.61523647259822,42.7978616405549,400.0 -7.61585706832238,42.7979724490746,396.254199999996 -7.61643726411324,42.7981593657433,391.145199999999 -7.61699499573379,42.7983506407293,386.0 -7.61736044656105,42.7984767041006,384.528200000001 -7.6177582520099,42.7985563324104,383.005699999994 -7.61811347641597,42.7985223018617,382.0 -7.61864270988246,42.7983776304603,381.0 -7.61891327795446,42.7982939791959,380.0 -7.61915400668767,42.7986963103555,379.356700000004 -7.61920530318533,42.7988699835205,379.0 -7.61916976403606,42.7990317542695,377.429300000003 -7.61895837248339,42.7992671176611,371.7549 -7.61880850384959,42.799439785374,371.1584 -7.61848278371073,42.7997655058267,369.951799999995 -7.61825915440897,42.7999306291629,367.445000000007 -7.61795589664375,42.8001079905924,364.091400000005 -7.6175326104819,42.8002421008532,363.259099999996 -7.61728886520597,42.8003763788981,359.324600000007 -7.61718526519917,42.8004952340105,358.008600000001 -7.61720772847119,42.8005991698427,357.330000000002 -7.617251816887,42.8007666400313,356.0 -7.61716045462934,42.8008395628865,356.098599999998</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES40a_01a_arousa-pontecesures</name>
+<visibility>1</visibility>
+<Schema name="ES40a_01a_arousa-pontecesures" id="kml_schema_ft_ES40a_01a_arousa-pontecesures">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES40a_01a_arousa-pontecesures">
+<name>ES40a_01a_arousa-pontecesures</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos de Galicia</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES40a Ruta del Mar de Arousa y Rio Ulla</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>01a Arousa-Pontecesures</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>20.42 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES40a_01a_arousa-pontecesures">
+<SimpleData name="id">ES40a_01a</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-8.76793423635547,42.6000413485885,0.0 -8.77046506809026,42.6009395533518,0.0 -8.77299590072335,42.6018377577302,0.0 -8.77350149681975,42.6037178187531,0.0 -8.7745608018809,42.6058630831109,0.0 -8.77638487148948,42.6084093379654,0.0 -8.77849057282111,42.6111368089388,0.0 -8.78059644213771,42.6138641128806,0.0 -8.78030776941947,42.6157354562255,0.0 -8.77742590391943,42.6181777752551,0.0 -8.77557652068444,42.6210564561658,0.0 -8.77372697036283,42.6239351368482,0.0 -8.77102397380888,42.6261727701205,0.0 -8.7689360420519,42.62862363819,0.0 -8.76684794230993,42.6310745069182,0.0 -8.76456202905084,42.6335352658707,0.0 -8.7622759487051,42.635996025338,0.0 -8.75998970127273,42.6384567839862,0.0 -8.7577032858554,42.6409175431247,0.0 -8.75469954681905,42.6427791638722,0.0 -8.75121653052749,42.6444694588814,0.0 -8.74684235043981,42.6465464941958,0.0 -8.74287804556511,42.6494821719737,0.0 -8.74190222453662,42.6532446407307,0.0 -8.74149385849329,42.657418325689,0.0 -8.74033363579482,42.6613366974189,0.0 -8.7390911022635,42.6636467499637,0.0 -8.73693930028979,42.6661490834793,0.0 -8.73323248671151,42.6690227351317,0.0 -8.7299553301471,42.6715326123177,0.0 -8.72739985582743,42.6746902428022,0.0 -8.72596906505696,42.6778403300145,0.0 -8.72724076688556,42.6808547974736,0.0 -8.72897397729305,42.6838461310133,0.0 -8.7288871407478,42.6864889453152,0.0 -8.72628489474455,42.6884273441669,0.0 -8.72338861218253,42.6907714271778,0.0 -8.72193049645775,42.6936296557608,0.0 -8.72258076443403,42.6956493591661,0.0 -8.72412286724798,42.6972823220276,0.0 -8.72476441797276,42.6992046272068,0.0 -8.72344125076322,42.701372019725,0.0 -8.72186310574346,42.7036498860876,0.0 -8.71903203458284,42.7059906160967,0.0 -8.7149228898433,42.7066851410288,0.0 -8.71006926541375,42.7064883336901,0.0 -8.70575325573228,42.7070951833037,0.0 -8.70110280776211,42.7076696792834,0.0 -8.69635161013954,42.7085910177898,0.0 -8.69160024453205,42.7095121888212,0.0 -8.6868487109396,42.7104331923848,0.0 -8.68209701026049,42.7113538608308,0.0 -8.67761353035553,42.7123099004712,0.0 -8.67637652864974,42.7147168480457,0.0 -8.67611115822998,42.7168800498362,0.0 -8.67403730756507,42.7181069925628,0.0 -8.6711406890331,42.719032857393,0.0 -8.66727160288357,42.7194693868345,0.0 -8.66373678703779,42.7199381033953,0.0 -8.66145523240445,42.7203444579881,0.0 -8.65841696033198,42.720446381484,0.0 -8.65576559714393,42.7204312939634,0.0 -8.65437252483563,42.7211355415359,0.0 -8.65446221083698,42.7228412592533,0.0 -8.65438090611724,42.723578363344,0.0 -8.6539950033459,42.7241712995633,0.0</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

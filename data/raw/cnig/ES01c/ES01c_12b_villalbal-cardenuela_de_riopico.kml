@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_12b_villalbal-cardenuela_de_riopico</name>
+<visibility>1</visibility>
+<Schema name="ES01c_12b_villalbal-cardenuela_de_riopico" id="kml_schema_ft_ES01c_12b_villalbal-cardenuela_de_riopico">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_12b_villalbal-cardenuela_de_riopico">
+<name>ES01c_12b_villalbal-cardenuela_de_riopico</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>12b Villalbal-Cardeñuela de Riopico</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>1.6800000000000002 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_12b_villalbal-cardenuela_de_riopico">
+<SimpleData name="id">ES01c_12b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-3.55423992492702,42.3738412755084,983.907500000001 -3.55392895602346,42.3723871827737,973.737800000003 -3.55399584368117,42.3716623158681,967.490300000005 -3.55456296359478,42.3707552262871,961.630799999999 -3.55473294820274,42.3703022685863,957.494999999995 -3.55446690674145,42.3697862781453,954.3122 -3.55408184209826,42.3695562789978,954.007500000007 -3.55388687893554,42.3692942606078,948.276400000002 -3.55383994016531,42.369116228765,945.088600000003 -3.55376098274343,42.3688221918893,942.472500000003 -3.55424797203535,42.3686642766923,941.827699999994 -3.55449188529624,42.3686632711915,941.601299999995 -3.55503285345529,42.368829232368,941.802500000005 -3.5555208470637,42.3688012370361,942.519499999995 -3.55626599869357,42.3683192774662,939.2745 -3.55707887521102,42.3676691774232,937.4179 -3.55749294196312,42.3672023053068,936.9519 -3.55746494596728,42.3659363023914,934.499400000001 -3.55742488020731,42.3653421933747,933.532300000006 -3.55675399320031,42.3644413061224,930.828299999994 -3.55608494953626,42.3636431817421,929.781499999997 -3.55550291040242,42.3628712079265,927.592999999993 -3.55551498016658,42.3622762607952,926.876499999998 -3.55597799611853,42.3614601983264,927.237699999998</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

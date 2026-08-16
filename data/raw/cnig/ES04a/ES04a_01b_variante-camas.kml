@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES04a_01b_variante-camas</name>
+<visibility>1</visibility>
+<Schema name="ES04a_01b_variante-camas" id="kml_schema_ft_ES04a_01b_variante-camas">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES04a_01b_variante-camas">
+<name>ES04a_01b_variante-camas</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos Andaluces</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES04a Camino Mozárabe - Vía de la Plata</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>01b Variante-Camas</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>5.21 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES04a_01b_variante-camas">
+<SimpleData name="id">ES04a_01b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-6.02004446053838,37.3931482818192,7.0 -6.02174850175029,37.3934537184063,6.46420000000217 -6.0226889516145,37.3937231121819,6.03119999999763 -6.02328641302511,37.3940196645334,6.0 -6.02386174713368,37.3942622365445,7.0 -6.02444831287823,37.3944149545083,8.0 -6.02491300508649,37.3945227462944,9.15780000000086 -6.02525599264177,37.3945316309828,8.9542999999976 -6.02576494214913,37.3947203916433,6.02400000000489 -6.02596409595268,37.3946124324252,7.0 -6.02705944321964,37.3949539111752,7.03549999999814 -6.02863071522916,37.3955647840902,7.0 -6.03013543375426,37.3961126255541,7.0 -6.03180628311472,37.3967504884325,8.0 -6.03293482223313,37.3971546633699,8.41199999999662 -6.03363186099469,37.3973972359401,9.16229999999632 -6.03439528525576,37.3975499539391,11.0 -6.03456141429451,37.3983601492163,11.7039999999979 -6.03462779889568,37.3992224794476,10.340400000001 -6.03452822154476,37.4000309974436,11.0 -6.03439528525576,37.4007872128399,11.0 -6.03436209250601,37.4011555135567,11.0 -6.03458354249488,37.4014609503397,11.0 -6.03488227364935,37.4023078579726,11.0 -6.03519206845487,37.4032079067242,12.0 -6.03547973595832,37.404224631025,12.0 -6.03570101796224,37.4049359194427,12.0 -6.03576740256344,37.4055027036673,12.0 -6.03574527436304,37.4061585037088,12.0 -6.03570101796224,37.4076538354086,12.9205999999976 -6.03565676156147,37.4088150642065,14.0 -6.03567888976184,37.4092831099981,14.4934999999969 -6.03628305709608,37.4092740572345,18.0178000000014 -6.03608373530757,37.4101372258604,19.511599999998 -6.03605054345615,37.4103985737729,20.0 -6.03600628705535,37.4109115457184,21.0 -6.03613922334435,37.4118065656727,22.6376000000018 -6.03572968410128,37.4118426078184,18.0 -6.03586245330362,37.4132096963711,17.0 -6.03606160710717,37.4145668937505,17.0 -6.03620560884385,37.4151336786023,18.0 -6.03630518529648,37.4159698571573,17.0 -6.03651540364937,37.4171222013204,16.0 -6.03660391645095,37.4179773229656,15.4331999999995 -6.03679200660344,37.4190299219006,15.0 -6.03696903220659,37.4198850438798,15.0 -6.03703541680779,37.4208298522249,15.0 -6.03724563516069,37.4216759216486,15.0 -6.03732308341291,37.4225400959647,15.0 -6.0374447889642,37.4233950494463,15.0 -6.03752223811476,37.424232234403,14.2142000000022 -6.03768819916855,37.4250692509117,14.5528999999951 -6.03792054572185,37.4263473238905,14.8196000000025 -6.03803118672383,37.4269590351766,15.0 -6.03810863587435,37.4276973128403,14.0 -6.03825464804063,37.4285613199296,14.0 -6.03844273819313,37.4299030946797,13.9714999999997 -6.03877466209735,37.4301366144111,14.0 -6.03856444374445,37.4306234355478,16.0 -6.03858657194485,37.4308145427666,16.0</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

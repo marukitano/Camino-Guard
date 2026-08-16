@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_16b_calzadilla_de_la_cueza-fuente_arriba</name>
+<visibility>1</visibility>
+<Schema name="ES01c_16b_calzadilla_de_la_cueza-fuente_arriba" id="kml_schema_ft_ES01c_16b_calzadilla_de_la_cueza-fuente_arriba">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_16b_calzadilla_de_la_cueza-fuente_arriba">
+<name>ES01c_16b_calzadilla_de_la_cueza-fuente_arriba</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>16b Calzadilla de la Cueza-Fuente Arriba</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>3.8 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_16b_calzadilla_de_la_cueza-fuente_arriba">
+<SimpleData name="id">ES01c_16b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-4.81330286710559,42.3298222024523,851.429699999993 -4.81564594465781,42.3297512910435,849.977499999994 -4.81662595632713,42.3299252996896,850.428599999999 -4.8172549342312,42.3299843081417,851.473100000003 -4.8179008435817,42.3298532155843,852.941699999996 -4.81840493140678,42.3296393090704,854.364300000001 -4.81888286747728,42.3292872691758,857.675399999993 -4.81940388674878,42.3288482253312,859.924599999998 -4.81999799564679,42.3285122786395,862.680699999997 -4.8208029939392,42.3282412077809,864.938399999999 -4.821746964301,42.3279852240469,867.895699999994 -4.82278598450469,42.3277791970456,872.9421 -4.82389993947445,42.3277612595905,877.067999999999 -4.82460183991834,42.327923197918,880.542199999996 -4.82495387979673,42.3280552973276,882.496299999999 -4.82562996445597,42.3281652678306,884.645900000003 -4.82834385667597,42.3296731719832,887.785799999998 -4.82926787815027,42.3303303134273,890.987299999993 -4.83032986558085,42.3309002828409,892.514800000004 -4.83129596324472,42.3314011850386,893.019100000005 -4.83254587284284,42.3320543033416,893.164699999994 -4.8339339163822,42.3326691992301,893.182100000005 -4.83515499185631,42.3331672524179,893.420100000003 -4.83632393180631,42.3334411728182,894.309599999993 -4.83698593447515,42.3338272433835,894.344599999997 -4.83818588786201,42.3343772639885,894.468900000007 -4.83854396262247,42.3346982905655,894.310700000002 -4.83934393124759,42.3358581785926,894.370699999999 -4.839610978822,42.3362843143944,894.809299999994 -4.84029896526041,42.3367733147358,895.146200000003 -4.84087396429737,42.3373672562576,895.574200000003 -4.8413949835689,42.3377213080738,895.745500000005 -4.84180184044254,42.3381632017058,895.710000000006 -4.84234884348368,42.3385853145601,895.819399999993 -4.84322190263358,42.3390541981033,896.2114 -4.84463090117356,42.339617294373,896.683099999995 -4.84501596581674,42.3400591879613,896.560400000002 -4.84517991554261,42.3409012340535,895.956900000005 -4.84548099309659,42.3416722015856,893.551800000001 -4.84582297543708,42.3422522290373,893.195399999997 -4.84607292358004,42.3428693052883,893.000100000005 -4.84690189341579,42.3442172828012,893.992499999993 -4.84700096771017,42.3444392353107,894.097500000003 -4.84739793503086,42.3445191990793,895.1106 -4.8478188738949,42.3446162614769,896.466100000005</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES18a_02b_variante-a_gandara</name>
+<visibility>1</visibility>
+<Schema name="ES18a_02b_variante-a_gandara" id="kml_schema_ft_ES18a_02b_variante-a_gandara">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES18a_02b_variante-a_gandara">
+<name>ES18a_02b_variante-a_gandara</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos de Galicia</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES18a Camino Portugués de la Costa A Guarda-Baiona-Redondela</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>02b Variante-A Gándara</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>1.04 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES18a_02b_variante-a_gandara">
+<SimpleData name="id">ES18a_02b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-8.80180265753789,42.1312052944377,9.46439999999711 -8.80174666644453,42.1314022688579,10.405700000003 -8.80208378620437,42.1314932967629,10.3166999999958 -8.80256105213167,42.1316079611718,10.2038999999932 -8.80249097904792,42.1318450012222,9.49739999999292 -8.80180550699398,42.1319947020309,9.04129999999714 -8.8020321537368,42.1326907354282,10.1184000000067 -8.80199359714647,42.1329975126508,13.7513000000035 -8.80185965474436,42.1331061420758,14.3790000000008 -8.801683634356,42.133290041502,16.5448999999935 -8.8014229576336,42.1335183643432,18.9857000000047 -8.8012605161791,42.1336070449377,19.8337999999931 -8.80104409495915,42.133659850599,20.1236999999965 -8.80078660366273,42.1337669713382,20.2364999999991 -8.8006414287263,42.1340866570512,20.1450000000041 -8.80084376795586,42.1343134714823,20.6321999999927 -8.80063304654639,42.1346324869405,23.016300000003 -8.80056397957578,42.1347954311318,24.3150000000023 -8.80041779942454,42.1350386738585,25.710500000001 -8.80026826676066,42.1352924775732,26.2986999999994 -8.80017958597413,42.1354817411943,26.9201999999932 -8.80004145203289,42.1358456833566,28.5255999999936 -8.79989342764037,42.1360616012844,28.6861999999965 -8.7998143022335,42.1361521262127,28.6309000000037 -8.79970047580555,42.1361994000611,28.4472999999998 -8.79953870539254,42.1362366157182,28.2363999999943 -8.79943074676,42.1362639404047,28.1897000000026 -8.79928557182358,42.1363103761574,27.998900000006 -8.79915431179089,42.1363791077769,27.9805000000051 -8.79900796365469,42.1364788523603,27.5694999999978 -8.7989097274885,42.1365836261707,27.1220999999932 -8.79873421015671,42.1367497554953,26.1116000000038 -8.7985397500505,42.1368647554489,24.9450999999972 -8.79852499791694,42.1368922477317,25.0532999999996 -8.79852667417325,42.1369497476053,25.3825999999972 -8.79846632445415,42.1370647471957,25.8270000000048 -8.79818871628526,42.1374238281357,27.1119999999937 -8.79796206954245,42.1377289297601,27.7446999999956 -8.7977555396721,42.1380102264812,27.7213999999949 -8.79761958504375,42.1382368729855,27.8368000000046 -8.7975687907043,42.1383245477852,27.8337999999931 -8.79754850674521,42.1383694745865,27.8654999999999</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

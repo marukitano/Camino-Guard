@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES04a_13b_variante-estacion_renfe</name>
+<visibility>1</visibility>
+<Schema name="ES04a_13b_variante-estacion_renfe" id="kml_schema_ft_ES04a_13b_variante-estacion_renfe">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES04a_13b_variante-estacion_renfe">
+<name>ES04a_13b_variante-estacion_renfe</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos Andaluces</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES04a Camino Mozárabe - Vía de la Plata</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>13b Variante-Estación Renfe</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>3.04 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES04a_13b_variante-estacion_renfe">
+<SimpleData name="id">ES04a_13b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-6.39456734060998,39.7780939389083,322.0 -6.39275953140636,39.7790395847319,324.0 -6.39032961820722,39.7800316671495,325.000599999999 -6.38919470823683,39.7804759076198,324.0 -6.38868106503209,39.7808594639206,326.0 -6.38808712322075,39.7811037124099,329.036399999997 -6.38808377070811,39.7817839879622,331.233900000007 -6.38727541990304,39.7828986132547,337.0 -6.38645533440545,39.7837726783231,337.634399999995 -6.38499654853747,39.7843538793784,340.200899999996 -6.38418467723481,39.7846469103897,342.152100000007 -6.38375351194958,39.7848438852489,342.0 -6.38280216641931,39.7849144607342,348.210600000006 -6.38114305175137,39.7855296925246,354.999800000005 -6.37991426513887,39.7859340353345,363.385599999994 -6.37844709709097,39.7870961026488,372.425700000007 -6.37793513014256,39.7893919057427,357.094500000007 -6.37735728164951,39.7903439226944,368.367100000003 -6.37662235644086,39.7910880675819,377.0 -6.37554394062037,39.7919413455242,375.736699999994 -6.37451531392449,39.7923114907823,375.0 -6.37411113852199,39.7945616960778,382.0 -6.3743037543869,39.7958737996173,388.0 -6.37482443858681,39.7971337667607,394.0</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

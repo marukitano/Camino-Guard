@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES01c_26b_salida-carretera</name>
+<visibility>1</visibility>
+<Schema name="ES01c_26b_salida-carretera" id="kml_schema_ft_ES01c_26b_salida-carretera">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_26b_salida-carretera">
+<name>ES01c_26b_salida-carretera</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>26b Salida-Carretera</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.93 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_26b_salida-carretera">
+<SimpleData name="id">ES01c_26b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-7.04497687522111,42.7076302842965,1294.95329999999 -7.04558489812452,42.7076492272946,1299.8759 -7.04626098278376,42.707463316737,1306.3406 -7.04666197276029,42.7076923102663,1296.6115 -7.04725792589957,42.7075291985467,1295.0641 -7.04855293002661,42.706670221132,1302.42600000001 -7.04947695150091,42.7064752581105,1307.19379999999 -7.04995086401725,42.7061332760702,1313.5178 -7.05107890097741,42.7056871912532,1289.3996 -7.05212697350422,42.7052632347212,1289.9528 -7.05337386566132,42.7049552837561,1280.989 -7.05434298166454,42.7045951970326,1270.0059 -7.05507589464696,42.7040002497751,1265.5722 -7.05586798504707,42.7034643107904,1257.9258 -7.05689895904075,42.7032242527227,1256.4008 -7.0582898520362,42.703419216052,1250.2264 -7.0603479444544,42.7041182666346,1256.5799 -7.06120189284494,42.7045351827057,1257.21189999999 -7.06214083353949,42.7049903196092,1255.5187 -7.06323299538044,42.7048292194785,1257.45419999999 -7.06463998169419,42.7044342642118,1256.83040000001 -7.0659478937136,42.7042052705463,1249.02129999999 -7.06704189979582,42.704491261149,1255.43150000001 -7.06807589123056,42.7047192490343,1249.1357 -7.06909194600402,42.7046622523065,1240.7415 -7.06980189265791,42.7041293306005,1240.0048 -7.07045886655779,42.70323129389,1237.0472 -7.07110796133434,42.7021922727589,1238.1483 -7.07196190972487,42.7009222472861,1232.9822 -7.07251494764809,42.700109202526,1227.16559999999 -7.07349998898469,42.6991602034325,1223.65820000001</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

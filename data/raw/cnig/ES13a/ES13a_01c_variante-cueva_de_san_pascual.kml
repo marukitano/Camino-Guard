@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES13a_01c_variante-cueva_de_san_pascual</name>
+<visibility>1</visibility>
+<Schema name="ES13a_01c_variante-cueva_de_san_pascual" id="kml_schema_ft_ES13a_01c_variante-cueva_de_san_pascual">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES13a_01c_variante-cueva_de_san_pascual">
+<name>ES13a_01c_variante-cueva_de_san_pascual</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Sureste</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES13a Camino de la Lana</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>01c Variante-Cueva de San Pascual</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.24 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES13a_01c_variante-cueva_de_san_pascual">
+<SimpleData name="id">ES13a_01c</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-0.654148030871172,38.3688401988168,251.045599999998 -0.655190069414207,38.369463644606,250.958599999998 -0.655246898635719,38.3703350274383,264.685599999997 -0.655173808110949,38.3712707832922,281.998900000006 -0.655365585847696,38.3719106579482,289.952499999999 -0.655692145013017,38.3723190242296,282.323399999994 -0.65567655475129,38.3727874046054,281.796700000006 -0.655324682857857,38.3731484970805,288.232999999993 -0.654552541345291,38.373367600001,295.099100000007 -0.653693899257383,38.3736185545659,292.447799999994 -0.652548931749055,38.3735290359385,303.671000000002 -0.652485899660518,38.3741637136444,310.731100000005 -0.652503334163552,38.374933842351,320.326700000005 -0.652695950028458,38.375540189467,330.436199999996 -0.653659533307856,38.3759612960557,331.317999999999 -0.654822774345674,38.3767879193891,352.178700000004 -0.655876044524752,38.377076927683,355.149000000005 -0.657108519619834,38.3770683783668,351.552299999996 -0.658418778038724,38.3772955278629,353.454899999997 -0.65884877012421,38.3771371094885,349.164999999994 -0.659351683851178,38.3773481658357,351.157099999997 -0.659913607010848,38.3770584874968,348.125799999994 -0.660504698467805,38.3771709722075,349.480200000005 -0.661019514872281,38.3770142310307,349.4182 -0.661561992201016,38.3773263729055,350.470000000001 -0.662162807022589,38.3771377799121,345.929199999999 -0.663087330655127,38.3774576339077,353.921700000006 -0.663807000673634,38.3775391054543,352.188599999994 -0.664201956666391,38.3771456595009,352.224300000002 -0.664858426611404,38.3765567464301,349.380799999999</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

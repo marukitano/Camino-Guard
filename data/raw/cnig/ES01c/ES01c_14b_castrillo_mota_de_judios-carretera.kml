@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_14b_castrillo_mota_de_judios-carretera</name>
+<visibility>1</visibility>
+<Schema name="ES01c_14b_castrillo_mota_de_judios-carretera" id="kml_schema_ft_ES01c_14b_castrillo_mota_de_judios-carretera">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_14b_castrillo_mota_de_judios-carretera">
+<name>ES01c_14b_castrillo_mota_de_judios-carretera</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>14b Castrillo Mota de Judíos-Carretera</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>6.84 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_14b_castrillo_mota_de_judios-carretera">
+<SimpleData name="id">ES01c_14b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-4.17471986251739,42.3092883833631,790.584900000002 -4.18417783427503,42.3049953400713,812.469500000007 -4.18499791977265,42.3047693644464,816.280299999999 -4.21810191147922,42.2964684303704,820.272899999996 -4.21903783473269,42.296152432725,820.085099999997 -4.22973096395488,42.2890025012642,809.803899999999 -4.23583885660833,42.2853094346832,796.014899999995 -4.23751289049646,42.2836303720414,789.777100000007 -4.2426399324541,42.2809974483476,774.303599999999 -4.24459492792211,42.2786594003043,770.471699999995</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

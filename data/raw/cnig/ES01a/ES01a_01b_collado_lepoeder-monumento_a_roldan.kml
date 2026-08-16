@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES01a_01b_collado_lepoeder-monumento_a_roldan</name>
+<visibility>1</visibility>
+<Schema name="ES01a_01b_collado_lepoeder-monumento_a_roldan" id="kml_schema_ft_ES01a_01b_collado_lepoeder-monumento_a_roldan">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01a_01b_collado_lepoeder-monumento_a_roldan">
+<name>ES01a_01b_collado_lepoeder-monumento_a_roldan</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01a Camino Francés por Navarra</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>01b Collado Lepoeder-Monumento a Roldán</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.9 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01a_01b_collado_lepoeder-monumento_a_roldan">
+<SimpleData name="id">ES01a_01b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-1.29544492767938,43.0262892875359,1431.97779999999 -1.2967618929202,43.0263322025382,1410.6634 -1.29785690421725,43.0266093082588,1386.29059999999 -1.29824481921482,43.0269942057764,1381.0527 -1.29870096215654,43.0274042482916,1377.5441 -1.29955390443397,43.0274763327949,1368.3496 -1.30097279342523,43.0275452316026,1361.9368 -1.30237089450252,43.0271752543815,1340.93580000001 -1.30358895253559,43.0268852405214,1327.3665 -1.30416881325487,43.026930167887,1322.7064 -1.3043037617701,43.0267072092568,1318.518 -1.30522878845921,43.0265321950237,1303.1764 -1.30591375745661,43.0262701767597,1292.3768 -1.30619086346725,43.026156182475,1289.1401 -1.30646394592373,43.0261841785217,1283.0482 -1.30698580332342,43.0259902213647,1274.4531 -1.30731185853387,43.0258772332957,1270.01029999999 -1.30750983913767,43.0256792528107,1267.0729 -1.30782868716461,43.0258142009776,1262.62669999999 -1.3084298370578,43.0256691939589,1253.6461 -1.30893895365183,43.0253692894253,1242.8033 -1.31002776298014,43.0250542979536,1233.10709999999 -1.31206288906978,43.0250132267808,1211.5678 -1.31359778380191,43.0249302457217,1199.4264 -1.31392585123859,43.0247451733297,1193.9431 -1.31386583659111,43.0245792116882,1192.45239999999 -1.31305681564287,43.0246502901264,1189.7936 -1.31291482613242,43.0245181915532,1184.924 -1.31337197518726,43.024312331882,1181.3735 -1.31357196711896,43.0240783090306,1178.24159999999 -1.3138619810219,43.0234791705558,1168.56389999999 -1.31436590086202,43.023344221853,1164.2672 -1.31506294052188,43.0232362628085,1157.6645 -1.31554774960261,43.0231961971989,1153.9151 -1.31604982520142,43.0231452356129,1148.40489999999 -1.31643572797276,43.023186306722,1145.073 -1.317031849097,43.0232193314517,1140.0721 -1.31745379407415,43.0231071815357,1134.4083 -1.31796894555025,43.0225702372004,1129.59299999999 -1.31824990713007,43.0223372197558,1124.85739999999 -1.31845777818515,43.0217722798351,1115.61350000001 -1.31872667000083,43.0213972731807,1110.4909 -1.31931591811481,43.021075240556,1095.0079 -1.3203998657608,43.020972310945,1083.6054 -1.32130092000824,43.0205002424595,1075.73729999999 -1.32259592413528,43.0203542291981,1063.3576 -1.3232917896971,43.0202233042235,1060.76669999999 -1.32388673762157,43.0203262337766,1060.57490000001 -1.32417775673932,43.0203181870444,1058.7536</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_29c_variante-oglesia_de_gonzar</name>
+<visibility>1</visibility>
+<Schema name="ES01c_29c_variante-oglesia_de_gonzar" id="kml_schema_ft_ES01c_29c_variante-oglesia_de_gonzar">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_29c_variante-oglesia_de_gonzar">
+<name>ES01c_29c_variante-oglesia_de_gonzar</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>29c Variante-Oglesia de Gonzar</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>0.9800000000000001 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_29c_variante-oglesia_de_gonzar">
+<SimpleData name="id">ES01c_29c</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-7.68970599398146,42.8240264213554,528.545400000003 -7.68985200704605,42.823865992193,528.015599999999 -7.68993766949323,42.8236432007108,528.931899999996 -7.68996281513468,42.8236007886506,528.153399999996 -7.69004529305415,42.8236054824353,529.0 -7.69027831064898,42.8236685144462,529.595400000006 -7.69062431564527,42.8237749644539,530.1103 -7.69098859237446,42.8238314583569,532.0 -7.69133727974018,42.8238842645338,532.0 -7.69166149160769,42.823924832893,532.730200000005 -7.69225962495816,42.8240473765451,532.998200000002 -7.6926718465707,42.8241293510973,534.0 -7.69286965918951,42.8242151818644,534.020199999999 -7.69342789386663,42.8245117339533,535.379700000005 -7.69379870943276,42.8246674697129,536.0 -7.69422065440991,42.8248020828038,536.260699999999 -7.69458778239181,42.8248371194638,536.666700000002 -7.69525883738377,42.8248885840107,538.422500000001 -7.69590860230351,42.8249452455629,543.716400000005 -7.69617900239056,42.8249786060158,544.0 -7.6962532661151,42.8250288970258,544.447499999995 -7.69631294569097,42.8250879059443,544.971699999995 -7.69641872501066,42.8251221037224,545.0 -7.69662810523539,42.8251931827274,544.0 -7.69687419780914,42.8253192460828,542.445099999997 -7.69711073500323,42.8254850404363,541.551999999996 -7.69728105558111,42.8256095957526,541.761199999994 -7.69739018741339,42.8256533491657,541.958400000003 -7.69764834975131,42.825665251243,542.896500000003 -7.69785722691951,42.825694587729,544.0 -7.69809108264247,42.8257914829592,545.669299999994 -7.69829828265601,42.8258999447175,547.665299999993 -7.69854253188682,42.8259879544585,548.274099999995 -7.69865082559095,42.8260751266847,549.8603 -7.69870363215662,42.8261790617024,551.320600000006 -7.69873665602308,42.8263210511724,553.420599999998 -7.69879180898828,42.8264424212943,555.170899999997 -7.69891988449329,42.8266752703703,557.4568 -7.69903438196277,42.8268392209614,559.203599999993 -7.69911736293882,42.8270576532906,562.131800000003 -7.69915843391361,42.8273082719848,564.055600000007</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

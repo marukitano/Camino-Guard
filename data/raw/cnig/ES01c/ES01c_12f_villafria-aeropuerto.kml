@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_12f_villafria-aeropuerto</name>
+<visibility>1</visibility>
+<Schema name="ES01c_12f_villafria-aeropuerto" id="kml_schema_ft_ES01c_12f_villafria-aeropuerto">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_12f_villafria-aeropuerto">
+<name>ES01c_12f_villafria-aeropuerto</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>12f Villafría-Aeropuerto</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>3.52 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_12f_villafria-aeropuerto">
+<SimpleData name="id">ES01c_12f</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-3.59560880801466,42.3611944920817,900.458499999993 -3.59590049817391,42.3608392674636,900.169299999994 -3.59735090276031,42.3606389397962,901.482099999994 -3.59918117523594,42.3601967102827,900.282399999996 -3.60087163751399,42.3596726739878,898.394 -3.60237166324006,42.3595828197331,897.708899999998 -3.60309150034519,42.3592904594585,897.386700000003 -3.60383765808818,42.3588539298032,897.032900000006 -3.60502989943833,42.3585592222467,897.1823 -3.60580472242203,42.3581840479268,897.049700000003 -3.60654970606691,42.3576236338066,898.767200000002 -3.60707407785108,42.3572499687325,900.869500000001 -3.6077109348785,42.3569993499131,901.868400000007 -3.609042316283,42.3567036359324,899.090500000006 -3.61041091399139,42.3564323978257,898.4179 -3.60972108331167,42.3550510600463,898.006699999998 -3.61057888727142,42.3546547638111,898.859500000006 -3.61152051033541,42.3542993714447,899.563099999999 -3.61215736736283,42.3540485848533,898.588000000003 -3.6132698131629,42.3537050939707,897.593699999998 -3.61468031997425,42.3533379665137,896.501499999998 -3.61512389009523,42.3532457657508,895.432499999995 -3.61693773418095,42.3528164448318,892.347200000004 -3.61827699470879,42.3517274682113,890.956399999995 -3.61932758251841,42.3511866673265,890.403399999996 -3.62001724521317,42.350688950048,886.353300000002 -3.62106347439703,42.3496940181879,885.098899999997 -3.62169060895813,42.3484746188815,884.773799999995 -3.62280691032742,42.3471834709431,884.481899999999 -3.62425982929825,42.3463003531124,884.169399999999 -3.62620795175601,42.3452554650352,883.810400000002 -3.62672779692947,42.3449743364978,883.650500000003 -3.62713784012745,42.3443354673698,883.407900000006 -3.62726792696035,42.3439973412992,883.240699999995 -3.62731302148932,42.3438364090904,883.028300000005</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

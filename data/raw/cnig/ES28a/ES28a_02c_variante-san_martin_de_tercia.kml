@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES28a_02c_variante-san_martin_de_tercia</name>
+<visibility>1</visibility>
+<Schema name="ES28a_02c_variante-san_martin_de_tercia" id="kml_schema_ft_ES28a_02c_variante-san_martin_de_tercia">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES28a_02c_variante-san_martin_de_tercia">
+<name>ES28a_02c_variante-san_martin_de_tercia</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Norte</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES28a Camino de El Salvador</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>02c Variante-San Martín de Tercia</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>1.46 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES28a_02c_variante-san_martin_de_tercia">
+<SimpleData name="id">ES28a_02c</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-5.71054352449851,42.939753345837,1250.9607 -5.71040891105486,42.9402876087459,1243.78660000001 -5.71029759901139,42.9408377965131,1236.1403 -5.71040371430095,42.9412003977178,1230.61659999999 -5.71096094286496,42.9415522704976,1225.2325 -5.71067562355768,42.9422558469385,1216.8262 -5.71081526577029,42.9428665528777,1210.40919999999 -5.71138992883729,42.9436162303606,1203.9774 -5.71200968733159,42.9443647341389,1204.4191 -5.71260262302982,42.9450143317612,1204.90300000001 -5.71301216227292,42.9450877570716,1206.06389999999 -5.71357961725812,42.9451574946288,1207.98609999999 -5.71422267715256,42.9454079456633,1209.39870000001 -5.7148679163599,42.9457080176354,1209.71249999999 -5.71562094621482,42.9458894024687,1210.0772 -5.71657028041715,42.945916894577,1213.7359 -5.71792781357623,42.9459844526872,1215.6915 -5.71924679014495,42.9462022149731,1218.268 -5.72061974558079,42.9466176219193,1220.1922 -5.72180343766436,42.9468385691315,1220.7867 -5.72199504831448,42.9468677382363,1220.8122</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

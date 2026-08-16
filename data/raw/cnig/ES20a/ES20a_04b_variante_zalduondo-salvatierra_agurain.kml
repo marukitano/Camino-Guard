@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES20a_04b_variante_zalduondo-salvatierra_agurain</name>
+<visibility>1</visibility>
+<Schema name="ES20a_04b_variante_zalduondo-salvatierra_agurain" id="kml_schema_ft_ES20a_04b_variante_zalduondo-salvatierra_agurain">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES20a_04b_variante_zalduondo-salvatierra_agurain">
+<name>ES20a_04b_variante_zalduondo-salvatierra_agurain</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Norte</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES20a Camino del Interior Vasco Riojano</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>04b Variante Zalduondo-Salvatierra Agurain</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>5.64 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES20a_04b_variante_zalduondo-salvatierra_agurain">
+<SimpleData name="id">ES20a_04b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-2.34794093951958,42.8846886046812,606.554699999993 -2.34787653660191,42.884424645585,605.481100000005 -2.34777273716916,42.8841467560321,604.296600000001 -2.3477612441234,42.8839168222838,603.462899999999 -2.34773654853792,42.8837118180801,603.007899999997 -2.34743798806337,42.8833169667258,602.8073 -2.34744109982751,42.8829051652211,602.166500000007 -2.34726658321893,42.8821403734557,601.257700000002 -2.34669420366938,42.8800364889494,599.035399999993 -2.34611773229365,42.8779796201642,597.136599999998 -2.34576282948447,42.8766057475443,595.242199999993 -2.34571665787549,42.8761929150995,594.662299999996 -2.34568044768473,42.8752743269477,593.797000000006 -2.34561471436212,42.8750428427041,594.225300000006 -2.3455286494697,42.8747963919279,594.525999999998 -2.34551372845281,42.8743418436141,593.772200000007 -2.34561839835308,42.8733975665438,591.739499999996 -2.3457695372047,42.8730458180042,591.381800000003 -2.34614839359095,42.8725744031128,591.598100000003 -2.34699174904765,42.8715551107536,598.169399999999 -2.34737242631897,42.8716180754209,599.379400000005 -2.34822638728594,42.8717924898275,598.013300000006 -2.34883204672186,42.8720474493006,598.213399999993 -2.34956912339562,42.8723302565782,600.991800000003 -2.35023930253021,42.872465162163,602.168000000005 -2.35029079036901,42.8717778473421,603.111900000004 -2.35043510382109,42.8710119571004,602.914000000004 -2.3508947969048,42.8692254091185,604.228700000007 -2.35106477522455,42.8685584762118,603.696100000001 -2.35114183181131,42.8683270787047,603.897400000002 -2.35131391757872,42.8681682314536,604.332500000004 -2.3516415726887,42.8681081226755,604.612699999998 -2.35370937409849,42.8680660281925,604.7019 -2.35545823854813,42.8680715330346,605.171499999997 -2.3557219461863,42.8669374205212,605.861600000004 -2.35618322299987,42.8650268406265,602.589099999997 -2.35646880641185,42.863746194185,605.3462 -2.3576067419081,42.8637207994165,604.225699999995 -2.35948135073458,42.8632331484372,604.666800000006 -2.36007479577757,42.8628443153123,605.659599999999 -2.36056688839864,42.8629177463711,605.6201 -2.36129770201827,42.8627641231841,604.5052 -2.36209431363917,42.8625592883812,601.930399999997 -2.36544704007854,42.8613296924259,595.2111 -2.37538428549817,42.8605381506961,595.218099999998 -2.38650186330222,42.8597200849575,592.615300000005</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

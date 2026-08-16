@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES01b_02d_variante-los_corrales_de_arres</name>
+<visibility>1</visibility>
+<Schema name="ES01b_02d_variante-los_corrales_de_arres" id="kml_schema_ft_ES01b_02d_variante-los_corrales_de_arres">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01b_02d_variante-los_corrales_de_arres">
+<name>ES01b_02d_variante-los_corrales_de_arres</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01b Camino Francés por Aragón</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>02d Variante-Los Corrales de Arrés</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>3.75 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01b_02d_variante-los_corrales_de_arres">
+<SimpleData name="id">ES01b_02d</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-0.795270782044851,42.5530532370124,608.092000000004 -0.795383770344641,42.5534552327293,603.0 -0.79691078505507,42.5543552820098,601.604200000002 -0.797367934109908,42.5549053021696,601.0 -0.797834973616023,42.5551973276214,600.116500000004 -0.798198748186964,42.5556982303745,599.657800000001 -0.798567719511814,42.5560583166548,599.924100000004 -0.79907080122374,42.5563677767455,598.049400000004 -0.800068918437623,42.5567932423275,598.997300000003 -0.801012720814469,42.5570943202983,598.074099999998 -0.801569111250282,42.5570027895833,598.0383 -0.802732687359717,42.5570333000571,599.0 -0.803357977679541,42.5573281754182,599.094899999996 -0.80421578163929,42.5573682406746,599.0 -0.805088169747683,42.5576280796048,596.623500000002 -0.805844385028575,42.5580136471263,593.382100000003 -0.806856919304442,42.5582652717968,592.157300000006 -0.807424876447882,42.558394185417,592.0 -0.808633044029704,42.5589467207667,590.977199999994 -0.809997786168884,42.5596207932136,590.0 -0.810629948600637,42.5599704864764,589.0 -0.81129899226469,42.5604212653808,589.0 -0.81389369421618,42.5617412469122,588.0 -0.815295818847607,42.5625911722896,586.821299999996 -0.816804896896758,42.5631142030838,585.753800000006 -0.818346999710701,42.5635913008965,585.000499999995 -0.820021703742064,42.5639052868924,585.0 -0.822537783343257,42.5638362199407,594.0 -0.824104863813696,42.5645242064412,590.034100000004 -0.82538226635108,42.5648752411138,589.0 -0.830396991050433,42.5656792331262,586.0 -0.833358317927254,42.5651806771925,580.0 -0.833909343624201,42.5652581259906,580.554300000003 -0.834208745820202,42.5653142852409,581.0 -0.834365822535838,42.5653771492432,580.900500000003 -0.834786929384833,42.5654613032524,582.767500000002 -0.835233013890289,42.5655996048387,585.323199999999</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

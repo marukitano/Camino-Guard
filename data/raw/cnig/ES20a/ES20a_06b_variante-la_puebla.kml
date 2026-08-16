@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES20a_06b_variante-la_puebla</name>
+<visibility>1</visibility>
+<Schema name="ES20a_06b_variante-la_puebla" id="kml_schema_ft_ES20a_06b_variante-la_puebla">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES20a_06b_variante-la_puebla">
+<name>ES20a_06b_variante-la_puebla</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Norte</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES20a Camino Vasco del Interior</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>06b Variante-La Puebla</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>8.93 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES20a_06b_variante-la_puebla">
+<SimpleData name="id">ES20a_06b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-2.77548333628084,42.8070212156695,566.905199999994 -2.77616444970906,42.8069771267977,565.604699999996 -2.7776475439886,42.8078236990859,554.580600000001 -2.77683164913181,42.8107863663632,535.592099999994 -2.77691865366202,42.8123371860144,532.656199999998 -2.77629688383982,42.8129291163778,531.293000000005 -2.77870181938247,42.8158979862906,518.050700000007 -2.77972508223777,42.8154897876326,516.983099999998 -2.78099527579501,42.8153099122281,513.685299999997 -2.78145762160376,42.8158584234965,510.615399999995 -2.78281766914728,42.8165678680128,505.679699999993 -2.78418039906026,42.8164337575604,503.713799999998 -2.78994915972761,42.8139367887364,494.266000000003 -2.79444638655135,42.8118703140479,493.543900000004 -2.79593719196931,42.8104596396326,492.972500000003 -2.79686992979681,42.8092987462617,497.461899999995 -2.79820013800154,42.8095978128751,493.8609 -2.80046593438815,42.8079603239788,505.777400000006 -2.80449729400726,42.8060294687804,505.966199999995 -2.80576849367758,42.8054846447884,506.9231 -2.8064531276034,42.804323248761,516.752699999997 -2.80744470687864,42.8039831112388,522.352100000004 -2.81019078573528,42.8071798010346,501.831699999995 -2.80945334614212,42.8052179328955,502.031300000002 -2.81292798025376,42.8029439225206,491.554399999994 -2.81727064384801,42.800169512504,493.789699999994 -2.81987892473336,42.7975746432417,492.097699999998 -2.82245636016677,42.7948200142742,485.340400000001 -2.82342748749793,42.7907177434506,479.859400000001 -2.82480010786215,42.7868667618999,481.249400000001 -2.82545456647927,42.7852720208595,476.733600000007 -2.8254639547723,42.7818066070769,477.569499999998 -2.82565405625273,42.7801880610627,482.477499999994 -2.82510269458583,42.7780672722622,486.206600000005 -2.8262548710743,42.7754928541042,479.498500000002 -2.82805731553906,42.7726002594508,479.397599999997</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

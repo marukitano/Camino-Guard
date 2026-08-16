@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES03a_23b_barcia-barcellina</name>
+<visibility>1</visibility>
+<Schema name="ES03a_23b_barcia-barcellina" id="kml_schema_ft_ES03a_23b_barcia-barcellina">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES03a_23b_barcia-barcellina">
+<name>ES03a_23b_barcia-barcellina</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Norte</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES03a Camino del Norte</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>23b Barcia-Barcellina</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.91 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES03a_23b_barcia-barcellina">
+<SimpleData name="id">ES03a_23b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-6.49241415811139,43.5373087781542,126.496899999998 -6.49267047620803,43.537736590422,125.0 -6.49698765908928,43.5386158521574,113.0 -6.49817839306636,43.5385094020323,109.0 -6.49941472373066,43.5381908892784,107.0 -6.50032700961407,43.5381535063322,105.0 -6.50218930074135,43.5384696717092,100.0 -6.50329805895721,43.538715764078,97.0 -6.5051400661254,43.5388532276795,91.3686000000016 -6.50586560393935,43.5387809755514,89.0 -6.50625955292066,43.5386041175686,89.0 -6.50764709340347,43.5385546642619,91.6870999999956 -6.50849567705515,43.5395834588179,87.0040000000008 -6.50887085124702,43.5401029694311,83.1695000000036 -6.51000961678662,43.5403550967745,84.0 -6.51147460552163,43.5392629349993,86.0 -6.51196293509996,43.5391836420251,86.0 -6.51247356086367,43.5388094738437,83.5002999999997 -6.51487162339609,43.5386713400603,76.0046000000002 -6.51556866215765,43.5384492201324,78.4619999999995 -6.51590293246139,43.5380948329159,73.7571999999927 -6.5162242948728,43.5380277777922,70.4706000000006 -6.51630610264911,43.5382478864074,62.2520999999979 -6.51617350053339,43.5386825719117,59.9804000000004 -6.51638573021422,43.5389417407001,56.3920000000071 -6.51667926461475,43.5392414776011,56.0277999999962 -6.51700750003642,43.5394612509818,57.0 -6.51731846894002,43.5400617300662,63.7853999999934 -6.51742223693173,43.5404892076315,69.3757999999943 -6.51817493171503,43.5405451984728,76.0 -6.5186800247549,43.5407522314239,78.0644000000029 -6.51957873260281,43.5407750303554,80.0 -6.5197790596061,43.540661539622,80.0 -6.52200395210458,43.5416118797063,77.0</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

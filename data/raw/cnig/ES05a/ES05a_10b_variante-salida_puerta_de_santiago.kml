@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES05a_10b_variante-salida_puerta_de_santiago</name>
+<visibility>1</visibility>
+<Schema name="ES05a_10b_variante-salida_puerta_de_santiago" id="kml_schema_ft_ES05a_10b_variante-salida_puerta_de_santiago">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES05a_10b_variante-salida_puerta_de_santiago">
+<name>ES05a_10b_variante-salida_puerta_de_santiago</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Norte</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES05a Camino Primitivo</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>10b Variante-Salida puerta de Santiago</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>0.76 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES05a_10b_variante-salida_puerta_de_santiago">
+<SimpleData name="id">ES05a_10b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-7.5586386768744,43.0093251540123,450.773799999995 -7.55873758318379,43.0092969906545,450.142699999997 -7.55884906321225,43.0092755334438,450.0 -7.5589731151631,43.0092299356144,449.624500000005 -7.55903178862588,43.0090457013837,449.0 -7.55922440449079,43.0087915621434,446.098100000003 -7.55932113148732,43.0087831801984,445.510999999999 -7.55941584715591,43.0089015330242,445.109899999996 -7.55948089057239,43.0088651550457,445.0 -7.55944266905369,43.008754681577,445.0 -7.5594590974436,43.0086319706343,444.087599999999 -7.55954995754299,43.0084986985413,443.436700000006 -7.55984583834307,43.0083365923263,441.0 -7.56015244862092,43.0082232689392,439.6731 -7.56038596837396,43.0081474969906,438.026400000002 -7.56064279042547,43.0080735682095,436.106400000004 -7.56105903559218,43.0079315791379,434.0 -7.56148936185092,43.0077768491047,431.0 -7.56162581953584,43.0076864920242,430.611900000004 -7.56186621229914,43.0075642841078,429.544999999998 -7.56200987806591,43.0074189416632,429.0 -7.56232520559525,43.0070139283363,425.633300000001 -7.56257381255348,43.0068699273191,423.169200000004 -7.56271664019209,43.0067472158958,421.692200000005 -7.5628735498211,43.0065244250599,419.0 -7.56310204080519,43.0063973556108,416.0 -7.563424743503,43.0062246884662,412.026199999993 -7.56408004114657,43.005833420624,404.961899999995 -7.56430417260658,43.0055950395838,399.676399999997 -7.56440257675776,43.0054307545584,394.617199999993 -7.56444549197383,43.0051967313474,391.305500000002 -7.56450299133854,43.0048589406262,386.668399999995</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

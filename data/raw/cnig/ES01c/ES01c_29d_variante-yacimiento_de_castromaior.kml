@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_29d_variante-yacimiento_de_castromaior</name>
+<visibility>1</visibility>
+<Schema name="ES01c_29d_variante-yacimiento_de_castromaior" id="kml_schema_ft_ES01c_29d_variante-yacimiento_de_castromaior">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_29d_variante-yacimiento_de_castromaior">
+<name>ES01c_29d_variante-yacimiento_de_castromaior</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>29d Variante-Yacimiento de Castromaior</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>0.41000000000000003 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_29d_variante-yacimiento_de_castromaior">
+<SimpleData name="id">ES01c_29d</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-7.71721389109974,42.8335190947325,675.555999999997 -7.71737281205666,42.8333826369781,677.185800000007 -7.71746668959709,42.833335363323,678.167799999996 -7.71762879598001,42.833260931996,680.522800000006 -7.71775318300247,42.8332133229355,681.0 -7.71801821924895,42.8330544018209,682.799899999998 -7.71828174632573,42.8329565014941,685.577999999994 -7.71837595893778,42.833016180718,687.125899999999 -7.71840412202026,42.8331031842697,688.0 -7.71851006932486,42.8331202839084,687.720499999996 -7.71863613260364,42.8331816395366,689.041800000006 -7.71880259761231,42.8332297512605,689.0 -7.71896989985084,42.8332887602555,691.843200000003 -7.71916670725483,42.8333077030697,691.869699999996 -7.71937541643807,42.8333372072077,695.177599999995 -7.71944884203446,42.8334173380748,694.9424 -7.71954858647201,42.8334974694969,695.345100000006 -7.71966408915631,42.8335485987695,695.921000000002 -7.71977975982556,42.8335605013029,695.845100000006 -7.71987564869394,42.8335636864225,696.551699999996 -7.71992895741783,42.833451871826,695.210099999997 -7.72014286335497,42.8334748383211,695.9421 -7.72029289997372,42.8335313319233,696.751099999994 -7.72042751341738,42.8335883294275,694.0 -7.72047629553055,42.8335856469452,693.804300000003 -7.72088482955884,42.8336991378481,692.787899999996 -7.72104525968541,42.8338101140539,692.066300000006 -7.7213421465986,42.8340020600875,691.0</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

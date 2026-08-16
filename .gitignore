@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Interrupted downloads
+*.part
+
+# Editor/OS noise
+.DS_Store

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_24b_variante-cuatro_vientos</name>
+<visibility>1</visibility>
+<Schema name="ES01c_24b_variante-cuatro_vientos" id="kml_schema_ft_ES01c_24b_variante-cuatro_vientos">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_24b_variante-cuatro_vientos">
+<name>ES01c_24b_variante-cuatro_vientos</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>24b Variante-Cuatro Vientos</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>6.42 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_24b_variante-cuatro_vientos">
+<SimpleData name="id">ES01c_24b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-6.59395387428734,42.5472242955218,511.693599999999 -6.59622989619685,42.5476313207598,509.7356 -6.59774685247105,42.5478903213602,513.706900000005 -6.59796696127522,42.5477622457218,514.401899999997 -6.59816192443797,42.5477072605935,514.668300000005 -6.59858085197408,42.5477922531118,514.9611 -6.59864187273471,42.5479992859735,515.288400000005 -6.59956689942379,42.5482643219509,516.109700000001 -6.60049494355392,42.5485773023803,516.406300000002 -6.60191886131416,42.5491692321286,516.231 -6.60290993753283,42.5497132175518,515.956200000001 -6.60417292300823,42.5503832668885,515.521800000002 -6.60642195503502,42.5515113033497,513.974799999996 -6.60867199317492,42.5526522480257,513.646299999993 -6.61100987307489,42.5538761735134,517.723499999993 -6.61325789988686,42.5549913021091,519.538700000005 -6.61536594851634,42.5559532095,519.089999999997 -6.61579895804284,42.5560013214202,518.9902 -6.61609785628397,42.5560283114051,518.728799999997 -6.61630891276503,42.5562303150711,518.836899999995 -6.61778898870525,42.5569422736226,519.256099999999 -6.61928599699023,42.5576413242771,518.691999999995 -6.62072785231006,42.5582443188694,518.149099999995 -6.62167986888186,42.5586912420311,517.863500000007 -6.62223793557402,42.5588942514376,517.695800000001 -6.62388699090739,42.5596502994592,517.263500000001 -6.62551693637971,42.5603692988358,516.423999999999 -6.62751886971963,42.5612111772825,515.757100000003 -6.62977997240888,42.5622413132362,514.633000000002 -6.63061095357256,42.5625941908616,513.983900000007 -6.63229085525616,42.5633121850321,512.034899999999 -6.63338385522527,42.5638891955342,512.070000000007 -6.6349249519261,42.5645012416327,510.988400000002 -6.63667190835407,42.565229293579,509.925600000002 -6.63860997147729,42.5660973239515,508.682700000005 -6.64061492315656,42.5670002223301,507.203200000004 -6.64238199555867,42.5677892945897,506.007800000007 -6.64443891477713,42.5687143214618,504.467300000004 -6.64642492278367,42.5695692757037,503.074099999998 -6.64843088057605,42.5704721741074,501.709900000002 -6.65014883489506,42.5712612467715,500.648300000001 -6.65244095012288,42.5722533289761,499.128599999996 -6.65470087871405,42.5732462487756,497.557199999996 -6.65702886906108,42.5742852699962,496.9234 -6.65930690229849,42.5753013241682,496.371100000004 -6.65940396526494,42.5755432257486,496.766799999998 -6.6600178550655,42.5758541946658,496.349400000006 -6.66074288982287,42.5760763145606,495.104999999996</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

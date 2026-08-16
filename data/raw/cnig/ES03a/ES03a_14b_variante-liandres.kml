@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES03a_14b_variante-liandres</name>
+<visibility>1</visibility>
+<Schema name="ES03a_14b_variante-liandres" id="kml_schema_ft_ES03a_14b_variante-liandres">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES03a_14b_variante-liandres">
+<name>ES03a_14b_variante-liandres</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Norte</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES03a Camino del Norte</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>14b Variante-Liandres</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.05 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES03a_14b_variante-liandres">
+<SimpleData name="id">ES03a_14b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-4.24335775912967,43.3912199170309,101.0 -4.24476457745846,43.3916680136632,95.0 -4.24578733725719,43.3919811612887,93.0 -4.24693431699175,43.3921538290562,89.0 -4.24790326501001,43.392334710209,81.8074999999953 -4.24874011396913,43.3925343672032,77.394100000005 -4.24954678851786,43.3925422461794,76.3144999999931 -4.24986027180593,43.3925980693821,75.5629000000044 -4.25016738514031,43.392347953721,72.9562000000005 -4.24997979804439,43.3920844263496,68.0109999999986 -4.24929566717515,43.3917124374804,62.6842999999935 -4.24960277961121,43.3914623220809,60.2394000000058 -4.2502267287463,43.3914365057304,57.0 -4.2502783612139,43.3914170592509,57.0 -4.25019051855553,43.3909436494625,48.7970000000059 -4.25046997186399,43.3906179288837,46.0 -4.25080005062864,43.3902159329704,43.8239999999932 -4.25022387839191,43.3900323690121,40.5374000000011 -4.25006462236338,43.3898823330766,40.0 -4.25034809832771,43.3897463783972,37.0 -4.25096802390867,43.3895309639311,39.4187999999995 -4.25153329958097,43.3891831146566,29.9922999999981 -4.25248011939887,43.3884138238736,28.5393999999942 -4.25296459340798,43.3879340432285,27.0 -4.25318587541193,43.3873055684791,26.0 -4.2529119548273,43.3866444035913,27.9423999999999 -4.2533429530259,43.3860893544731,27.0 -4.25343951203747,43.3857277586912,27.0 -4.25369298067802,43.3854023737201,26.7143000000069 -4.25368208411363,43.3848712959022,28.0 -4.25351729625961,43.3844555537638,30.6926999999996 -4.25358451898894,43.3839236378581,34.0 -4.25331579515821,43.3835090689582,36.0 -4.25281371955941,43.3831350688343,35.2921999999962 -4.2522546458558,43.3825149756413,35.1523000000016 -4.25217216793632,43.382147009881,34.3657999999996 -4.25208482923282,43.3819537234965,34.0</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

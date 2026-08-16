@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES12a_13c_variante-san_pedro_de_las_duenas</name>
+<visibility>1</visibility>
+<Schema name="ES12a_13c_variante-san_pedro_de_las_duenas" id="kml_schema_ft_ES12a_13c_variante-san_pedro_de_las_duenas">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES12a_13c_variante-san_pedro_de_las_duenas">
+<name>ES12a_13c_variante-san_pedro_de_las_duenas</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Centro</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES12a Camino de Madrid</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>13c Variante-San Pedro de las Dueñas</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>5.57 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES12a_13c_variante-san_pedro_de_las_duenas">
+<SimpleData name="id">ES12a_13c</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-5.02202315260483,42.3198586331742,793.194300000003 -5.02305714403957,42.3201198128768,794.189299999998 -5.02347120989338,42.3202396740299,793.833100000003 -5.0242220613337,42.3202012854347,791.683300000004 -5.02508439100586,42.3204400015939,788.085200000001 -5.02632742759375,42.3208242284277,787.119099999996 -5.02875030069601,42.3217457343988,788.805300000007 -5.03161272036511,42.3235729895261,789.352700000003 -5.03497822174613,42.3261524362776,795.578500000003 -5.03830818487619,42.328681591795,804.975000000006 -5.04051614592818,42.3303425498904,811.213699999993 -5.04103850548611,42.3306379283303,811.556899999996 -5.0421727453133,42.3308209888174,812.671600000001 -5.04369372514166,42.3313269208098,798.339999999997 -5.04552232136098,42.3318273202172,790.988599999997 -5.04762014356924,42.3321961239319,790.533599999995 -5.04801208122265,42.3316311834462,790.442299999995 -5.04871817320567,42.3312635531898,789.526599999997 -5.04991996993547,42.3314199599266,790.382100000003 -5.05006480980031,42.3316714165437,790.180699999997 -5.04943516085474,42.3322916773021,790.636499999993 -5.04855958732034,42.3327136223761,790.252800000002 -5.04738679180116,42.3324050006431,790.566900000005 -5.04576975511947,42.3321042580699,791.040599999993 -5.04473945126898,42.3319706503944,792.398000000001 -5.04443870878658,42.3332448674821,792.396500000003 -5.04463501313403,42.3340282406111,792.785699999993 -5.04430778292718,42.336596958137,792.639999999999 -5.04351804072325,42.3386158237572,792.842499999999 -5.04269661404093,42.340711299105,793.324200000003 -5.04183025991631,42.3424777012927,794.365699999995 -5.0389001144613,42.3417689281449,805.104200000002 -5.03652920979653,42.341430802215,814.604000000007 -5.03428285924089,42.3417754657015,811.801999999996 -5.03201052581392,42.3423742687413,809.921799999996 -5.03014588738879,42.3428895886103,807.875100000005</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

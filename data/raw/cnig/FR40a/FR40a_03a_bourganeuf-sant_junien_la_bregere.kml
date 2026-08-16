@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>FR40a_03a_bourganeuf-sant_junien_la_bregere</name>
+<visibility>1</visibility>
+<Schema name="FR40a_03a_bourganeuf-sant_junien_la_bregere" id="kml_schema_ft_FR40a_03a_bourganeuf-sant_junien_la_bregere">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_FR40a_03a_bourganeuf-sant_junien_la_bregere">
+<name>FR40a_03a_bourganeuf-sant_junien_la_bregere</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Chemins vers Via Podiensis</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>FR40a Voie de Rocamadour en Limousin et Haut Quercy</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>03a Bourganeuf-Sant Junien la Bregere</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>11.82 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_FR40a_03a_bourganeuf-sant_junien_la_bregere">
+<SimpleData name="id">FR40a_03a</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>1.75567008533072,45.953560005586,444.4954 1.75481010205811,45.952100046252,439.800099999993 1.75593009190995,45.9489100615259,425.986099999995 1.75468001522517,45.9489400684638,425.919800000003 1.75855010748781,45.9392100200555,434.411699999997 1.75709014752176,45.9370300548216,441.6391 1.75837006444362,45.9365801141069,449.657200000001 1.75816001407568,45.9353300372907,457.262100000007 1.76086016027523,45.9351201542284,483.038400000005 1.76086016027523,45.9281100331197,553.259699999995 1.75623016424912,45.9227600321206,570.102499999994 1.7566601563346,45.9194200114616,575.251799999998 1.75794007235816,45.9188200344016,575.228300000002 1.76181016462081,45.9210600146021,607.2402 1.76297005224766,45.9208801390326,606.768400000001 1.76515001820214,45.9160201440038,592.543900000004 1.76747012852746,45.9143501331286,592.727799999993 1.76674006500114,45.9114800018894,587.177299999996 1.76558000938929,45.9114501628095,572.155299999999 1.76884006742058,45.9093600510081,587.095000000001 1.77640004091671,45.899860002034,625.641399999993 1.77627012117043,45.8929000046753,621.957599999994 1.77957007697677,45.8899200706384,632.616800000003 1.76975000690448,45.8863301014178,610.562699999995 1.76781009864168,45.8795501476338,619.733999999997 1.76507005466714,45.8788601492233,646.783599999995 1.75936013454917,45.8810101077218,617.489799999996 1.75792012347062,45.8814300410595,597.7546 1.75629001091168,45.8819101564551,566.797300000006 1.75522014525606,45.8815200625432,560.784299999999 1.75410015540422,45.8814300410595,541.404699999999 1.75428003046346,45.882390104486,530.447899999999</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES03a_01b_variante-ciclistas</name>
+<visibility>1</visibility>
+<Schema name="ES03a_01b_variante-ciclistas" id="kml_schema_ft_ES03a_01b_variante-ciclistas">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES03a_01b_variante-ciclistas">
+<name>ES03a_01b_variante-ciclistas</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Norte</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES03a Camino del Norte</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>01b Variante-Ciclistas</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>0.85 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES03a_01b_variante-ciclistas">
+<SimpleData name="id">ES03a_01b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-1.80985808382961,43.3587509386813,40.1002000000008 -1.80977191742755,43.3590719659281,46.7936999999947 -1.80949799684288,43.3593110176767,47.2145000000019 -1.80937796844621,43.3595369934982,46.2992999999988 -1.80905208032239,43.3598960741914,41.9055999999982 -1.80894898247384,43.3599530710766,41.0755000000063 -1.8086919933357,43.3603550671474,32.607600000003 -1.80854598027108,43.3609590676061,23.0 -1.80827993880982,43.3612289648743,23.0933999999979 -1.8077740076418,43.3615689347901,24.9961999999941 -1.80755104848324,43.3617010333714,27.0 -1.80694302557979,43.3618829210388,29.0 -1.80758591748931,43.3621789695684,34.0218000000023 -1.80775707619531,43.3624180214843,36.8733000000066 -1.80826300736333,43.3626560673446,38.8956999999937 -1.80853793406108,43.362876008538,41.4214999999967 -1.80864103101129,43.3630900822213,41.9199999999983 -1.80863197868818,43.3630900822213,41.9416000000056 -1.8085199965015,43.363208938065,42.3991999999998 -1.80818606126935,43.3633980339082,45.0 -1.80692592614837,43.364340997773,52.0 -1.80710596919257,43.3643909535824,53.0</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

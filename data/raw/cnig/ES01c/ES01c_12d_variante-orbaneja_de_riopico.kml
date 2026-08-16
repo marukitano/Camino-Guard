@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_12d_variante-orbaneja_de_riopico</name>
+<visibility>1</visibility>
+<Schema name="ES01c_12d_variante-orbaneja_de_riopico" id="kml_schema_ft_ES01c_12d_variante-orbaneja_de_riopico">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_12d_variante-orbaneja_de_riopico">
+<name>ES01c_12d_variante-orbaneja_de_riopico</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>12d Variante-Orbaneja de Riopico</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>3.2800000000000002 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_12d_variante-orbaneja_de_riopico">
+<SimpleData name="id">ES01c_12d</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-3.59638396606994,42.3622734105909,906.448799999998 -3.59640492107057,42.3618323548408,906.792400000006 -3.59592899722633,42.361266408832,901.227499999994 -3.59545189928398,42.3611234135989,900.300600000002 -3.59479391927098,42.3610094198257,900.532000000007 -3.59497396231514,42.3605993770673,900.398499999996 -3.59610283740346,42.3596974845327,900.043399999995 -3.59687799545875,42.3589913927894,899.855899999995 -3.59834399030691,42.3584572977671,899.173999999999 -3.59990386269547,42.3580864827341,899.566699999996 -3.60068689987413,42.3577044357946,901.664099999995 -3.60139399797026,42.3574214624283,901.970100000006 -3.60220469517481,42.3570583581852,902.825599999996 -3.60272889987236,42.3568354000651,901.710099999997 -3.60324690080451,42.3563784181171,901.349400000006 -3.60341789242392,42.3557403878047,901.311100000006 -3.60409196485692,42.3552314385876,903.7601 -3.6053479093371,42.3547053905947,902.488500000007 -3.60765192634413,42.3537944454623,899.465599999996 -3.6107277497921,42.351952438065,896.413799999995 -3.61263094480755,42.350869496458,896.179399999994 -3.6131799591766,42.3506074778078,893.988500000007 -3.61385788807711,42.3502063204206,890.880300000004 -3.61535489546379,42.3486984159663,886.588799999998 -3.61592184739245,42.3480644086869,886.398300000001 -3.61687889363153,42.3471693891173,886.464500000002 -3.61736688723994,42.3465754472338,886.474300000002 -3.6175397222023,42.345938422859,886.242800000007 -3.61796384649234,42.3450004880426,886.627600000007 -3.61871687724556,42.3444023553777,886.469100000002 -3.61952472499405,42.3439614670031,886.141300000003 -3.62063851197883,42.34351119109,885.768700000001 -3.62148324006133,42.3436456367334,885.231400000004</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

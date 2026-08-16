@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>PT06a_14b_variante_por-felgueiras</name>
+<visibility>1</visibility>
+<Schema name="PT06a_14b_variante_por-felgueiras" id="kml_schema_ft_PT06a_14b_variante_por-felgueiras">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_PT06a_14b_variante_por-felgueiras">
+<name>PT06a_14b_variante_por-felgueiras</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos Portugueses</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>PT06a Camino Torres</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>14b Variante por-Felgueiras</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.27 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_PT06a_14b_variante_por-felgueiras">
+<SimpleData name="id">PT06a_14b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-8.05892051883342,41.2590174827055,191.054799999998 -8.05974149905305,41.2590028774027,181.865900000004 -8.06082791976102,41.2591840111529,183.441600000006 -8.06159886831091,41.2594245262081,182.982000000004 -8.06244596255583,41.2598226310932,181.167199999996 -8.06258210852535,41.2601100065435,170.791500000007 -8.06260085187376,41.2601522685454,170.025599999994 -8.0627440109907,41.2602892734426,169.253200000006 -8.06314907213207,41.2603607534398,166.462400000004 -8.06341579990625,41.2603720292989,167.048899999994 -8.06420302503074,41.2606610412338,162.936300000001 -8.06495924839651,41.260928208734,162.650899999993 -8.06559140543835,41.2610847605304,172.286900000006 -8.06628307766438,41.2613190992996,172.279299999995 -8.06714131191718,41.2617354113656,174.609899999996 -8.06799018213143,41.2622162624364,178.768700000001 -8.06928921789748,41.2624533576103,180.688599999994 -8.07007041802138,41.2625169914217,176.739700000006 -8.07119949433232,41.2625252910392,168.687300000005 -8.07138172567254,41.2628038762591,161.978799999997 -8.07181717322673,41.2631013187796,151.618799999997 -8.07243465718671,41.2638660438853,144.634699999995 -8.07300550241379,41.2644461578298,140.429300000003 -8.07370724655081,41.2645877622211,143.119399999996 -8.07365632105736,41.264976684857,133.593200000003 -8.07395273904997,41.2653263567269,132.624100000001 -8.07330994865012,41.2662307133129,101.638999999996 -8.07370127994069,41.2664343428821,105.904999999999 -8.07387650891328,41.2668777342392,93.3565999999992 -8.07406553780527,41.2673380784593,84.5108999999939 -8.07457799882709,41.2675314225094,87.4035000000003 -8.07484287517345,41.2680443800071,80.1220999999932 -8.0753042409202,41.2683985484791,79.4734000000026 -8.07592873802762,41.2686541972099,72.849000000002 -8.07719409505536,41.2685735003973,71.8882000000012 -8.07760781865104,41.2685143476986,74.1591000000044 -8.07850604140869,41.2690280928507,67.2989999999991</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

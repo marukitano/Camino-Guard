@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<Document>
+<name>ES01c_31b_variante_penas-parabispo</name>
+<visibility>1</visibility>
+<Schema name="ES01c_31b_variante_penas-parabispo" id="kml_schema_ft_ES01c_31b_variante_penas-parabispo">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES01c_31b_variante_penas-parabispo">
+<name>ES01c_31b_variante_penas-parabispo</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Camino Francés</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES01c Camino Francés</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>31b Variante Penas-Parabispo</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.1 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES01c_31b_variante_penas-parabispo">
+<SimpleData name="id">ES01c_31b</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-8.03752362703104,42.9127721681378,423.0 -8.03858092076424,42.9123849241919,421.409299999999 -8.03896229692485,42.9123138461747,420.951100000006 -8.03913127631802,42.9123289336641,420.107699999993 -8.03945833853992,42.9123904566602,419.982399999994 -8.03965765943009,42.9124226428651,419.0383 -8.03988179178843,42.9124744430069,418.074299999993 -8.04031245401712,42.9125202086556,415.028900000005 -8.0404626577225,42.9124883573836,414.299100000004 -8.04054798599639,42.9124310247893,414.0 -8.04060498230453,42.9123386564477,413.091899999999 -8.04076641764595,42.911634576363,408.629700000005 -8.0408949962075,42.9113676968875,407.0 -8.04193653169399,42.910230440401,411.370500000005 -8.04224448315654,42.9098190561069,416.0 -8.04302416782256,42.9094440499684,419.032699999996 -8.04325047859547,42.9094262806109,421.900599999994 -8.04355893311455,42.9095917393381,425.716899999999 -8.04377367717986,42.9097815055915,427.982600000003 -8.04386805777687,42.9099489760289,430.288100000005 -8.04393645370598,42.9104161833387,430.781199999998 -8.04399563022531,42.9105623636924,431.5524 -8.04427005386652,42.9108781933417,433.450800000006 -8.04521150894551,42.911640276013,438.113899999997 -8.04579907990488,42.9119810842484,443.265700000004 -8.04680775861154,42.9121820824698,445.442599999995 -8.04815154485179,42.9122908793928,449.0 -8.04923482235461,42.9125346250154,451.0 -8.04955819609396,42.9125653031915,452.0 -8.05125385512595,42.9125730146756,455.861999999994 -8.05181929878321,42.9126321906287,456.356 -8.05252136631373,42.9128048581084,457.0 -8.05331513297015,42.9129403094189,457.576400000005 -8.05366348436596,42.9130356953744,457.0 -8.05499469868381,42.9136036533057,457.0 -8.05522637419557,42.9138452193547,457.556899999996 -8.05546391750278,42.9138940024591,457.0 -8.05608820170949,42.9145362234372,456.0 -8.05655490614399,42.9148606031327,456.0 -8.05664744249973,42.914972082827,456.0 -8.0566816404643,42.9151273155097,456.856199999995 -8.0566633678331,42.9154728175815,457.0 -8.05666219463333,42.9155420518411,457.0</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>

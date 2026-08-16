@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<kml xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:atom="http://www.w3.org/2005/Atom" xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>ES38a_03c_variante-el_pou_clar</name>
+<visibility>1</visibility>
+<Schema name="ES38a_03c_variante-el_pou_clar" id="kml_schema_ft_ES38a_03c_variante-el_pou_clar">
+<SimpleField type="xsd:string" name="id">
+<displayName>id</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="nombre">
+<displayName>nombre</displayName>
+</SimpleField>
+<SimpleField type="xsd:double" name="longitud">
+<displayName>longitud</displayName>
+</SimpleField>
+<SimpleField type="xsd:string" name="_formato">
+<displayName>_formato</displayName>
+</SimpleField>
+</Schema>
+<Folder id="kml_ft_ES38a_03c_variante-el_pou_clar">
+<name>ES38a_03c_variante-el_pou_clar</name>
+<Placemark id="kml_1">
+<name>&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/Camino Santiago_20.png' /&gt;&lt;img height='20' src='https://nco.ign.es/iconos/icono_todos_caminos_azul.png' /&gt;  Camino de Santiago </name>
+<visibility>1</visibility>
+<description><![CDATA[<!DOCTYPE html>
+<html>
+<head>
+<style>
+#nco {
+  border-collapse: collapse;
+  overflow:hidden;
+}
+#nco th, #nco td {
+  padding: 4px;
+  text-align: left;
+}
+#nco th {
+  color: #364B5F;
+  padding-right: 5px;
+}
+#nco td {
+  color: rgb(51, 51, 51);
+  font-size: 12px;
+  padding-right: 5px;
+}
+</style>
+</head>
+<body>
+<table id="nco">
+<tr>
+<td>Caminos del Sureste</td>
+</tr>
+<tr>
+<th><b>Camino: </b></th>
+<td>ES38a Camino del Alba</td>
+</tr>
+<tr>
+<th><b>Etapa: </b></th>
+<td>03c Variante-El Pou Clar</td>
+</tr>
+<tr>
+<th><b>Longitud: </b></th>
+<td>2.02 km</td>
+</tr>
+</table>
+</body>
+</html>]]></description>
+<Style>
+<IconStyle>
+<scale>0.8</scale>
+</IconStyle>
+<LabelStyle>
+<color>ffffffff</color>
+<scale>0.75</scale>
+</LabelStyle>
+<LineStyle>
+<color>ffff0000</color>
+<width>3.0</width>
+<gx:labelVisibility>1</gx:labelVisibility>
+</LineStyle>
+<PolyStyle>
+<color>66ff0000</color>
+</PolyStyle>
+</Style>
+<ExtendedData>
+<SchemaData schemaUrl="#kml_schema_ft_ES38a_03c_variante-el_pou_clar">
+<SimpleData name="id">ES38a_03c</SimpleData>
+<SimpleData name="_formato">kml</SimpleData>
+</SchemaData>
+</ExtendedData>
+<LineString>
+<extrude>0</extrude>
+<tessellate>1</tessellate>
+<coordinates>-0.612143128884273,38.7999243287065,386.137900000002 -0.612500198429946,38.8000574328639,381.622300000003 -0.612960196940844,38.8001140946774,391.211500000005 -0.613608285604271,38.800551797355,397.759999999995 -0.614236090308571,38.8003920383,410.846699999995 -0.614966991963054,38.8007529632207,408.895000000004 -0.615604855103587,38.8008919353218,408.149000000005 -0.616354197374254,38.8007030073229,406.762000000002 -0.616924836887126,38.8004476945228,406.966799999995 -0.617496483411446,38.8001610336018,408.019899999999 -0.618643462247675,38.800090457532,406.912400000001 -0.619913488718258,38.7999437744579,408.325599999996 -0.620920993326876,38.7998388327263,409.481199999995 -0.621890612386672,38.7996700212525,412.203200000004 -0.622784122582318,38.7993739723988,413.846000000005 -0.623677465691336,38.7990780917395,414.759399999995 -0.624618083540505,38.7991758242689,416.012300000002 -0.625500698070089,38.7992095200403,418.525500000003 -0.626072846752652,38.7989071004465,423.7552 -0.626892931351943,38.7990026544961,428.653699999995 -0.627703294383211,38.7987835512494,431.210200000001 -0.628361944539413,38.798294215969,435.263300000006 -0.629025287494685,38.7976635615263,435.843999999997 -0.62960531530059,38.7971254433511,439.404500000004 -0.630168411660036,38.7964927769066,444.585699999996 -0.630697310054912,38.7962837323803,444.677100000001 -0.63122838776268,38.7960116559304,438.325100000002 -0.6316563676219,38.7958161897605,434.229500000001 -0.6320196391363,38.7957607021533,433.447499999995 -0.632425658780076,38.7956275969721,435.271200000003 -0.632560942366928,38.7957875242377,439.461899999995</coordinates>
+</LineString>
+</Placemark>
+</Folder>
+</Document></kml>
