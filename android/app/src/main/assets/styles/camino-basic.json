@@ -1,0 +1,774 @@
+{
+  "version": 8,
+  "name": "Camino Guard Basic Offline",
+  "sources": {
+    "protomaps": {
+      "type": "vector",
+      "url": "__PMTILES_URL__",
+      "attribution": "Protomaps © OpenStreetMap contributors"
+    },
+    "contours": {
+      "type": "vector",
+      "url": "__CONTOURS_URL__",
+      "attribution": "Terrain: Mapterhorn open-data sources"
+    },
+    "camino-tracks": {
+      "type": "geojson",
+      "data": "asset://camino/tracks.geojson"
+    },
+    "terrain-dem": {
+      "type": "raster-dem",
+      "tiles": [
+        "asset://terrain-dem/{z}/{x}/{y}.webp"
+      ],
+      "encoding": "terrarium",
+      "tileSize": 512,
+      "minzoom": 0,
+      "maxzoom": 9,
+      "bounds": [
+        -10.1,
+        35.7,
+        3.5,
+        43.9
+      ],
+      "attribution": "Terrain: Mapterhorn open-data sources"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#eee2c2"
+      }
+    },
+    {
+      "id": "landcover-forest",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landcover",
+      "filter": [
+        "==",
+        "kind",
+        "forest"
+      ],
+      "paint": {
+        "fill-color": "#9fb978",
+        "fill-opacity": 0.38
+      }
+    },
+    {
+      "id": "landcover-open",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landcover",
+      "filter": [
+        "in",
+        "kind",
+        "grassland",
+        "farmland",
+        "scrub"
+      ],
+      "paint": {
+        "fill-color": "#eee2c2",
+        "fill-opacity": 0.32
+      }
+    },
+    {
+      "id": "landuse-green",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "forest",
+        "wood",
+        "park",
+        "nature_reserve",
+        "national_park",
+        "grass",
+        "meadow",
+        "garden",
+        "orchard"
+      ],
+      "paint": {
+        "fill-color": "#b9cf8f",
+        "fill-opacity": 0.32
+      }
+    },
+    {
+      "id": "landuse-urban",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "kind",
+        "residential",
+        "commercial",
+        "industrial"
+      ],
+      "paint": {
+        "fill-color": "#eee2c2",
+        "fill-opacity": 0.32
+      }
+    },
+    {
+      "id": "water-polygons",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "water",
+      "filter": [
+        "==",
+        "$type",
+        "Polygon"
+      ],
+      "paint": {
+        "fill-color": "#a9d3e7"
+      }
+    },
+    {
+      "id": "water-lines",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "water",
+      "filter": [
+        "==",
+        "$type",
+        "LineString"
+      ],
+      "paint": {
+        "line-color": "#8fc5df",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0.4,
+          15,
+          2.0
+        ]
+      }
+    },
+    {
+      "id": "terrain-hillshade",
+      "type": "hillshade",
+      "source": "terrain-dem",
+      "paint": {
+        "hillshade-illumination-anchor": "viewport",
+        "hillshade-illumination-direction": 315,
+        "hillshade-exaggeration": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          8,
+          0.26,
+          10,
+          0.34,
+          12,
+          0.44,
+          14,
+          0.54
+        ],
+        "hillshade-shadow-color": "#7f8f70",
+        "hillshade-highlight-color": "#f4edd6",
+        "hillshade-accent-color": "#a9b88f"
+      }
+    },
+    {
+      "id": "contour-100-lines",
+      "type": "line",
+      "source": "contours",
+      "source-layer": "contours",
+      "minzoom": 11.1,
+      "filter": [
+        "==",
+        [
+          "%",
+          [
+            "to-number",
+            [
+              "get",
+              "ele"
+            ]
+          ],
+          100
+        ],
+        0
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#7d9466",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11.1,
+          0.0,
+          11.5,
+          0.16,
+          12.0,
+          0.38,
+          13.0,
+          0.56,
+          14.0,
+          0.66,
+          16.0,
+          0.74,
+          17.0,
+          0.78
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12.0,
+          1.05,
+          14.0,
+          1.28,
+          16.0,
+          1.52,
+          17.0,
+          1.68
+        ],
+        "line-blur": 0.1
+      }
+    },
+    {
+      "id": "contour-50-lines",
+      "type": "line",
+      "source": "contours",
+      "source-layer": "contours",
+      "minzoom": 11.4,
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "%",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ],
+            50
+          ],
+          0
+        ],
+        [
+          "!=",
+          [
+            "%",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ],
+            100
+          ],
+          0
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "visible"
+      },
+      "paint": {
+        "line-color": "#7d9466",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11.4,
+          0.0,
+          11.9,
+          0.24,
+          12.8,
+          0.34,
+          14.0,
+          0.46,
+          15.5,
+          0.56,
+          16.5,
+          0.64
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11.9,
+          0.52,
+          12.8,
+          0.64,
+          14.0,
+          0.78,
+          15.5,
+          0.94,
+          16.5,
+          1.1
+        ],
+        "line-blur": 0.12
+      }
+    },
+    {
+      "id": "contour-10-lines",
+      "type": "line",
+      "source": "contours",
+      "source-layer": "contours",
+      "minzoom": 12.2,
+      "filter": [
+        "!=",
+        [
+          "%",
+          [
+            "to-number",
+            [
+              "get",
+              "ele"
+            ]
+          ],
+          50
+        ],
+        0
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round",
+        "visibility": "visible"
+      },
+      "paint": {
+        "line-color": "#7d9466",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12.2,
+          0.0,
+          12.7,
+          0.13,
+          13.5,
+          0.2,
+          14.5,
+          0.3,
+          15.5,
+          0.4,
+          16.5,
+          0.48
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12.7,
+          0.34,
+          13.5,
+          0.42,
+          14.5,
+          0.52,
+          15.5,
+          0.66,
+          16.5,
+          0.8
+        ],
+        "line-blur": 0.14
+      }
+    },
+    {
+      "id": "contour-100-labels",
+      "type": "symbol",
+      "source": "contours",
+      "source-layer": "contours",
+      "minzoom": 11.4,
+      "filter": [
+        "==",
+        [
+          "%",
+          [
+            "to-number",
+            [
+              "get",
+              "ele"
+            ]
+          ],
+          100
+        ],
+        0
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "symbol-spacing": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          540,
+          14,
+          460,
+          16,
+          360
+        ],
+        "text-field": [
+          "concat",
+          [
+            "to-string",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ]
+          ],
+          " m"
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11.4,
+          12.5,
+          12.0,
+          13.5,
+          14.0,
+          14.8,
+          16.0,
+          16.0,
+          17.0,
+          17.0
+        ],
+        "text-rotation-alignment": "map",
+        "text-pitch-alignment": "map",
+        "text-keep-upright": true,
+        "text-padding": 1,
+        "text-max-angle": 25,
+        "text-offset": [
+          0,
+          0
+        ],
+        "text-anchor": "center"
+      },
+      "paint": {
+        "text-color": "#7d9466",
+        "text-halo-color": "#f5f2e8",
+        "text-halo-width": 1.15,
+        "text-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11.4,
+          0.0,
+          11.8,
+          0.55,
+          12.2,
+          0.9,
+          13.0,
+          0.98
+        ],
+        "text-halo-blur": 0.25
+      }
+    },
+    {
+      "id": "boundaries",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "boundaries",
+      "paint": {
+        "line-color": "#b7afa6",
+        "line-width": 0.8,
+        "line-opacity": 0.65,
+        "line-dasharray": [
+          4,
+          2
+        ]
+      }
+    },
+    {
+      "id": "roads-path",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 12,
+      "filter": [
+        "in",
+        "kind",
+        "path",
+        "other"
+      ],
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1.6,
+          14,
+          2.5,
+          16,
+          3.6,
+          18,
+          4.8
+        ],
+        "line-opacity": 0.97,
+        "line-blur": 0.0
+      },
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      }
+    },
+    {
+      "id": "roads-minor",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "minzoom": 10,
+      "filter": [
+        "==",
+        "kind",
+        "minor_road"
+      ],
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          10,
+          0.4,
+          15,
+          2.2,
+          18,
+          5.5
+        ]
+      }
+    },
+    {
+      "id": "roads-medium",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "in",
+        "kind",
+        "medium_road",
+        "major_road"
+      ],
+      "paint": {
+        "line-color": "#f6d6a5",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0.5,
+          12,
+          1.7,
+          18,
+          7.0
+        ]
+      }
+    },
+    {
+      "id": "roads-highway-casing",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "==",
+        "kind",
+        "highway"
+      ],
+      "paint": {
+        "line-color": "#d8a46d",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.8,
+          12,
+          3.0,
+          18,
+          10.0
+        ]
+      }
+    },
+    {
+      "id": "roads-highway",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": [
+        "==",
+        "kind",
+        "highway"
+      ],
+      "paint": {
+        "line-color": "#f5c98e",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.45,
+          12,
+          2.0,
+          18,
+          7.0
+        ]
+      }
+    },
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "buildings",
+      "minzoom": 13,
+      "paint": {
+        "fill-color": "#d3ccc4",
+        "fill-opacity": 0.75
+      }
+    },
+    {
+      "id": "camino-route-casing",
+      "type": "line",
+      "source": "camino-tracks",
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#3d332c",
+        "line-opacity": 0.7,
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          2.2,
+          8,
+          3.0,
+          13,
+          5.0,
+          15,
+          7.0
+        ]
+      }
+    },
+    {
+      "id": "camino-routes",
+      "type": "line",
+      "source": "camino-tracks",
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": [
+          "get",
+          "color"
+        ],
+        "line-opacity": 0.96,
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          1.35,
+          8,
+          1.9,
+          13,
+          3.4,
+          15,
+          5.0
+        ]
+      }
+    }
+  ],
+  "glyphs": "asset://glyphs/{fontstack}/{range}.pbf"
+}

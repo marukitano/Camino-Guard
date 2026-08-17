@@ -665,3 +665,65 @@ data can always be recreated and verified.
 Camino Guard uses a native Android companion as the phone-side application. The Android app will own the offline map, full Camino dataset, GPS/route matching, trip logging and later Pebble communication. The watch remains the small walking cockpit.
 
 The Android project lives under `android/`.
+
+## Android offline basemap
+
+
+### Optional hillshade terrain
+
+To render shaded terrain behind the contour lines, bundle the already cached
+Iberia terrain DEM into the Android app assets:
+
+```bash
+python3 tools/bundle_cached_terrain.py --force
+```
+
+This copies:
+
+- `.cache/offline-contours/iberia-terrain-z0-12.pmtiles`
+- to `android/app/src/main/assets/maps/terrain.pmtiles`
+
+and creates matching metadata:
+
+- `android/app/src/main/assets/maps/terrain.metadata.json`
+
+Hillshade is cosmetic, so Camino Guard intentionally bundles only a compact
+**z0-z10** terrain archive. The full cached z12 DEM stays outside the APK.
+
+The current style is tuned so that:
+
+- 100 m contour lines are thicker and more visible
+- 100 m contour labels are denser and remain visible while panning
+- hillshade is drawn underneath the contours
+
+
+
+
+### Gronze-like contour setup
+
+For the nicer 5-state contour behavior, regenerate the contour archive with a
+10 m base interval and deeper zooms:
+
+```bash
+NODE_OPTIONS="--conditions=module" \
+python3 tools/build_offline_contours.py \
+  --increment 10 \
+  --minzoom 12 \
+  --maxzoom 16 \
+  --force
+```
+
+This gives the app a Gronze-like contour ladder:
+
+- z < 12: no contour lines
+- z 12+: 100 m lines
+- z 13.6+: 50 m lines
+- z 15.0+: 20 m lines
+- z 16.0+: 10 m lines
+
+The contour styling is controlled in:
+
+- `android/app/src/main/assets/styles/camino-basic.json`
+
+The terrain extraction in `.cache/offline-contours/iberia-terrain-z0-12.pmtiles`
+is reused, so this does **not** redownload the 5 GB terrain source.

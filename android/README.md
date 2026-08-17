@@ -45,3 +45,32 @@ This is deliberately an online rendering test. Camino Guard's actual basemap
 will be replaced by local offline map data in the next map-data milestone.
 No Camino route geometry is bundled into the Android app yet.
 
+## Bundled offline basemap
+
+`tools/fetch_offline_basemap.py` creates the real Camino Guard basemap as a
+PMTiles asset for the Android application. The region is deliberately limited
+to the Geofabrik Spain and Portugal country polygons plus a small corridor
+around the first Camino Frances stage from Saint-Jean-Pied-de-Port to
+Roncesvalles. It does not include the French Camino route groups.
+
+The tool downloads only the required tile ranges from the current Protomaps
+daily planet build and writes:
+
+```text
+android/app/src/main/assets/maps/iberia.pmtiles
+android/app/src/main/assets/maps/iberia.metadata.json
+```
+
+The large generated files are ignored by Git. They are nevertheless ordinary
+Android assets and will be included in an APK built on a machine where they are
+present.
+
+Default detail is zoom 0 through 15:
+
+```bash
+python3 tools/fetch_offline_basemap.py
+```
+
+Use `--force` to replace an existing local basemap.
+
+Map data attribution: Protomaps / OpenStreetMap contributors.

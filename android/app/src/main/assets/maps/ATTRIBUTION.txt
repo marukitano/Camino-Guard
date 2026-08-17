@@ -1,0 +1,7 @@
+Camino Guard offline basemap
+Map data: © OpenStreetMap contributors (ODbL)
+Basemap tiles/style technology: Protomaps
+Terrain/contours: Mapterhorn open-data terrain sources
+Full terrain source attribution: https://mapterhorn.com/attribution/
+Camino routes: Rutas de Caminos de Santiago 2020-2026 CC-BY 4.0 FEAACS
+Derived Camino data: Obra derivada de Rutas de Caminos de Santiago 2020-2026 CC-BY 4.0 FEAACS

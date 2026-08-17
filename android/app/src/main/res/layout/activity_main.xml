@@ -8,18 +8,57 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <FrameLayout
+        android:id="@+id/map_setup_panel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="280dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="#EEF5F1E7"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:id="@+id/map_setup_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/offline_map_preparing"
+                android:textColor="#1C231F"
+                android:textSize="15sp" />
+
+            <ProgressBar
+                android:id="@+id/map_setup_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:indeterminate="true"
+                android:max="1000" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
     <TextView
+        android:id="@+id/map_attribution"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="18dp"
-        android:background="#CCF5F1E7"
-        android:paddingStart="12dp"
-        android:paddingTop="7dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="7dp"
-        android:text="@string/map_test_label"
-        android:textColor="#1C231F"
-        android:textSize="14sp" />
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="8dp"
+        android:layout_marginBottom="8dp"
+        android:background="#CCFFFFFF"
+        android:paddingStart="6dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="3dp"
+        android:text="@string/map_attribution"
+        android:textColor="#4A4A4A"
+        android:textSize="10sp" />
 
 </FrameLayout>
