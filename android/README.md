@@ -30,3 +30,18 @@ app/build/outputs/apk/debug/app-debug.apk
 adb devices
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+## MapLibre rendering test
+
+The next milestone adds MapLibre Native Android as the map renderer.
+
+For this test only, the app loads the public MapLibre demo style over HTTPS:
+
+```text
+https://demotiles.maplibre.org/style.json
+```
+
+This is deliberately an online rendering test. Camino Guard's actual basemap
+will be replaced by local offline map data in the next map-data milestone.
+No Camino route geometry is bundled into the Android app yet.
+
