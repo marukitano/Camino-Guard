@@ -1,0 +1,247 @@
+{
+  "generated_at_utc": "2026-08-17T02:15:34.953870Z",
+  "source": "CNIG Camino KML",
+  "generator": "tools/build_processed_cnig.py",
+  "route_groups": 76,
+  "raw_tracks": 1073,
+  "merge_distance_m": 5000.0,
+  "display_name_rule": "longest_name",
+  "count": 11,
+  "items": [
+    {
+      "canonical_place_key": "asmesaintjeandepieddeport",
+      "display_name": "Asme-Saint Jean de Pied de Port",
+      "aliases": [
+        "Asme-Saint Jean de Pied de Port",
+        "Saint Jean de Pied de Port"
+      ],
+      "source_place_keys": [
+        "asmesaintjeandepieddeport",
+        "saintjeandepieddeport"
+      ],
+      "source_name_keys": [
+        "asmesaintjeandepieddeport",
+        "saintjeandepieddeport"
+      ],
+      "max_source_separation_m": 1.4,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "camporredondodealba",
+      "display_name": "Camporredondo de Alba",
+      "aliases": [
+        "Camporredondo",
+        "Camporredondo de Alba"
+      ],
+      "source_place_keys": [
+        "camporredondo",
+        "camporredondodealba"
+      ],
+      "source_name_keys": [
+        "camporredondo",
+        "camporredondodealba"
+      ],
+      "max_source_separation_m": 1.2,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "elburgoraneros",
+      "display_name": "El Burgo Raneros",
+      "aliases": [
+        "El Burgo Ranero",
+        "El Burgo Raneros"
+      ],
+      "source_place_keys": [
+        "elburgoranero",
+        "elburgoraneros"
+      ],
+      "source_name_keys": [
+        "elburgoranero",
+        "elburgoraneros"
+      ],
+      "max_source_separation_m": 3.1,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "monasteriodemontserrat",
+      "display_name": "Monasterio de Montserrat",
+      "aliases": [
+        "Monasterio de Montserrat",
+        "Montserrat"
+      ],
+      "source_place_keys": [
+        "monasteriodemontserrat",
+        "montserrat@2"
+      ],
+      "source_name_keys": [
+        "monasteriodemontserrat",
+        "montserrat"
+      ],
+      "max_source_separation_m": 40.8,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "ocastrodozon",
+      "display_name": "O Castro Dozon",
+      "aliases": [
+        "O Castro",
+        "O Castro Dozon"
+      ],
+      "source_place_keys": [
+        "ocastro@2",
+        "ocastrodozon"
+      ],
+      "source_name_keys": [
+        "ocastro",
+        "ocastrodozon"
+      ],
+      "max_source_separation_m": 15.8,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "ostabatasme",
+      "display_name": "Ostabat-Asme",
+      "aliases": [
+        "Ostabat",
+        "Ostabat Asme",
+        "Ostabat-Asme"
+      ],
+      "source_place_keys": [
+        "ostabat",
+        "ostabatasme"
+      ],
+      "source_name_keys": [
+        "ostabat",
+        "ostabatasme"
+      ],
+      "max_source_separation_m": 1.7,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "portdusomport",
+      "display_name": "Port du Somport",
+      "aliases": [
+        "Col du Somport",
+        "Port du Somport",
+        "Somport"
+      ],
+      "source_place_keys": [
+        "coldusomport",
+        "portdusomport",
+        "somport"
+      ],
+      "source_name_keys": [
+        "coldusomport",
+        "portdusomport",
+        "somport"
+      ],
+      "max_source_separation_m": 62.9,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "salvatierraagurain",
+      "display_name": "Salvatierra Agurain",
+      "aliases": [
+        "Salvatierra",
+        "Salvatierra Agurain"
+      ],
+      "source_place_keys": [
+        "salvatierra",
+        "salvatierraagurain"
+      ],
+      "source_name_keys": [
+        "salvatierra",
+        "salvatierraagurain"
+      ],
+      "max_source_separation_m": 169.4,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "santotoribiodeliebana",
+      "display_name": "Santo Toribio de Liebana",
+      "aliases": [
+        "Santo Toribio",
+        "Santo Toribio de Liebana"
+      ],
+      "source_place_keys": [
+        "santotoribio",
+        "santotoribiodeliebana"
+      ],
+      "source_name_keys": [
+        "santotoribio",
+        "santotoribiodeliebana"
+      ],
+      "max_source_separation_m": 34.2,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "sobradodosmonxes",
+      "display_name": "Sobrado dos Monxes",
+      "aliases": [
+        "Sobrado",
+        "Sobrado dos Monxes"
+      ],
+      "source_place_keys": [
+        "sobrado",
+        "sobradodosmonxes"
+      ],
+      "source_name_keys": [
+        "sobrado",
+        "sobradodosmonxes"
+      ],
+      "max_source_separation_m": 0.0,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    },
+    {
+      "canonical_place_key": "vitoriagasteiz",
+      "display_name": "Vitoria Gasteiz",
+      "aliases": [
+        "Vitoria",
+        "Vitoria Gasteiz"
+      ],
+      "source_place_keys": [
+        "vitoria",
+        "vitoriagasteiz"
+      ],
+      "source_name_keys": [
+        "vitoria",
+        "vitoriagasteiz"
+      ],
+      "max_source_separation_m": 15.4,
+      "merge_radius_m": 5000.0,
+      "reason": "nearby_name_containment",
+      "display_name_rule": "longest_name",
+      "automatic_merge": true
+    }
+  ]
+}

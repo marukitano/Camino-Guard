@@ -1,0 +1,3002 @@
+{
+  "generated_at_utc": "2026-08-17T02:15:34.953870Z",
+  "source": "CNIG Camino KML",
+  "generator": "tools/build_processed_cnig.py",
+  "route_groups": 76,
+  "raw_tracks": 1073,
+  "count": 76,
+  "items": [
+    {
+      "route_group_id": "ES01a",
+      "source_id": "ES01a",
+      "official_name": "Camino Francés por Navarra",
+      "name": "Camino Francés por Navarra",
+      "display_name": "Camino Francés por Navarra — Puerto de Erro / Saint Jean Pied de Port → Puente la Reina (+3 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 8,
+      "place_count": 12,
+      "component_count": 4,
+      "components": [
+        {
+          "component_id": "ES01a-C1",
+          "display_span": "Puerto de Erro / Saint Jean Pied de Port → Puente la Reina",
+          "track_count": 5,
+          "place_count": 6,
+          "sources": [
+            "Puerto de Erro",
+            "Saint Jean Pied de Port"
+          ],
+          "sinks": [
+            "Puente la Reina"
+          ]
+        },
+        {
+          "component_id": "ES01a-C2",
+          "display_span": "Variante → Alto del Perdon",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Alto del Perdon"
+          ]
+        },
+        {
+          "component_id": "ES01a-C3",
+          "display_span": "Collado Lepoeder → Monumento a Roldan",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Collado Lepoeder"
+          ],
+          "sinks": [
+            "Monumento a Roldan"
+          ]
+        },
+        {
+          "component_id": "ES01a-C4",
+          "display_span": "Valcarlos → Puerto de Ibaneta",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Valcarlos"
+          ],
+          "sinks": [
+            "Puerto de Ibaneta"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES01b",
+      "source_id": "ES01b",
+      "official_name": "Camino Francés por Aragón",
+      "name": "Camino Francés por Aragón",
+      "display_name": "Camino Francés por Aragón — Somport → Puente la Reina (+3 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 13,
+      "place_count": 17,
+      "component_count": 4,
+      "components": [
+        {
+          "component_id": "ES01b-C1",
+          "display_span": "Somport → Puente la Reina",
+          "track_count": 6,
+          "place_count": 7,
+          "sources": [
+            "Somport"
+          ],
+          "sinks": [
+            "Puente la Reina"
+          ]
+        },
+        {
+          "component_id": "ES01b-C2",
+          "display_span": "Variante → Berdun / Corona de San Juan / Foz de Lumbier / La Petrosa / Los Corrales de Arres",
+          "track_count": 5,
+          "place_count": 6,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Berdun",
+            "Corona de San Juan",
+            "Foz de Lumbier",
+            "La Petrosa",
+            "Los Corrales de Arres"
+          ]
+        },
+        {
+          "component_id": "ES01b-C3",
+          "display_span": "Abay → Ascara",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Abay"
+          ],
+          "sinks": [
+            "Ascara"
+          ]
+        },
+        {
+          "component_id": "ES01b-C4",
+          "display_span": "Biurrun → Ucar",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Biurrun"
+          ],
+          "sinks": [
+            "Ucar"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES01c",
+      "source_id": "ES01c",
+      "official_name": "Camino Francés",
+      "name": "Camino Francés",
+      "display_name": "Camino Francés — Cuesta de Mostelares / Salida / Variante / Villalbal → Atapuerca / Carretera / Corgo de Santos / Cuatro Vientos / Ferreiros / Fonfria / La Faba / Monasterio de Suso y Yuso / Norte de Azofra / Oglesia de Gonzar / O Pumarino / Orbaneja de Riopico / Pradela / Ruada Angustias / San Medel / San Pedro / Souto / Villovieco / Yacimiento de Castromaior (+10 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 65,
+      "place_count": 76,
+      "component_count": 11,
+      "components": [
+        {
+          "component_id": "ES01c-C1",
+          "display_span": "Cuesta de Mostelares / Salida / Variante / Villalbal → Atapuerca / Carretera / Corgo de Santos / Cuatro Vientos / Ferreiros / Fonfria / La Faba / Monasterio de Suso y Yuso / Norte de Azofra / Oglesia de Gonzar / O Pumarino / Orbaneja de Riopico / Pradela / Ruada Angustias / San Medel / San Pedro / Souto / Villovieco / Yacimiento de Castromaior",
+          "track_count": 24,
+          "place_count": 25,
+          "sources": [
+            "Cuesta de Mostelares",
+            "Salida",
+            "Variante",
+            "Villalbal"
+          ],
+          "sinks": [
+            "Atapuerca",
+            "Carretera",
+            "Corgo de Santos",
+            "Cuatro Vientos",
+            "Ferreiros",
+            "Fonfria",
+            "La Faba",
+            "Monasterio de Suso y Yuso",
+            "Norte de Azofra",
+            "Oglesia de Gonzar",
+            "O Pumarino",
+            "Orbaneja de Riopico",
+            "Pradela",
+            "Ruada Angustias",
+            "San Medel",
+            "San Pedro",
+            "Souto",
+            "Villovieco",
+            "Yacimiento de Castromaior"
+          ]
+        },
+        {
+          "component_id": "ES01c-C2",
+          "display_span": "Bercianos del Real Camino / El Burgo Raneros / Samos / Variante Norte → Santiago de Compostela",
+          "track_count": 19,
+          "place_count": 20,
+          "sources": [
+            "Bercianos del Real Camino",
+            "El Burgo Raneros",
+            "Samos",
+            "Variante Norte"
+          ],
+          "sinks": [
+            "Santiago de Compostela"
+          ]
+        },
+        {
+          "component_id": "ES01c-C3",
+          "display_span": "Puente la Reina / Santovenia de Oca → El Burgo Ranero",
+          "track_count": 14,
+          "place_count": 15,
+          "sources": [
+            "Puente la Reina",
+            "Santovenia de Oca"
+          ],
+          "sinks": [
+            "El Burgo Ranero"
+          ]
+        },
+        {
+          "component_id": "ES01c-C4",
+          "display_span": "Villafria → Aeropuerto",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Villafria"
+          ],
+          "sinks": [
+            "Aeropuerto"
+          ]
+        },
+        {
+          "component_id": "ES01c-C5",
+          "display_span": "Calzadilla de la Cueza → Fuente Arriba",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Calzadilla de la Cueza"
+          ],
+          "sinks": [
+            "Fuente Arriba"
+          ]
+        },
+        {
+          "component_id": "ES01c-C6",
+          "display_span": "Ermita de Valdefuentes → N-120 Andadero",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Ermita de Valdefuentes"
+          ],
+          "sinks": [
+            "N-120 Andadero"
+          ]
+        },
+        {
+          "component_id": "ES01c-C7",
+          "display_span": "Villar de Mazarife → Hospital de Orbigo",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Villar de Mazarife"
+          ],
+          "sinks": [
+            "Hospital de Orbigo"
+          ]
+        },
+        {
+          "component_id": "ES01c-C8",
+          "display_span": "Villatuerta → Luquin",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Villatuerta"
+          ],
+          "sinks": [
+            "Luquin"
+          ]
+        },
+        {
+          "component_id": "ES01c-C9",
+          "display_span": "Pedrouzo Arca → O Pino-Santiago de Compostela",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Pedrouzo Arca"
+          ],
+          "sinks": [
+            "O Pino-Santiago de Compostela"
+          ]
+        },
+        {
+          "component_id": "ES01c-C10",
+          "display_span": "Variante Penas → Parabispo",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante Penas"
+          ],
+          "sinks": [
+            "Parabispo"
+          ]
+        },
+        {
+          "component_id": "ES01c-C11",
+          "display_span": "Villares de Orbigo → Santibanez de Valdeiglesias",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Villares de Orbigo"
+          ],
+          "sinks": [
+            "Santibanez de Valdeiglesias"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES02a",
+      "source_id": "ES02a",
+      "official_name": "Caminos de Galicia - Camino Portugués desde Tui",
+      "name": "Camino Portugués desde Tui",
+      "display_name": "Camino Portugués desde Tui — Tui → Santiago de Compostela (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 10,
+      "place_count": 13,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES02a-C1",
+          "display_span": "Tui → Santiago de Compostela",
+          "track_count": 6,
+          "place_count": 7,
+          "sources": [
+            "Tui"
+          ],
+          "sinks": [
+            "Santiago de Compostela"
+          ]
+        },
+        {
+          "component_id": "ES02a-C2",
+          "display_span": "Variante → As Gandaras / Bergunde / Conxo",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "As Gandaras",
+            "Bergunde",
+            "Conxo"
+          ]
+        },
+        {
+          "component_id": "ES02a-C3",
+          "display_span": "Puentecesures → Herbon",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Puentecesures"
+          ],
+          "sinks": [
+            "Herbon"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES03a",
+      "source_id": "ES03a",
+      "official_name": "Caminos del Norte - Camino del Norte",
+      "name": "Camino del Norte",
+      "display_name": "Camino del Norte — Abres / Hondarribia / Irun / Villaviciosa → Sobrado dos Monxes (+5 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 47,
+      "place_count": 53,
+      "component_count": 6,
+      "components": [
+        {
+          "component_id": "ES03a-C1",
+          "display_span": "Abres / Hondarribia / Irun / Villaviciosa → Sobrado dos Monxes",
+          "track_count": 33,
+          "place_count": 34,
+          "sources": [
+            "Abres",
+            "Hondarribia",
+            "Irun",
+            "Villaviciosa"
+          ],
+          "sinks": [
+            "Sobrado dos Monxes"
+          ]
+        },
+        {
+          "component_id": "ES03a-C2",
+          "display_span": "Variante → Astillero / Ciclistas / Deva No Transitable / Elorriaga / Guemes / Jaizkibel / Lameiro / Liandres / Muriedas / San Miguel de Meruelo",
+          "track_count": 10,
+          "place_count": 11,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Astillero",
+            "Ciclistas",
+            "Deva No Transitable",
+            "Elorriaga",
+            "Guemes",
+            "Jaizkibel",
+            "Lameiro",
+            "Liandres",
+            "Muriedas",
+            "San Miguel de Meruelo"
+          ]
+        },
+        {
+          "component_id": "ES03a-C3",
+          "display_span": "Alternativa → Mendimoko",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Alternativa"
+          ],
+          "sinks": [
+            "Mendimoko"
+          ]
+        },
+        {
+          "component_id": "ES03a-C4",
+          "display_span": "Sobrado → Arzua",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Sobrado"
+          ],
+          "sinks": [
+            "Arzua"
+          ]
+        },
+        {
+          "component_id": "ES03a-C5",
+          "display_span": "Barcia → Barcellina",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Barcia"
+          ],
+          "sinks": [
+            "Barcellina"
+          ]
+        },
+        {
+          "component_id": "ES03a-C6",
+          "display_span": "Colindres → Barcena de Cicero",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Colindres"
+          ],
+          "sinks": [
+            "Barcena de Cicero"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES04a",
+      "source_id": "ES04a",
+      "official_name": "Caminos Andaluces - Via de la Plata - Camino Mozárabe a Santiago",
+      "name": "Via de la Plata - Camino Mozárabe a Santiago",
+      "display_name": "Via de la Plata - Camino Mozárabe a Santiago — Sevilla / Variante / Xinzo de Limia → Camas / Escardiel / Estacion Renfe / O Castro Dozon / Por Cudeiro / Por Monasterio de Oseira / Por Villanueva de las Peras / Santiago de Compostela / Valdeobispo / Verin",
+      "topology_class": "NETWORK",
+      "track_count": 49,
+      "place_count": 50,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES04a-C1",
+          "display_span": "Sevilla / Variante / Xinzo de Limia → Camas / Escardiel / Estacion Renfe / O Castro Dozon / Por Cudeiro / Por Monasterio de Oseira / Por Villanueva de las Peras / Santiago de Compostela / Valdeobispo / Verin",
+          "track_count": 49,
+          "place_count": 50,
+          "sources": [
+            "Sevilla",
+            "Variante",
+            "Xinzo de Limia"
+          ],
+          "sinks": [
+            "Camas",
+            "Escardiel",
+            "Estacion Renfe",
+            "O Castro Dozon",
+            "Por Cudeiro",
+            "Por Monasterio de Oseira",
+            "Por Villanueva de las Peras",
+            "Santiago de Compostela",
+            "Valdeobispo",
+            "Verin"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES04b",
+      "source_id": "ES04b",
+      "official_name": "Caminos del Centro - Vía de la Plata de Zamora a Astorga",
+      "name": "Vía de la Plata de Zamora a Astorga",
+      "display_name": "Vía de la Plata de Zamora a Astorga — Zamora → Astorga (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 8,
+      "place_count": 10,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES04b-C1",
+          "display_span": "Zamora → Astorga",
+          "track_count": 6,
+          "place_count": 6,
+          "sources": [
+            "Zamora"
+          ],
+          "sinks": [
+            "Astorga"
+          ]
+        },
+        {
+          "component_id": "ES04b-C2",
+          "display_span": "Camino Natural Barcial del Barco → Maire de Castroponce",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Camino Natural Barcial del Barco"
+          ],
+          "sinks": [
+            "Maire de Castroponce"
+          ]
+        },
+        {
+          "component_id": "ES04b-C3",
+          "display_span": "Variante → Navianos",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Navianos"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES05a",
+      "source_id": "ES05a",
+      "official_name": "Caminos del Norte - Camino Primitivo",
+      "name": "Camino Primitivo",
+      "display_name": "Camino Primitivo — Oviedo → Melide (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 14,
+      "place_count": 16,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES05a-C1",
+          "display_span": "Oviedo → Melide",
+          "track_count": 11,
+          "place_count": 12,
+          "sources": [
+            "Oviedo"
+          ],
+          "sinks": [
+            "Melide"
+          ]
+        },
+        {
+          "component_id": "ES05a-C2",
+          "display_span": "Variante → Hospitales / O Proba do Buron / Salida Puerta de Santiago",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Hospitales",
+            "O Proba do Buron",
+            "Salida Puerta de Santiago"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES06a",
+      "source_id": "ES06a",
+      "official_name": "Caminos de Galicia - Camino Inglés",
+      "name": "Camino Inglés",
+      "display_name": "Camino Inglés — A Coruna / Ferrol → Santiago de Compostela (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 9,
+      "place_count": 11,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES06a-C1",
+          "display_span": "A Coruna / Ferrol → Santiago de Compostela",
+          "track_count": 8,
+          "place_count": 9,
+          "sources": [
+            "A Coruna",
+            "Ferrol"
+          ],
+          "sinks": [
+            "Santiago de Compostela"
+          ]
+        },
+        {
+          "component_id": "ES06a-C2",
+          "display_span": "Variante → Pedreiras",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Pedreiras"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES07a",
+      "source_id": "ES07a",
+      "official_name": "Caminos de Galicia - Camino de Fisterra y Muxía",
+      "name": "Camino de Fisterra y Muxía",
+      "display_name": "Camino de Fisterra y Muxía — Santiago de Compostela → Cabo Fisterra (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 7,
+      "place_count": 9,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES07a-C1",
+          "display_span": "Santiago de Compostela → Cabo Fisterra",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "Santiago de Compostela"
+          ],
+          "sinks": [
+            "Cabo Fisterra"
+          ]
+        },
+        {
+          "component_id": "ES07a-C2",
+          "display_span": "Dumbria → Fisterra",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Dumbria"
+          ],
+          "sinks": [
+            "Fisterra"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES08a",
+      "source_id": "ES08a",
+      "official_name": "Caminos del Este - Camino de Levante",
+      "name": "Camino de Levante",
+      "display_name": "Camino de Levante — Chinchilla del Montearagon → Granja de Moreruela (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 28,
+      "place_count": 30,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES08a-C1",
+          "display_span": "Chinchilla del Montearagon → Granja de Moreruela",
+          "track_count": 21,
+          "place_count": 22,
+          "sources": [
+            "Chinchilla del Montearagon"
+          ],
+          "sinks": [
+            "Granja de Moreruela"
+          ]
+        },
+        {
+          "component_id": "ES08a-C2",
+          "display_span": "Valencia → Chinchilla de Montearagon",
+          "track_count": 7,
+          "place_count": 8,
+          "sources": [
+            "Valencia"
+          ],
+          "sinks": [
+            "Chinchilla de Montearagon"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES09a",
+      "source_id": "ES09a",
+      "official_name": "Caminos del Sureste - Camino del Sureste",
+      "name": "Camino del Sureste",
+      "display_name": "Camino del Sureste — Alicante / Novelda / Tiemblo → Benavente (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 36,
+      "place_count": 37,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES09a-C1",
+          "display_span": "Alicante / Novelda / Tiemblo → Benavente",
+          "track_count": 33,
+          "place_count": 33,
+          "sources": [
+            "Alicante",
+            "Novelda",
+            "Tiemblo"
+          ],
+          "sinks": [
+            "Benavente"
+          ]
+        },
+        {
+          "component_id": "ES09a-C2",
+          "display_span": "Variante → Chinchilla de Montearagon / Cueva de San Pascual / Vertedero Municipal",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Chinchilla de Montearagon",
+            "Cueva de San Pascual",
+            "Vertedero Municipal"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES10a",
+      "source_id": "ES10a",
+      "official_name": "Caminos Andaluces - Camino Mozárabe de Almería",
+      "name": "Camino Mozárabe de Almería",
+      "display_name": "Camino Mozárabe de Almería — Almeria → Granada (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 10,
+      "place_count": 12,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES10a-C1",
+          "display_span": "Almeria → Granada",
+          "track_count": 9,
+          "place_count": 10,
+          "sources": [
+            "Almeria"
+          ],
+          "sinks": [
+            "Granada"
+          ]
+        },
+        {
+          "component_id": "ES10a-C2",
+          "display_span": "Variante → Abrucena",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Abrucena"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES10b",
+      "source_id": "ES10b",
+      "official_name": "Caminos Andaluces - Camino Mozárabe de Córdoba",
+      "name": "Camino Mozárabe de Córdoba",
+      "display_name": "Camino Mozárabe de Córdoba — Cordoba → Merida (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 13,
+      "place_count": 15,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES10b-C1",
+          "display_span": "Cordoba → Merida",
+          "track_count": 9,
+          "place_count": 10,
+          "sources": [
+            "Cordoba"
+          ],
+          "sinks": [
+            "Merida"
+          ]
+        },
+        {
+          "component_id": "ES10b-C2",
+          "display_span": "Variante → Circunvalacion / Rio Burdalo / Santa Amalia / Villanueva de la Serena",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Circunvalacion",
+            "Rio Burdalo",
+            "Santa Amalia",
+            "Villanueva de la Serena"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES10c",
+      "source_id": "ES10c",
+      "official_name": "Caminos Andaluces - Camino Mozárabe de Granada",
+      "name": "Camino Mozárabe de Granada",
+      "display_name": "Camino Mozárabe de Granada — Granada → Baena",
+      "topology_class": "LINEAR",
+      "track_count": 5,
+      "place_count": 6,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES10c-C1",
+          "display_span": "Granada → Baena",
+          "track_count": 5,
+          "place_count": 6,
+          "sources": [
+            "Granada"
+          ],
+          "sinks": [
+            "Baena"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES10d",
+      "source_id": "ES10d",
+      "official_name": "Caminos Andaluces - Camino Mozárabe de Jaén",
+      "name": "Camino Mozárabe de Jaén",
+      "display_name": "Camino Mozárabe de Jaén — Jaen → Alcaudete",
+      "topology_class": "LINEAR",
+      "track_count": 2,
+      "place_count": 3,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES10d-C1",
+          "display_span": "Jaen → Alcaudete",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Jaen"
+          ],
+          "sinks": [
+            "Alcaudete"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES10e",
+      "source_id": "ES10e",
+      "official_name": "Caminos Andaluces - Camino Mozárabe de Málaga",
+      "name": "Camino Mozárabe de Málaga",
+      "display_name": "Camino Mozárabe de Málaga — Malaga → Cordoba",
+      "topology_class": "NETWORK",
+      "track_count": 17,
+      "place_count": 17,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES10e-C1",
+          "display_span": "Malaga → Cordoba",
+          "track_count": 17,
+          "place_count": 17,
+          "sources": [
+            "Malaga"
+          ],
+          "sinks": [
+            "Cordoba"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES11a",
+      "source_id": "ES11a",
+      "official_name": "Caminos del Norte - Camino Olvidado",
+      "name": "Camino Olvidado",
+      "display_name": "Camino Olvidado — Puente Almuhey → Villafranca del Bierzo (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 28,
+      "place_count": 29,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES11a-C1",
+          "display_span": "Puente Almuhey → Villafranca del Bierzo",
+          "track_count": 14,
+          "place_count": 14,
+          "sources": [
+            "Puente Almuhey"
+          ],
+          "sinks": [
+            "Villafranca del Bierzo"
+          ]
+        },
+        {
+          "component_id": "ES11a-C2",
+          "display_span": "Bilbao → Puente Almuey",
+          "track_count": 12,
+          "place_count": 12,
+          "sources": [
+            "Bilbao"
+          ],
+          "sinks": [
+            "Puente Almuey"
+          ]
+        },
+        {
+          "component_id": "ES11a-C3",
+          "display_span": "Variante → Caminayo / San Pedro Foncollada",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Caminayo",
+            "San Pedro Foncollada"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES12a",
+      "source_id": "ES12a",
+      "official_name": "Caminos del Centro - Camino de Madrid",
+      "name": "Camino de Madrid",
+      "display_name": "Camino de Madrid — Madrid → Sahagun (+5 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 23,
+      "place_count": 29,
+      "component_count": 6,
+      "components": [
+        {
+          "component_id": "ES12a-C1",
+          "display_span": "Madrid → Sahagun",
+          "track_count": 13,
+          "place_count": 14,
+          "sources": [
+            "Madrid"
+          ],
+          "sinks": [
+            "Sahagun"
+          ]
+        },
+        {
+          "component_id": "ES12a-C2",
+          "display_span": "Variante → Mataelpino / Melgar de Arriba / Monasterio de la Santa Espina / Pinar de Valviadero / San Pedro de las Duenas / Valladolid",
+          "track_count": 6,
+          "place_count": 7,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Mataelpino",
+            "Melgar de Arriba",
+            "Monasterio de la Santa Espina",
+            "Pinar de Valviadero",
+            "San Pedro de las Duenas",
+            "Valladolid"
+          ]
+        },
+        {
+          "component_id": "ES12a-C3",
+          "display_span": "Berrueces → Moral de la Reina",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Berrueces"
+          ],
+          "sinks": [
+            "Moral de la Reina"
+          ]
+        },
+        {
+          "component_id": "ES12a-C4",
+          "display_span": "Bicicletas → Carretera de la Republica",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Bicicletas"
+          ],
+          "sinks": [
+            "Carretera de la Republica"
+          ]
+        },
+        {
+          "component_id": "ES12a-C5",
+          "display_span": "Valsain → La Granja",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Valsain"
+          ],
+          "sinks": [
+            "La Granja"
+          ]
+        },
+        {
+          "component_id": "ES12a-C6",
+          "display_span": "Llanos → Olmedo",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Llanos"
+          ],
+          "sinks": [
+            "Olmedo"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES13a",
+      "source_id": "ES13a",
+      "official_name": "Caminos del Sureste - Camino de la Lana",
+      "name": "Camino de la Lana",
+      "display_name": "Camino de la Lana — Monteagudo de las Salinas → Burgos (+3 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 35,
+      "place_count": 38,
+      "component_count": 4,
+      "components": [
+        {
+          "component_id": "ES13a-C1",
+          "display_span": "Monteagudo de las Salinas → Burgos",
+          "track_count": 17,
+          "place_count": 17,
+          "sources": [
+            "Monteagudo de las Salinas"
+          ],
+          "sinks": [
+            "Burgos"
+          ]
+        },
+        {
+          "component_id": "ES13a-C2",
+          "display_span": "Alicante / Novelda → Monteagudo de Salinas",
+          "track_count": 12,
+          "place_count": 13,
+          "sources": [
+            "Alicante",
+            "Novelda"
+          ],
+          "sinks": [
+            "Monteagudo de Salinas"
+          ]
+        },
+        {
+          "component_id": "ES13a-C3",
+          "display_span": "Variante → Cueva de San Pascual / Mamolar / Miedes de Atienza / Mondejar / Vertedero Municipal",
+          "track_count": 5,
+          "place_count": 6,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Cueva de San Pascual",
+            "Mamolar",
+            "Miedes de Atienza",
+            "Mondejar",
+            "Vertedero Municipal"
+          ]
+        },
+        {
+          "component_id": "ES13a-C4",
+          "display_span": "Barranco del Rio Dulce → Siguenza",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Barranco del Rio Dulce"
+          ],
+          "sinks": [
+            "Siguenza"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES14a",
+      "source_id": "ES14a",
+      "official_name": "Caminos del Nordeste - Camino Santiago del Ebro",
+      "name": "Camino Santiago del Ebro",
+      "display_name": "Camino Santiago del Ebro — Muntelldelesverges → Logrono",
+      "topology_class": "LINEAR",
+      "track_count": 18,
+      "place_count": 19,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES14a-C1",
+          "display_span": "Muntelldelesverges → Logrono",
+          "track_count": 18,
+          "place_count": 19,
+          "sources": [
+            "Muntelldelesverges"
+          ],
+          "sinks": [
+            "Logrono"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES15a",
+      "source_id": "ES15a",
+      "official_name": "Caminos del Sureste - Ruta del Argar",
+      "name": "Ruta del Argar",
+      "display_name": "Ruta del Argar — La Encarnacion → Mora (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 13,
+      "place_count": 15,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES15a-C1",
+          "display_span": "La Encarnacion → Mora",
+          "track_count": 11,
+          "place_count": 12,
+          "sources": [
+            "La Encarnacion"
+          ],
+          "sinks": [
+            "Mora"
+          ]
+        },
+        {
+          "component_id": "ES15a-C2",
+          "display_span": "Lorca → La Encarcion",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Lorca"
+          ],
+          "sinks": [
+            "La Encarcion"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES17a",
+      "source_id": "ES17a",
+      "official_name": "Caminos de Galicia - Camino de Invierno",
+      "name": "Camino de Invierno",
+      "display_name": "Camino de Invierno — Ponferrada → A Laxe (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 8,
+      "place_count": 10,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES17a-C1",
+          "display_span": "Ponferrada → A Laxe",
+          "track_count": 7,
+          "place_count": 8,
+          "sources": [
+            "Ponferrada"
+          ],
+          "sinks": [
+            "A Laxe"
+          ]
+        },
+        {
+          "component_id": "ES17a-C2",
+          "display_span": "Variante → San Vicente de Argozon",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "San Vicente de Argozon"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES18a",
+      "source_id": "ES18a",
+      "official_name": "Caminos de Galicia - Camino Portugués de la Costa A Guarda-Baiona-Redondela",
+      "name": "Camino Portugués de la Costa A Guarda-Baiona-Redondela",
+      "display_name": "Camino Portugués de la Costa A Guarda-Baiona-Redondela — A Guarda → Redondela (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 4,
+      "place_count": 6,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES18a-C1",
+          "display_span": "A Guarda → Redondela",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "A Guarda"
+          ],
+          "sinks": [
+            "Redondela"
+          ]
+        },
+        {
+          "component_id": "ES18a-C2",
+          "display_span": "Variante → A Gandara",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "A Gandara"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES19a",
+      "source_id": "ES19a",
+      "official_name": "Caminos del Sureste - Camino Argar del Sureste de Almeria",
+      "name": "Camino Argar del Sureste de Almeria",
+      "display_name": "Camino Argar del Sureste de Almeria — Almeria → Lorca (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 11,
+      "place_count": 13,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES19a-C1",
+          "display_span": "Almeria → Lorca",
+          "track_count": 9,
+          "place_count": 10,
+          "sources": [
+            "Almeria"
+          ],
+          "sinks": [
+            "Lorca"
+          ]
+        },
+        {
+          "component_id": "ES19a-C2",
+          "display_span": "Vera → Cueva del Almanzora",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Vera"
+          ],
+          "sinks": [
+            "Cueva del Almanzora"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES20a",
+      "source_id": "ES20a",
+      "official_name": "Caminos del Norte - Camino Vasco del Interior",
+      "name": "Camino Vasco del Interior",
+      "display_name": "Camino Vasco del Interior — Variante Zalduondo → Santo Domingo de la Calzada (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 11,
+      "place_count": 14,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES20a-C1",
+          "display_span": "Variante Zalduondo → Santo Domingo de la Calzada",
+          "track_count": 5,
+          "place_count": 6,
+          "sources": [
+            "Variante Zalduondo"
+          ],
+          "sinks": [
+            "Santo Domingo de la Calzada"
+          ]
+        },
+        {
+          "component_id": "ES20a-C2",
+          "display_span": "Irun → Salvatierra",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "Irun"
+          ],
+          "sinks": [
+            "Salvatierra"
+          ]
+        },
+        {
+          "component_id": "ES20a-C3",
+          "display_span": "Variante → Brinas / La Puebla",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Brinas",
+            "La Puebla"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES21a",
+      "source_id": "ES21a",
+      "official_name": "Caminos del Centro - Camino Castellano Aragones en Soria",
+      "name": "Camino Castellano Aragones en Soria",
+      "display_name": "Camino Castellano Aragones en Soria — Gallur → Mamolar (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 9,
+      "place_count": 11,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES21a-C1",
+          "display_span": "Gallur → Mamolar",
+          "track_count": 8,
+          "place_count": 9,
+          "sources": [
+            "Gallur"
+          ],
+          "sinks": [
+            "Mamolar"
+          ]
+        },
+        {
+          "component_id": "ES21a-C2",
+          "display_span": "Variante → Carretera",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Carretera"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES22a",
+      "source_id": "ES22a",
+      "official_name": "Caminos del Nordeste - Camino de Santiago de Montserrat a San Juan de la Peña",
+      "name": "Camino de Santiago de Montserrat a San Juan de la Peña",
+      "display_name": "Camino de Santiago de Montserrat a San Juan de la Peña — Cervera → Santa Cilia de Jaca (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 20,
+      "place_count": 17,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES22a-C1",
+          "display_span": "Cervera → Santa Cilia de Jaca",
+          "track_count": 17,
+          "place_count": 12,
+          "sources": [
+            "Cervera"
+          ],
+          "sinks": [
+            "Santa Cilia de Jaca"
+          ]
+        },
+        {
+          "component_id": "ES22a-C2",
+          "display_span": "Barcelona → Ullasterll",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Barcelona"
+          ],
+          "sinks": [
+            "Ullasterll"
+          ]
+        },
+        {
+          "component_id": "ES22a-C3",
+          "display_span": "Variante → Terrassa",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Terrassa"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES23a",
+      "source_id": "ES23a",
+      "official_name": "Caminos del Este - Camino de Santiago de Castellón - Bajo Aragón",
+      "name": "Camino de Santiago de Castellón - Bajo Aragón",
+      "display_name": "Camino de Santiago de Castellón - Bajo Aragón — Sant Jaume de Fadrell → Fuentes de Ebro",
+      "topology_class": "LINEAR",
+      "track_count": 14,
+      "place_count": 15,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES23a-C1",
+          "display_span": "Sant Jaume de Fadrell → Fuentes de Ebro",
+          "track_count": 14,
+          "place_count": 15,
+          "sources": [
+            "Sant Jaume de Fadrell"
+          ],
+          "sinks": [
+            "Fuentes de Ebro"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES24a",
+      "source_id": "ES24a",
+      "official_name": "Caminos del Nordeste - Camí Catalá de Sant Jaume",
+      "name": "Camí Catalá de Sant Jaume",
+      "display_name": "Camí Catalá de Sant Jaume — San Pere de Rodes → Monasterio de Montserrat (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 14,
+      "place_count": 15,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES24a-C1",
+          "display_span": "San Pere de Rodes → Monasterio de Montserrat",
+          "track_count": 12,
+          "place_count": 12,
+          "sources": [
+            "San Pere de Rodes"
+          ],
+          "sinks": [
+            "Monasterio de Montserrat"
+          ]
+        },
+        {
+          "component_id": "ES24a-C2",
+          "display_span": "Igualada → Castellnou de la Seana",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Igualada"
+          ],
+          "sinks": [
+            "Castellnou de la Seana"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES24b",
+      "source_id": "ES24b",
+      "official_name": "Caminos del Nordeste - Camí Catalá de Sant Jaume de Barcelona",
+      "name": "Camí Catalá de Sant Jaume de Barcelona",
+      "display_name": "Camí Catalá de Sant Jaume de Barcelona — Barcelona → Monasterio de Montserrat / Montserrat",
+      "topology_class": "NETWORK",
+      "track_count": 3,
+      "place_count": 4,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES24b-C1",
+          "display_span": "Barcelona → Monasterio de Montserrat / Montserrat",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Barcelona"
+          ],
+          "sinks": [
+            "Monasterio de Montserrat",
+            "Montserrat"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES24c",
+      "source_id": "ES24c",
+      "official_name": "Caminos del Nordeste - Camí Catalá de Sant Jaume Girona-Terrasa-Monserrat",
+      "name": "Camí Catalá de Sant Jaume Girona-Terrasa-Monserrat",
+      "display_name": "Camí Catalá de Sant Jaume Girona-Terrasa-Monserrat — Girona → Pina de Ebro (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 25,
+      "place_count": 23,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES24c-C1",
+          "display_span": "Girona → Pina de Ebro",
+          "track_count": 23,
+          "place_count": 20,
+          "sources": [
+            "Girona"
+          ],
+          "sinks": [
+            "Pina de Ebro"
+          ]
+        },
+        {
+          "component_id": "ES24c-C2",
+          "display_span": "Variante → El Bruc / Ivars Durgell",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "El Bruc",
+            "Ivars Durgell"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES25a",
+      "source_id": "ES25a",
+      "official_name": "Caminos del Este - Camino de Sagunto",
+      "name": "Camino de Sagunto",
+      "display_name": "Camino de Sagunto — El Puerto de Sagunto → Soria (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 18,
+      "place_count": 20,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES25a-C1",
+          "display_span": "El Puerto de Sagunto → Soria",
+          "track_count": 17,
+          "place_count": 18,
+          "sources": [
+            "El Puerto de Sagunto"
+          ],
+          "sinks": [
+            "Soria"
+          ]
+        },
+        {
+          "component_id": "ES25a-C2",
+          "display_span": "Variante → Caminreal",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Caminreal"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES28a",
+      "source_id": "ES28a",
+      "official_name": "Caminos del Norte - Camino de El Salvador",
+      "name": "Camino de El Salvador",
+      "display_name": "Camino de El Salvador — Buiza / Leon → Oviedo (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 8,
+      "place_count": 11,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES28a-C1",
+          "display_span": "Buiza / Leon → Oviedo",
+          "track_count": 5,
+          "place_count": 6,
+          "sources": [
+            "Buiza",
+            "Leon"
+          ],
+          "sinks": [
+            "Oviedo"
+          ]
+        },
+        {
+          "component_id": "ES28a-C2",
+          "display_span": "Variante → San Martin de Tercia / San Miguel del Rio",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "San Martin de Tercia",
+            "San Miguel del Rio"
+          ]
+        },
+        {
+          "component_id": "ES28a-C3",
+          "display_span": "Rodiezmo → Villanueva de la Tercia",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Rodiezmo"
+          ],
+          "sinks": [
+            "Villanueva de la Tercia"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES29a",
+      "source_id": "ES29a",
+      "official_name": "Caminos del Norte - Ruta Vadiniense",
+      "name": "Ruta Vadiniense",
+      "display_name": "Ruta Vadiniense — Santo Toribio → Mansilla de las Mulas (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 9,
+      "place_count": 12,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES29a-C1",
+          "display_span": "Santo Toribio → Mansilla de las Mulas",
+          "track_count": 6,
+          "place_count": 7,
+          "sources": [
+            "Santo Toribio"
+          ],
+          "sinks": [
+            "Mansilla de las Mulas"
+          ]
+        },
+        {
+          "component_id": "ES29a-C2",
+          "display_span": "Variante → Por San Glorio / Puente de Villarente",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Por San Glorio",
+            "Puente de Villarente"
+          ]
+        },
+        {
+          "component_id": "ES29a-C3",
+          "display_span": "Valdore → Sabero",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Valdore"
+          ],
+          "sinks": [
+            "Sabero"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES30a",
+      "source_id": "ES30a",
+      "official_name": "Caminos del Norte - Camino del Besaya - Calzada Romana",
+      "name": "Camino del Besaya - Calzada Romana",
+      "display_name": "Camino del Besaya - Calzada Romana — Suances → Carrion de los Condes",
+      "topology_class": "NETWORK",
+      "track_count": 11,
+      "place_count": 11,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES30a-C1",
+          "display_span": "Suances → Carrion de los Condes",
+          "track_count": 11,
+          "place_count": 11,
+          "sources": [
+            "Suances"
+          ],
+          "sinks": [
+            "Carrion de los Condes"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES32a",
+      "source_id": "ES32a",
+      "official_name": "Caminos del Norte - Camino Vía de Bayona",
+      "name": "Camino Vía de Bayona",
+      "display_name": "Camino Vía de Bayona — Bayona → Monasterior de Rodilla (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 13,
+      "place_count": 14,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES32a-C1",
+          "display_span": "Bayona → Monasterior de Rodilla",
+          "track_count": 12,
+          "place_count": 12,
+          "sources": [
+            "Bayona"
+          ],
+          "sinks": [
+            "Monasterior de Rodilla"
+          ]
+        },
+        {
+          "component_id": "ES32a-C2",
+          "display_span": "Monasterio de Rodilla → Burgos",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Monasterio de Rodilla"
+          ],
+          "sinks": [
+            "Burgos"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES33a",
+      "source_id": "ES33a",
+      "official_name": "Caminos del Norte - Camino de Baztán",
+      "name": "Camino de Baztán",
+      "display_name": "Camino de Baztán — Bayona → Villava (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 7,
+      "place_count": 9,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES33a-C1",
+          "display_span": "Bayona → Villava",
+          "track_count": 6,
+          "place_count": 7,
+          "sources": [
+            "Bayona"
+          ],
+          "sinks": [
+            "Villava"
+          ]
+        },
+        {
+          "component_id": "ES33a-C2",
+          "display_span": "Variante → Urrasun",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Urrasun"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES34a",
+      "source_id": "ES34a",
+      "official_name": "Caminos del Centro - Camino Manchego de Ciudad Real a Toledo",
+      "name": "Camino Manchego de Ciudad Real a Toledo",
+      "display_name": "Camino Manchego de Ciudad Real a Toledo — Ciudad Real / Variante → Toledo",
+      "topology_class": "NETWORK",
+      "track_count": 6,
+      "place_count": 7,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES34a-C1",
+          "display_span": "Ciudad Real / Variante → Toledo",
+          "track_count": 6,
+          "place_count": 7,
+          "sources": [
+            "Ciudad Real",
+            "Variante"
+          ],
+          "sinks": [
+            "Toledo"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES35a",
+      "source_id": "ES35a",
+      "official_name": "Caminos Andaluces - Camino Sur de Huelva",
+      "name": "Camino Sur de Huelva",
+      "display_name": "Camino Sur de Huelva — Huelva → Zafra (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 8,
+      "place_count": 10,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES35a-C1",
+          "display_span": "Huelva → Zafra",
+          "track_count": 7,
+          "place_count": 8,
+          "sources": [
+            "Huelva"
+          ],
+          "sinks": [
+            "Zafra"
+          ]
+        },
+        {
+          "component_id": "ES35a-C2",
+          "display_span": "Variante → Zalamea la Real",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Zalamea la Real"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES36a",
+      "source_id": "ES36a",
+      "official_name": "Caminos Andaluces - Vía Augusta desde Cádiz",
+      "name": "Vía Augusta desde Cádiz",
+      "display_name": "Vía Augusta desde Cádiz — Cadiz → Sevilla",
+      "topology_class": "LINEAR",
+      "track_count": 10,
+      "place_count": 11,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES36a-C1",
+          "display_span": "Cadiz → Sevilla",
+          "track_count": 10,
+          "place_count": 11,
+          "sources": [
+            "Cadiz"
+          ],
+          "sinks": [
+            "Sevilla"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES37a",
+      "source_id": "ES37a",
+      "official_name": "Caminos del Este - Camino de la Lana Valencia-Requena",
+      "name": "Camino de la Lana Valencia-Requena",
+      "display_name": "Camino de la Lana Valencia-Requena — Loriquilla → Monteagudo de las Salinas (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 10,
+      "place_count": 13,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES37a-C1",
+          "display_span": "Loriquilla → Monteagudo de las Salinas",
+          "track_count": 7,
+          "place_count": 8,
+          "sources": [
+            "Loriquilla"
+          ],
+          "sinks": [
+            "Monteagudo de las Salinas"
+          ]
+        },
+        {
+          "component_id": "ES37a-C2",
+          "display_span": "Variante → Caudete de las Fuentes / Parque Fluvial del Turia",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Caudete de las Fuentes",
+            "Parque Fluvial del Turia"
+          ]
+        },
+        {
+          "component_id": "ES37a-C3",
+          "display_span": "Valencia → Loriguilla",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Valencia"
+          ],
+          "sinks": [
+            "Loriguilla"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES38a",
+      "source_id": "ES38a",
+      "official_name": "Caminos del Sureste - Camino del Alba",
+      "name": "Camino del Alba",
+      "display_name": "Camino del Alba — Variante → Agullent / El Pou Clar / Fontanars Dels Alfonsins / Latzubia a Beniarres (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 9,
+      "place_count": 12,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES38a-C1",
+          "display_span": "Variante → Agullent / El Pou Clar / Fontanars Dels Alfonsins / Latzubia a Beniarres",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Agullent",
+            "El Pou Clar",
+            "Fontanars Dels Alfonsins",
+            "Latzubia a Beniarres"
+          ]
+        },
+        {
+          "component_id": "ES38a-C2",
+          "display_span": "Javea → La Font de Figuera",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "Javea"
+          ],
+          "sinks": [
+            "La Font de Figuera"
+          ]
+        },
+        {
+          "component_id": "ES38a-C3",
+          "display_span": "La Font de la Figuera → Almansa",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "La Font de la Figuera"
+          ],
+          "sinks": [
+            "Almansa"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES39a",
+      "source_id": "ES39a",
+      "official_name": "Caminos del Sureste - Camino del Sureste desde Benidorm",
+      "name": "Camino del Sureste desde Benidorm",
+      "display_name": "Camino del Sureste desde Benidorm — Benidorm → Villena (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 5,
+      "place_count": 7,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES39a-C1",
+          "display_span": "Benidorm → Villena",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "Benidorm"
+          ],
+          "sinks": [
+            "Villena"
+          ]
+        },
+        {
+          "component_id": "ES39a-C2",
+          "display_span": "Villajoyosa → Orxeta",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Villajoyosa"
+          ],
+          "sinks": [
+            "Orxeta"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES40a",
+      "source_id": "ES40a",
+      "official_name": "Caminos de Galicia - Ruta del Mar de Arousa y Rio Ulla",
+      "name": "Ruta del Mar de Arousa y Rio Ulla",
+      "display_name": "Ruta del Mar de Arousa y Rio Ulla — Aguino → O Regueiro (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 3,
+      "place_count": 6,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "ES40a-C1",
+          "display_span": "Aguino → O Regueiro",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Aguino"
+          ],
+          "sinks": [
+            "O Regueiro"
+          ]
+        },
+        {
+          "component_id": "ES40a-C2",
+          "display_span": "Arousa → Pontecesures",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Arousa"
+          ],
+          "sinks": [
+            "Pontecesures"
+          ]
+        },
+        {
+          "component_id": "ES40a-C3",
+          "display_span": "Cambados → Padron",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Cambados"
+          ],
+          "sinks": [
+            "Padron"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES40b",
+      "source_id": "ES40b",
+      "official_name": "Caminos de Galicia - Camino Variante Espiritual",
+      "name": "Camino Variante Espiritual",
+      "display_name": "Camino Variante Espiritual — Ramallas → Padron",
+      "topology_class": "LINEAR",
+      "track_count": 3,
+      "place_count": 4,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES40b-C1",
+          "display_span": "Ramallas → Padron",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Ramallas"
+          ],
+          "sinks": [
+            "Padron"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES42a",
+      "source_id": "ES42a",
+      "official_name": "Caminos del Sureste - Camino del Sureste Ramal Sur",
+      "name": "Camino del Sureste Ramal Sur",
+      "display_name": "Camino del Sureste Ramal Sur — Torre de la Horadada → Orito",
+      "topology_class": "LINEAR",
+      "track_count": 5,
+      "place_count": 6,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES42a-C1",
+          "display_span": "Torre de la Horadada → Orito",
+          "track_count": 5,
+          "place_count": 6,
+          "sources": [
+            "Torre de la Horadada"
+          ],
+          "sinks": [
+            "Orito"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES43a",
+      "source_id": "ES43a",
+      "official_name": "Caminos del Centro - Camino de la Santa Cruz",
+      "name": "Camino de la Santa Cruz",
+      "display_name": "Camino de la Santa Cruz — San Clemente → Quintanar de la Orden (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 5,
+      "place_count": 7,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES43a-C1",
+          "display_span": "San Clemente → Quintanar de la Orden",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "San Clemente"
+          ],
+          "sinks": [
+            "Quintanar de la Orden"
+          ]
+        },
+        {
+          "component_id": "ES43a-C2",
+          "display_span": "Variante → Bicicletas",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Bicicletas"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES44a",
+      "source_id": "ES44a",
+      "official_name": "Caminos del Sureste - Camino del Sureste Cartagena-Murcia",
+      "name": "Camino del Sureste Cartagena-Murcia",
+      "display_name": "Camino del Sureste Cartagena-Murcia — Cartagena → Petrola (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 10,
+      "place_count": 12,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES44a-C1",
+          "display_span": "Cartagena → Petrola",
+          "track_count": 8,
+          "place_count": 9,
+          "sources": [
+            "Cartagena"
+          ],
+          "sinks": [
+            "Petrola"
+          ]
+        },
+        {
+          "component_id": "ES44a-C2",
+          "display_span": "Variante → Convento de Santa Ana / Valladolises",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Convento de Santa Ana",
+            "Valladolises"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES45a",
+      "source_id": "ES45a",
+      "official_name": "Caminos del Norte - Camino Lebaniego",
+      "name": "Camino Lebaniego",
+      "display_name": "Camino Lebaniego — San Vicente de la Barquera → Santo Toribio de Liebana (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 3,
+      "place_count": 5,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES45a-C1",
+          "display_span": "San Vicente de la Barquera → Santo Toribio de Liebana",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "San Vicente de la Barquera"
+          ],
+          "sinks": [
+            "Santo Toribio de Liebana"
+          ]
+        },
+        {
+          "component_id": "ES45a-C2",
+          "display_span": "Variante → Canal de Francos",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Canal de Francos"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES46a",
+      "source_id": "ES46a",
+      "official_name": "Caminos Insulares - Ruta Jacobea Insular Tunte -Gáldar",
+      "name": "Ruta Jacobea Insular Tunte -Gáldar",
+      "display_name": "Ruta Jacobea Insular Tunte -Gáldar — Maspalomas → Galdar (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 4,
+      "place_count": 6,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES46a-C1",
+          "display_span": "Maspalomas → Galdar",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Maspalomas"
+          ],
+          "sinks": [
+            "Galdar"
+          ]
+        },
+        {
+          "component_id": "ES46a-C2",
+          "display_span": "Variante → Ayagaures",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Ayagaures"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES48a",
+      "source_id": "ES48a",
+      "official_name": "Caminos del Norte - Camino de las Asturias",
+      "name": "Camino de las Asturias",
+      "display_name": "Camino de las Asturias — Pamplona → Camporredondo (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 22,
+      "place_count": 24,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "ES48a-C1",
+          "display_span": "Pamplona → Camporredondo",
+          "track_count": 16,
+          "place_count": 17,
+          "sources": [
+            "Pamplona"
+          ],
+          "sinks": [
+            "Camporredondo"
+          ]
+        },
+        {
+          "component_id": "ES48a-C2",
+          "display_span": "Camporredondo de Alba → Oviedo",
+          "track_count": 6,
+          "place_count": 7,
+          "sources": [
+            "Camporredondo de Alba"
+          ],
+          "sinks": [
+            "Oviedo"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "ES49a",
+      "source_id": "ES49a",
+      "official_name": "Caminos del Centro - Camino Mendocino a Santiago",
+      "name": "Camino Mendocino a Santiago",
+      "display_name": "Camino Mendocino a Santiago — Guadalajara → Manzanares el Real",
+      "topology_class": "LINEAR",
+      "track_count": 4,
+      "place_count": 5,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "ES49a-C1",
+          "display_span": "Guadalajara → Manzanares el Real",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "Guadalajara"
+          ],
+          "sinks": [
+            "Manzanares el Real"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR01c",
+      "source_id": "FR01c",
+      "official_name": "Caminos en Francia - Voie Turonensis París",
+      "name": "Voie Turonensis París",
+      "display_name": "Voie Turonensis París — Lamarque / Tours → Saint Jean de Pied de Port (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 33,
+      "place_count": 35,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "FR01c-C1",
+          "display_span": "Lamarque / Tours → Saint Jean de Pied de Port",
+          "track_count": 29,
+          "place_count": 30,
+          "sources": [
+            "Lamarque",
+            "Tours"
+          ],
+          "sinks": [
+            "Saint Jean de Pied de Port"
+          ]
+        },
+        {
+          "component_id": "FR01c-C2",
+          "display_span": "Variante → Dissay / Liguge Route / Naintre / Viaduc",
+          "track_count": 4,
+          "place_count": 5,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Dissay",
+            "Liguge Route",
+            "Naintre",
+            "Viaduc"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR02c",
+      "source_id": "FR02c",
+      "official_name": "Caminos en Francia - Via Lemovicensis Vezelay",
+      "name": "Via Lemovicensis Vezelay",
+      "display_name": "Via Lemovicensis Vezelay — Gargilesse → Ostabat",
+      "topology_class": "LINEAR",
+      "track_count": 23,
+      "place_count": 24,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR02c-C1",
+          "display_span": "Gargilesse → Ostabat",
+          "track_count": 23,
+          "place_count": 24,
+          "sources": [
+            "Gargilesse"
+          ],
+          "sinks": [
+            "Ostabat"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR03a",
+      "source_id": "FR03a",
+      "official_name": "Caminos en Francia - Via Podiensis Le Puy en Velay",
+      "name": "Via Podiensis Le Puy en Velay",
+      "display_name": "Via Podiensis Le Puy en Velay — Le Puy en Velay → Ostabat-Asme (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 32,
+      "place_count": 34,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "FR03a-C1",
+          "display_span": "Le Puy en Velay → Ostabat-Asme",
+          "track_count": 31,
+          "place_count": 32,
+          "sources": [
+            "Le Puy en Velay"
+          ],
+          "sinks": [
+            "Ostabat-Asme"
+          ]
+        },
+        {
+          "component_id": "FR03a-C2",
+          "display_span": "Ostabat → Asme-Saint Jean de Pied de Port",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Ostabat"
+          ],
+          "sinks": [
+            "Asme-Saint Jean de Pied de Port"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR04a",
+      "source_id": "FR04a",
+      "official_name": "Caminos en Francia - Via Tolosana Arles",
+      "name": "Via Tolosana Arles",
+      "display_name": "Via Tolosana Arles — Arles → Col du Somport",
+      "topology_class": "LINEAR",
+      "track_count": 37,
+      "place_count": 38,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR04a-C1",
+          "display_span": "Arles → Col du Somport",
+          "track_count": 37,
+          "place_count": 38,
+          "sources": [
+            "Arles"
+          ],
+          "sinks": [
+            "Col du Somport"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR05a",
+      "source_id": "FR05a",
+      "official_name": "Caminos en Francia - Voie des Piemonts",
+      "name": "Voie des Piemonts",
+      "display_name": "Voie des Piemonts — Montpellier → Saint Jean de Pied de Port",
+      "topology_class": "LINEAR",
+      "track_count": 29,
+      "place_count": 30,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR05a-C1",
+          "display_span": "Montpellier → Saint Jean de Pied de Port",
+          "track_count": 29,
+          "place_count": 30,
+          "sources": [
+            "Montpellier"
+          ],
+          "sinks": [
+            "Saint Jean de Pied de Port"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR12a",
+      "source_id": "FR12a",
+      "official_name": "Caminos en Francia - Chemin Voie Littorale - Royan - Irun",
+      "name": "Chemin Voie Littorale - Royan - Irun",
+      "display_name": "Chemin Voie Littorale - Royan - Irun — Royan → Irun",
+      "topology_class": "LINEAR",
+      "track_count": 2,
+      "place_count": 3,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR12a-C1",
+          "display_span": "Royan → Irun",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Royan"
+          ],
+          "sinks": [
+            "Irun"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR13a",
+      "source_id": "FR13a",
+      "official_name": "Caminos en Francia - Le Chemin Côtie - Lesseron - Bayonne",
+      "name": "Le Chemin Côtie - Lesseron - Bayonne",
+      "display_name": "Le Chemin Côtie - Lesseron - Bayonne — Lesseron → Bayonne",
+      "topology_class": "LINEAR",
+      "track_count": 1,
+      "place_count": 2,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR13a-C1",
+          "display_span": "Lesseron → Bayonne",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Lesseron"
+          ],
+          "sinks": [
+            "Bayonne"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR22a",
+      "source_id": "FR22a",
+      "official_name": "Caminos en Francia - Chemin Firmi - Toulouse",
+      "name": "Chemin Firmi - Toulouse",
+      "display_name": "Chemin Firmi - Toulouse — Firmi → Toulouse",
+      "topology_class": "LINEAR",
+      "track_count": 1,
+      "place_count": 2,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR22a-C1",
+          "display_span": "Firmi → Toulouse",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Firmi"
+          ],
+          "sinks": [
+            "Toulouse"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR26a",
+      "source_id": "FR26a",
+      "official_name": "Caminos en Francia - Voie de Garonne Toulouse - St Gaudens",
+      "name": "Voie de Garonne Toulouse - St Gaudens",
+      "display_name": "Voie de Garonne Toulouse - St Gaudens — Toulouse → Saint Gaudens",
+      "topology_class": "LINEAR",
+      "track_count": 1,
+      "place_count": 2,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR26a-C1",
+          "display_span": "Toulouse → Saint Gaudens",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Toulouse"
+          ],
+          "sinks": [
+            "Saint Gaudens"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR27a",
+      "source_id": "FR27a",
+      "official_name": "Caminos en Francia - Chemin Maubourguet - Lourdes",
+      "name": "Chemin Maubourguet - Lourdes",
+      "display_name": "Chemin Maubourguet - Lourdes — Maubourguet → Lourdes",
+      "topology_class": "LINEAR",
+      "track_count": 1,
+      "place_count": 2,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR27a-C1",
+          "display_span": "Maubourguet → Lourdes",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Maubourguet"
+          ],
+          "sinks": [
+            "Lourdes"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR35a",
+      "source_id": "FR35a",
+      "official_name": "Caminos en Francia - Chemin Bergerac - Montreal du Gers",
+      "name": "Chemin Bergerac - Montreal du Gers",
+      "display_name": "Chemin Bergerac - Montreal du Gers — Bergerac → Montreal du Gers",
+      "topology_class": "LINEAR",
+      "track_count": 2,
+      "place_count": 3,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR35a-C1",
+          "display_span": "Bergerac → Montreal du Gers",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Bergerac"
+          ],
+          "sinks": [
+            "Montreal du Gers"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR40a",
+      "source_id": "FR40a",
+      "official_name": "Caminos en Francia - Voie de Rocamadour en Limousin et Haut Quercy",
+      "name": "Voie de Rocamadour en Limousin et Haut Quercy",
+      "display_name": "Voie de Rocamadour en Limousin et Haut Quercy — Benevent Labbaye / Variante Sarrazac → La Romieu / Tulle (+3 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 36,
+      "place_count": 40,
+      "component_count": 4,
+      "components": [
+        {
+          "component_id": "FR40a-C1",
+          "display_span": "Benevent Labbaye / Variante Sarrazac → La Romieu / Tulle",
+          "track_count": 33,
+          "place_count": 34,
+          "sources": [
+            "Benevent Labbaye",
+            "Variante Sarrazac"
+          ],
+          "sinks": [
+            "La Romieu",
+            "Tulle"
+          ]
+        },
+        {
+          "component_id": "FR40a-C2",
+          "display_span": "Variante Bethe → Chamberet Treignac",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante Bethe"
+          ],
+          "sinks": [
+            "Chamberet Treignac"
+          ]
+        },
+        {
+          "component_id": "FR40a-C3",
+          "display_span": "Variante Turenne → Sarrazac",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante Turenne"
+          ],
+          "sinks": [
+            "Sarrazac"
+          ]
+        },
+        {
+          "component_id": "FR40a-C4",
+          "display_span": "Variante Collonges → Turenne",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante Collonges"
+          ],
+          "sinks": [
+            "Turenne"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR44a",
+      "source_id": "FR44a",
+      "official_name": "Caminos en Francia - Voie Col d'Ourdiss - Lortet - Port d'Ourdiss",
+      "name": "Voie Col d'Ourdiss - Lortet - Port d'Ourdiss",
+      "display_name": "Voie Col d'Ourdiss - Lortet - Port d'Ourdiss — Lortet → Port Dourdiss",
+      "topology_class": "LINEAR",
+      "track_count": 1,
+      "place_count": 2,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR44a-C1",
+          "display_span": "Lortet → Port Dourdiss",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Lortet"
+          ],
+          "sinks": [
+            "Port Dourdiss"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "FR45a",
+      "source_id": "FR45a",
+      "official_name": "Caminos en Francia - Voie Arudy - Col du Somport",
+      "name": "Voie Arudy - Col du Somport",
+      "display_name": "Voie Arudy - Col du Somport — Sainte Colome → Port du Somport",
+      "topology_class": "LINEAR",
+      "track_count": 1,
+      "place_count": 2,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "FR45a-C1",
+          "display_span": "Sainte Colome → Port du Somport",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Sainte Colome"
+          ],
+          "sinks": [
+            "Port du Somport"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT01a",
+      "source_id": "PT01a",
+      "official_name": "Caminos Portugueses - Caminho Central Lisboa - Tui",
+      "name": "Caminho Central Lisboa - Tui",
+      "display_name": "Caminho Central Lisboa - Tui — Alvaiazare → Tui (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 22,
+      "place_count": 25,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "PT01a-C1",
+          "display_span": "Alvaiazare → Tui",
+          "track_count": 13,
+          "place_count": 14,
+          "sources": [
+            "Alvaiazare"
+          ],
+          "sinks": [
+            "Tui"
+          ]
+        },
+        {
+          "component_id": "PT01a-C2",
+          "display_span": "Lisboa → Alvaiazere",
+          "track_count": 6,
+          "place_count": 7,
+          "sources": [
+            "Lisboa"
+          ],
+          "sinks": [
+            "Alvaiazere"
+          ]
+        },
+        {
+          "component_id": "PT01a-C3",
+          "display_span": "Variante → Antigoinicio / Opcao Alpriate / Saida Tomar",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Variante"
+          ],
+          "sinks": [
+            "Antigoinicio",
+            "Opcao Alpriate",
+            "Saida Tomar"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT02a",
+      "source_id": "PT02a",
+      "official_name": "Caminos Portugueses - Caminho Português Interior a Santiago",
+      "name": "Caminho Português Interior a Santiago",
+      "display_name": "Caminho Português Interior a Santiago — Farminhao → Laza",
+      "topology_class": "LINEAR",
+      "track_count": 11,
+      "place_count": 12,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "PT02a-C1",
+          "display_span": "Farminhao → Laza",
+          "track_count": 11,
+          "place_count": 12,
+          "sources": [
+            "Farminhao"
+          ],
+          "sinks": [
+            "Laza"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT03a",
+      "source_id": "PT03a",
+      "official_name": "Caminos Portugueses - Caminho Português por la Costa",
+      "name": "Caminho Português por la Costa",
+      "display_name": "Caminho Português por la Costa — Porto → Valenca",
+      "topology_class": "LINEAR",
+      "track_count": 5,
+      "place_count": 6,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "PT03a-C1",
+          "display_span": "Porto → Valenca",
+          "track_count": 5,
+          "place_count": 6,
+          "sources": [
+            "Porto"
+          ],
+          "sinks": [
+            "Valenca"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT05a",
+      "source_id": "PT05a",
+      "official_name": "Caminos Portugueses - Caminho Português Porto - Braga - Ponte de Lima",
+      "name": "Caminho Português Porto - Braga - Ponte de Lima",
+      "display_name": "Caminho Português Porto - Braga - Ponte de Lima — Porto → Ponte de Lima",
+      "topology_class": "LINEAR",
+      "track_count": 2,
+      "place_count": 3,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "PT05a-C1",
+          "display_span": "Porto → Ponte de Lima",
+          "track_count": 2,
+          "place_count": 3,
+          "sources": [
+            "Porto"
+          ],
+          "sinks": [
+            "Ponte de Lima"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT06a",
+      "source_id": "PT06a",
+      "official_name": "Caminos Portugueses - Camino Torres",
+      "name": "Camino Torres",
+      "display_name": "Camino Torres — Salamanca → Braga (+1 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 16,
+      "place_count": 18,
+      "component_count": 2,
+      "components": [
+        {
+          "component_id": "PT06a-C1",
+          "display_span": "Salamanca → Braga",
+          "track_count": 15,
+          "place_count": 16,
+          "sources": [
+            "Salamanca"
+          ],
+          "sinks": [
+            "Braga"
+          ]
+        },
+        {
+          "component_id": "PT06a-C2",
+          "display_span": "Variante Por → Felgueiras",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Variante Por"
+          ],
+          "sinks": [
+            "Felgueiras"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT07a",
+      "source_id": "PT07a",
+      "official_name": "Caminos Portugueses - Caminho Português de la Vía de la Plata",
+      "name": "Caminho Português de la Vía de la Plata",
+      "display_name": "Caminho Português de la Vía de la Plata — Zamora → Laza",
+      "topology_class": "LINEAR",
+      "track_count": 9,
+      "place_count": 10,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "PT07a-C1",
+          "display_span": "Zamora → Laza",
+          "track_count": 9,
+          "place_count": 10,
+          "sources": [
+            "Zamora"
+          ],
+          "sinks": [
+            "Laza"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT08a",
+      "source_id": "PT08a",
+      "official_name": "Caminos Portugueses - Caminho Central Faro-Golegã",
+      "name": "Caminho Central Faro-Golegã",
+      "display_name": "Caminho Central Faro-Golegã — Ameixial → Santarem (+2 components)",
+      "topology_class": "DISCONNECTED",
+      "track_count": 21,
+      "place_count": 24,
+      "component_count": 3,
+      "components": [
+        {
+          "component_id": "PT08a-C1",
+          "display_span": "Ameixial → Santarem",
+          "track_count": 17,
+          "place_count": 18,
+          "sources": [
+            "Ameixial"
+          ],
+          "sinks": [
+            "Santarem"
+          ]
+        },
+        {
+          "component_id": "PT08a-C2",
+          "display_span": "Faro → Ameixal",
+          "track_count": 3,
+          "place_count": 4,
+          "sources": [
+            "Faro"
+          ],
+          "sinks": [
+            "Ameixal"
+          ]
+        },
+        {
+          "component_id": "PT08a-C3",
+          "display_span": "Golega → Entroncamento",
+          "track_count": 1,
+          "place_count": 2,
+          "sources": [
+            "Golega"
+          ],
+          "sinks": [
+            "Entroncamento"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT09a",
+      "source_id": "PT09a",
+      "official_name": "Caminos Portugueses - Caminho Nascente Tavira-Trancoso",
+      "name": "Caminho Nascente Tavira-Trancoso",
+      "display_name": "Caminho Nascente Tavira-Trancoso — Tavira → Trancoso",
+      "topology_class": "LINEAR",
+      "track_count": 30,
+      "place_count": 28,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "PT09a-C1",
+          "display_span": "Tavira → Trancoso",
+          "track_count": 30,
+          "place_count": 28,
+          "sources": [
+            "Tavira"
+          ],
+          "sinks": [
+            "Trancoso"
+          ]
+        }
+      ]
+    },
+    {
+      "route_group_id": "PT10a",
+      "source_id": "PT10a",
+      "official_name": "Caminos Portugueses - Caminho Central Via Atlantico",
+      "name": "Caminho Central Via Atlantico",
+      "display_name": "Caminho Central Via Atlantico — Castro Verde → Santiago do Cacem",
+      "topology_class": "LINEAR",
+      "track_count": 7,
+      "place_count": 8,
+      "component_count": 1,
+      "components": [
+        {
+          "component_id": "PT10a-C1",
+          "display_span": "Castro Verde → Santiago do Cacem",
+          "track_count": 7,
+          "place_count": 8,
+          "sources": [
+            "Castro Verde"
+          ],
+          "sinks": [
+            "Santiago do Cacem"
+          ]
+        }
+      ]
+    }
+  ]
+}
