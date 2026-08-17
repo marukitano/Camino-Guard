@@ -659,3 +659,9 @@ Pebble Time 2           compact navigation/statistics UI
 Processed Caminos may join official segments and add settlements, route distance,
 elevation summaries and variants. The raw KML files remain available so generated
 data can always be recreated and verified.
+
+## Android companion
+
+Camino Guard uses a native Android companion as the phone-side application. The Android app will own the offline map, full Camino dataset, GPS/route matching, trip logging and later Pebble communication. The watch remains the small walking cockpit.
+
+The Android project lives under `android/`.

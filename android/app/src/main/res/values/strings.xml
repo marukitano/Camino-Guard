@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Camino Guard</string>
+    <string name="foundation_status">Android companion foundation\nOffline-first Camino navigation</string>
+</resources>
