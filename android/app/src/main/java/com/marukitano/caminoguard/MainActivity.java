@@ -32,6 +32,18 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
 
+    // TEMPORARY: local walking test for GPS + gyro in Schaffhausen.
+    private static final boolean DEBUG_SCHAFFHAUSEN_MAP = true;
+    private static final String DEBUG_MAP_ASSET = "maps/debug-schaffhausen.pmtiles";
+    private static final String DEBUG_MAP_METADATA_ASSET = "maps/debug-schaffhausen.metadata.json";
+    private static final String DEBUG_LOCAL_MAP_FILENAME = "debug-schaffhausen.pmtiles";
+    private static final String PREF_INSTALLED_DEBUG_SHA256 = "installed_debug_schaffhausen_sha256";
+    private static final LatLngBounds SCHAFFHAUSEN_DEBUG_BOUNDS =
+            new LatLngBounds.Builder()
+                    .include(new LatLng(47.80, 8.45))
+                    .include(new LatLng(47.60, 8.82))
+                    .build();
+
     private static final String MAP_ASSET = "maps/iberia.pmtiles";
     private static final String MAP_METADATA_ASSET = "maps/iberia.metadata.json";
     private static final String CONTOUR_ASSET = "maps/contours.pmtiles";
@@ -71,6 +83,7 @@ public final class MainActivity extends Activity {
     private View setupPanel;
     private TextView setupStatus;
     private ProgressBar setupProgress;
+    private GpsGyroOrientationController orientationController;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +96,7 @@ public final class MainActivity extends Activity {
         setupPanel = findViewById(R.id.map_setup_panel);
         setupStatus = findViewById(R.id.map_setup_status);
         setupProgress = findViewById(R.id.map_setup_progress);
+        orientationController = new GpsGyroOrientationController(this);
 
         mapView.getMapAsync(map -> {
             // Allow natural two-finger zoom + rotate at the same time.
@@ -91,7 +105,10 @@ public final class MainActivity extends Activity {
             map.getUiSettings().setRotateGesturesEnabled(true);
             map.getUiSettings().setDisableRotateWhenScaling(false);
             map.getUiSettings().setIncreaseScaleThresholdWhenRotating(false);
-            map.setLatLngBoundsForCameraTarget(IBERIA_CAMERA_BOUNDS);
+            map.setLatLngBoundsForCameraTarget(
+                    DEBUG_SCHAFFHAUSEN_MAP ? SCHAFFHAUSEN_DEBUG_BOUNDS : IBERIA_CAMERA_BOUNDS
+            );
+            orientationController.attachMap(map);
 
             /*
              * Wait until MapView has its real pixel size. Then calculate the
@@ -107,9 +124,13 @@ public final class MainActivity extends Activity {
         int padding = dpToPx(OVERVIEW_PADDING_DP);
         int[] edgePadding = {padding, padding, padding, padding};
 
+        LatLngBounds overviewBounds = DEBUG_SCHAFFHAUSEN_MAP
+                ? SCHAFFHAUSEN_DEBUG_BOUNDS
+                : IBERIA_CAMERA_BOUNDS;
+
         CameraPosition overview =
                 map.getCameraForLatLngBounds(
-                        IBERIA_CAMERA_BOUNDS,
+                        overviewBounds,
                         edgePadding
                 );
 
@@ -129,15 +150,18 @@ public final class MainActivity extends Activity {
 
     private void prepareOfflineMap(MapLibreMap map) {
         try {
-            MapMetadata mapMetadata =
-                    readMapMetadata(MAP_METADATA_ASSET);
-            File localMap =
-                    ensureMapInstalled(
-                            mapMetadata,
-                            MAP_ASSET,
-                            LOCAL_MAP_FILENAME,
-                            PREF_INSTALLED_SHA256
-                    );
+            String activeMapAsset = DEBUG_SCHAFFHAUSEN_MAP ? DEBUG_MAP_ASSET : MAP_ASSET;
+            String activeMapMetadataAsset = DEBUG_SCHAFFHAUSEN_MAP
+                    ? DEBUG_MAP_METADATA_ASSET : MAP_METADATA_ASSET;
+            String activeLocalMapFilename = DEBUG_SCHAFFHAUSEN_MAP
+                    ? DEBUG_LOCAL_MAP_FILENAME : LOCAL_MAP_FILENAME;
+            String activeMapPreference = DEBUG_SCHAFFHAUSEN_MAP
+                    ? PREF_INSTALLED_DEBUG_SHA256 : PREF_INSTALLED_SHA256;
+
+            MapMetadata mapMetadata = readMapMetadata(activeMapMetadataAsset);
+            File localMap = ensureMapInstalled(
+                    mapMetadata, activeMapAsset, activeLocalMapFilename, activeMapPreference
+            );
 
             MapMetadata contourMetadata =
                     readMapMetadata(CONTOUR_METADATA_ASSET);
@@ -170,7 +194,10 @@ public final class MainActivity extends Activity {
                 setupProgress.setIndeterminate(true);
                 map.setStyle(
                         new Style.Builder().fromJson(finalStyleJson),
-                        style -> setupPanel.setVisibility(View.GONE)
+                        style -> {
+                            setupPanel.setVisibility(View.GONE);
+                            orientationController.onStyleLoaded(style);
+                        }
                 );
             });
         } catch (Exception error) {
@@ -357,10 +384,12 @@ public final class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         mapView.onResume();
+        orientationController.start();
     }
 
     @Override
     protected void onPause() {
+        orientationController.stop();
         mapView.onPause();
         super.onPause();
     }
@@ -369,6 +398,20 @@ public final class MainActivity extends Activity {
     protected void onStop() {
         mapView.onStop();
         super.onStop();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            String[] permissions,
+            int[] grantResults
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        orientationController.onLocationPermissionResult(
+                requestCode,
+                permissions,
+                grantResults
+        );
     }
 
     @Override
