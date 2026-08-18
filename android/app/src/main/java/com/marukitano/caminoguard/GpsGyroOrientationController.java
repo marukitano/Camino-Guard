@@ -1,6 +1,7 @@
 package com.marukitano.caminoguard;
 
 import android.Manifest;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -27,6 +28,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private static final String DOT="camino-user-location-dot";
     private static final String ARROW="camino-user-direction";
     private static final String ARROW_IMG="camino-user-direction-arrow";
+    private static final String ARROW_IMG_STATIONARY="camino-user-direction-arrow-stationary";
     private static final String TRACK_SRC="camino-debug-gps-track";
     private static final String TRACK="camino-debug-gps-track-line";
 
@@ -39,6 +41,9 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private Double navigationZoom;
     private boolean followMode;
     private long lastFollowLocationTime = Long.MIN_VALUE;
+    private ValueAnimator navigationAnimator;
+    private LatLng displayedPosition;
+    private Double displayedBearing;
     private boolean started, asked;
 
     public GpsGyroOrientationController(Activity a){
@@ -79,7 +84,14 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 PropertyFactory.circleStrokeWidth(2.2f));
         style.addLayer(dot);
 
-        style.addImage(ARROW_IMG,arrowBitmap());
+        style.addImage(
+                ARROW_IMG,
+                arrowBitmap(Color.parseColor("#F5C98E"))
+        );
+        style.addImage(
+                ARROW_IMG_STATIONARY,
+                arrowBitmap(Color.parseColor("#4A90E2"))
+        );
         arrowLayer=new SymbolLayer(ARROW,POS_SRC);
         arrowLayer.setProperties(
                 PropertyFactory.iconImage(ARROW_IMG),
@@ -134,15 +146,11 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 pts.add(Point.fromLngLat(l.getLongitude(),l.getLatitude()));
             trackSource.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(pts)));
         }
-        if(posSource!=null && s.location!=null)
-            posSource.setGeoJson(Feature.fromGeometry(Point.fromLngLat(
-                    s.location.getLongitude(),s.location.getLatitude())));
-
         updateArrow();
 
-        if(followMode && s.location!=null && s.location.getTime()!=lastFollowLocationTime){
+        if(s.location!=null && s.location.getTime()!=lastFollowLocationTime){
             lastFollowLocationTime=s.location.getTime();
-            follow(s);
+            animateToSnapshot(s);
         }
     }
 
@@ -153,12 +161,20 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
             return;
         }
 
-        float screenAngle=(float)norm(
-                state.phoneHeadingDeg - map.getCameraPosition().bearing);
+        if(state.stationary){
+            float screenAngle=(float)norm(
+                    state.phoneHeadingDeg - map.getCameraPosition().bearing);
 
-        arrowLayer.setProperties(
-                PropertyFactory.iconRotate(screenAngle),
-                PropertyFactory.iconOpacity(1f));
+            arrowLayer.setProperties(
+                    PropertyFactory.iconImage(ARROW_IMG_STATIONARY),
+                    PropertyFactory.iconRotate(screenAngle),
+                    PropertyFactory.iconOpacity(1f));
+        } else {
+            arrowLayer.setProperties(
+                    PropertyFactory.iconImage(ARROW_IMG),
+                    PropertyFactory.iconRotate(0f),
+                    PropertyFactory.iconOpacity(1f));
+        }
     }
 
     private void enterFollowMode(){
@@ -183,6 +199,93 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         enterFollowMode();
     }
 
+    private void animateToSnapshot(CaminoTrackingService.Snapshot s){
+        if(map==null || posSource==null || s.location==null)return;
+
+        LatLng targetPosition=new LatLng(
+                s.location.getLatitude(),
+                s.location.getLongitude());
+
+        if(displayedPosition==null){
+            displayedPosition=targetPosition;
+            posSource.setGeoJson(Feature.fromGeometry(Point.fromLngLat(
+                    targetPosition.getLongitude(),
+                    targetPosition.getLatitude())));
+
+            if(s.courseDeg!=null)
+                displayedBearing=(double)s.courseDeg;
+
+            if(followMode)
+                follow(s);
+
+            return;
+        }
+
+        LatLng startPosition=displayedPosition;
+        double startBearing=
+                displayedBearing!=null
+                        ? displayedBearing
+                        : map.getCameraPosition().bearing;
+        double targetBearing=
+                s.courseDeg!=null
+                        ? s.courseDeg
+                        : startBearing;
+
+        if(navigationAnimator!=null)
+            navigationAnimator.cancel();
+
+        navigationAnimator=ValueAnimator.ofFloat(0f,1f);
+        navigationAnimator.setDuration(950L);
+
+        navigationAnimator.addUpdateListener(animation -> {
+            float t=(float)animation.getAnimatedValue();
+
+            double lat=startPosition.getLatitude()
+                    +(targetPosition.getLatitude()-startPosition.getLatitude())*t;
+            double lon=startPosition.getLongitude()
+                    +(targetPosition.getLongitude()-startPosition.getLongitude())*t;
+
+            double bearing=norm(
+                    startBearing
+                            + shortestAngle(startBearing,targetBearing)*t
+            );
+
+            displayedPosition=new LatLng(lat,lon);
+            displayedBearing=bearing;
+
+            posSource.setGeoJson(Feature.fromGeometry(
+                    Point.fromLngLat(lon,lat)));
+
+            if(followMode && s.courseDeg!=null){
+                if(navigationZoom==null){
+                    CameraPosition fit=fitNavigation(s.location,s.courseDeg);
+                    navigationZoom=fit!=null?fit.zoom:15.0;
+                }
+
+                LatLng cameraTarget=dest(lat,lon,bearing,500.0);
+
+                CameraPosition camera=new CameraPosition.Builder()
+                        .target(cameraTarget)
+                        .zoom(navigationZoom)
+                        .bearing(bearing)
+                        .tilt(0)
+                        .build();
+
+                /*
+                 * ValueAnimator is the tween. moveCamera simply renders each
+                 * interpolated frame; no nested MapLibre animation is started.
+                 */
+                map.moveCamera(
+                        CameraUpdateFactory.newCameraPosition(camera)
+                );
+            }
+
+            updateArrow();
+        });
+
+        navigationAnimator.start();
+    }
+
     private void follow(CaminoTrackingService.Snapshot s){
         if(map==null || s.location==null)return;
 
@@ -192,7 +295,9 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 CameraPosition n=new CameraPosition.Builder(c)
                         .target(new LatLng(s.location.getLatitude(),s.location.getLongitude()))
                         .zoom(Math.max(c.zoom,15.0)).build();
-                map.animateCamera(CameraUpdateFactory.newCameraPosition(n),500);
+                map.moveCamera(
+                        CameraUpdateFactory.newCameraPosition(n)
+                );
             }
             return;
         }
@@ -208,7 +313,16 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
         CameraPosition c=new CameraPosition.Builder()
                 .target(target).zoom(navigationZoom).bearing(course).tilt(0).build();
-        map.animateCamera(CameraUpdateFactory.newCameraPosition(c),500);
+        displayedPosition=
+                new LatLng(
+                        s.location.getLatitude(),
+                        s.location.getLongitude()
+                );
+        displayedBearing=course;
+
+        map.moveCamera(
+                CameraUpdateFactory.newCameraPosition(c)
+        );
     }
 
     private CameraPosition fitNavigation(android.location.Location o,double course){
@@ -239,7 +353,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         return new LatLng(Math.toDegrees(p2),Math.toDegrees(l2));
     }
 
-    private Bitmap arrowBitmap(){
+    private Bitmap arrowBitmap(int fillColor){
         int size=Math.max(64,Math.round(40*activity.getResources().getDisplayMetrics().density));
         Bitmap bm=Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bm); float x=size/2f;
@@ -249,8 +363,13 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         out.setStrokeJoin(Paint.Join.ROUND); out.setStrokeWidth(Math.max(4,size*.075f));
         out.setColor(Color.parseColor("#3D332C"));
         Paint fill=new Paint(Paint.ANTI_ALIAS_FLAG); fill.setStyle(Paint.Style.FILL);
-        fill.setColor(Color.parseColor("#F5C98E"));
+        fill.setColor(fillColor);
         c.drawPath(p,out); c.drawPath(p,fill); return bm;
+    }
+
+    private static double shortestAngle(double from,double to){
+        double d=norm(to-from);
+        return d>180.0?d-360.0:d;
     }
 
     private static double norm(double v){v%=360;return v<0?v+360:v;}

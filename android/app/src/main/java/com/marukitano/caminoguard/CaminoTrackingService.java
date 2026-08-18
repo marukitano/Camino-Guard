@@ -56,12 +56,14 @@ public final class CaminoTrackingService extends Service
         public final List<Location> track;
         public final Float courseDeg;
         public final Float phoneHeadingDeg;
+        public final boolean stationary;
 
         Snapshot(
                 Location location,
                 List<Location> track,
                 Float courseDeg,
-                Float phoneHeadingDeg
+                Float phoneHeadingDeg,
+                boolean stationary
         ) {
             this.location =
                     location == null
@@ -75,6 +77,7 @@ public final class CaminoTrackingService extends Service
 
             this.courseDeg = courseDeg;
             this.phoneHeadingDeg = phoneHeadingDeg;
+            this.stationary = stationary;
         }
     }
 
@@ -94,7 +97,7 @@ public final class CaminoTrackingService extends Service
      * Fixed spatial direction window.
      * The heading is the continuation of roughly the last 15 m walked.
      */
-    private static final float COURSE_BASELINE_M = 15.0f;
+    private static final float COURSE_BASELINE_M = 10.0f;
 
     /*
      * Linear-acceleration state machine.
@@ -106,6 +109,8 @@ public final class CaminoTrackingService extends Service
     private static final long MOTION_START_CONFIRM_MS = 350L;
     private static final long MOTION_PULSE_GAP_MS = 550L;
     private static final long STATIONARY_AFTER_QUIET_MS = 2500L;
+    private static final float STATIONARY_RMS_THRESHOLD = 0.28f;
+    private static final long STATIONARY_RMS_CONFIRM_MS = 2500L;
 
     /*
      * GPS speed is only a backup movement signal.
@@ -113,6 +118,14 @@ public final class CaminoTrackingService extends Service
      */
     private static final float GPS_MOVING_SPEED_MPS = 0.55f;
     private static final int GPS_MOVING_FIXES_REQUIRED = 2;
+
+    /*
+     * 0.20 m/s = 0.72 km/h.
+     * Three consecutive slow fixes are treated as a real standstill.
+     */
+    private static final float GPS_STATIONARY_SPEED_MPS = 0.20f;
+    private static final int GPS_STATIONARY_FIXES_REQUIRED = 3;
+
     private static final float GPS_ESCAPE_DISTANCE_M = 25.0f;
 
     private static final CopyOnWriteArrayList<Listener> LISTENERS =
@@ -123,7 +136,8 @@ public final class CaminoTrackingService extends Service
                     null,
                     new ArrayList<>(),
                     null,
-                    null
+                    null,
+                    false
             );
 
     private LocationManager locationManager;
@@ -151,8 +165,11 @@ public final class CaminoTrackingService extends Service
     private long lastStrongMotionMs = -1L;
 
     private int consecutiveGpsMovingFixes;
+    private int consecutiveGpsStationaryFixes;
 
     private long lastSensorPublishMs;
+    private float stationaryRmsSq;
+    private long stationaryCandidateSinceMs = -1L;
 
     public static void addListener(Listener listener) {
         if (listener == null) {
@@ -355,28 +372,33 @@ public final class CaminoTrackingService extends Service
     private void updateGpsMovementEvidence(
             Location location
     ) {
-        boolean fastEnough =
-                location.hasSpeed()
-                        && location.getSpeed()
-                                >= GPS_MOVING_SPEED_MPS;
+        if (location.hasSpeed()) {
+            float speedMps = location.getSpeed();
 
-        if (fastEnough) {
-            consecutiveGpsMovingFixes++;
-        } else {
-            consecutiveGpsMovingFixes = 0;
+            if (speedMps >= GPS_MOVING_SPEED_MPS) {
+                consecutiveGpsMovingFixes++;
+                consecutiveGpsStationaryFixes = 0;
+            } else if (speedMps <= GPS_STATIONARY_SPEED_MPS) {
+                consecutiveGpsStationaryFixes++;
+                consecutiveGpsMovingFixes = 0;
+            } else {
+                consecutiveGpsMovingFixes = 0;
+                consecutiveGpsStationaryFixes = 0;
+            }
+
+            if (consecutiveGpsStationaryFixes
+                    >= GPS_STATIONARY_FIXES_REQUIRED) {
+                enterStationary();
+                return;
+            }
+
+            if (consecutiveGpsMovingFixes
+                    >= GPS_MOVING_FIXES_REQUIRED) {
+                enterMoving();
+                return;
+            }
         }
 
-        if (motionState != MotionState.MOVING
-                && consecutiveGpsMovingFixes
-                        >= GPS_MOVING_FIXES_REQUIRED) {
-            enterMoving();
-            return;
-        }
-
-        /*
-         * Last-resort escape hatch if a phone exposes a poor acceleration
-         * sensor. Ordinary stationary GPS jitter should not reach 25 m.
-         */
         if (motionState != MotionState.MOVING
                 && acceptedLocation.distanceTo(location)
                         >= GPS_ESCAPE_DISTANCE_M) {
@@ -528,18 +550,43 @@ public final class CaminoTrackingService extends Service
         float y = event.values[1];
         float z = event.values[2];
 
-        float magnitude =
-                (float) Math.sqrt(
-                        x * x
-                                + y * y
-                                + z * z
-                );
+        float magnitudeSq = x * x + y * y + z * z;
 
-        long now =
-                SystemClock.elapsedRealtime();
+        /*
+         * Exponential moving RMS. One isolated noisy sample can no longer
+         * reset the whole standstill decision.
+         */
+        final float alpha = 0.04f;
+        stationaryRmsSq =
+                stationaryRmsSq == 0.0f
+                        ? magnitudeSq
+                        : (1.0f - alpha) * stationaryRmsSq
+                                + alpha * magnitudeSq;
 
-        if (magnitude
-                >= MOTION_ACCEL_THRESHOLD) {
+        float rms = (float) Math.sqrt(stationaryRmsSq);
+        long now = SystemClock.elapsedRealtime();
+
+        if (rms <= STATIONARY_RMS_THRESHOLD) {
+            if (stationaryCandidateSinceMs < 0L) {
+                stationaryCandidateSinceMs = now;
+            }
+
+            if (motionState != MotionState.STATIONARY
+                    && now - stationaryCandidateSinceMs
+                            >= STATIONARY_RMS_CONFIRM_MS) {
+                enterStationary();
+            }
+        } else {
+            stationaryCandidateSinceMs = -1L;
+        }
+
+        /*
+         * Acceleration may help only while state is UNKNOWN.
+         * Once STATIONARY, rotating the phone cannot kick us back to MOVING.
+         * Leaving STATIONARY is decided by GPS speed/distance.
+         */
+        if (motionState == MotionState.UNKNOWN
+                && rms >= MOTION_ACCEL_THRESHOLD) {
             if (motionBurstStartedMs < 0L
                     || lastStrongMotionMs < 0L
                     || now - lastStrongMotionMs
@@ -549,30 +596,10 @@ public final class CaminoTrackingService extends Service
 
             lastStrongMotionMs = now;
 
-            if (motionState
-                    != MotionState.MOVING
-                    && now - motionBurstStartedMs
-                            >= MOTION_START_CONFIRM_MS) {
+            if (now - motionBurstStartedMs
+                    >= MOTION_START_CONFIRM_MS) {
                 enterMoving();
             }
-
-            return;
-        }
-
-        /*
-         * No meaningful translation acceleration.
-         * After 2.5 seconds of quiet, standing still is authoritative.
-         *
-         * Crucially, GPS jitter cannot keep us in MOVING state.
-         */
-        long quietSince =
-                lastStrongMotionMs >= 0L
-                        ? lastStrongMotionMs
-                        : motionObservationStartedMs;
-
-        if (now - quietSince
-                >= STATIONARY_AFTER_QUIET_MS) {
-            enterStationary();
         }
     }
 
@@ -583,7 +610,9 @@ public final class CaminoTrackingService extends Service
 
         motionState = MotionState.MOVING;
 
+        stationaryCandidateSinceMs = -1L;
         consecutiveGpsMovingFixes = 0;
+        consecutiveGpsStationaryFixes = 0;
 
         stationaryRefYawDeg = null;
         stationaryRefHeadingDeg = null;
@@ -617,6 +646,7 @@ public final class CaminoTrackingService extends Service
         motionState = MotionState.STATIONARY;
 
         consecutiveGpsMovingFixes = 0;
+        consecutiveGpsStationaryFixes = 0;
         motionBurstStartedMs = -1L;
 
         /*
@@ -724,7 +754,8 @@ public final class CaminoTrackingService extends Service
                         acceptedLocation,
                         track,
                         gpsCourseDeg,
-                        phoneHeadingDeg
+                        phoneHeadingDeg,
+                        motionState == MotionState.STATIONARY
                 );
 
         latestSnapshot = snapshot;
