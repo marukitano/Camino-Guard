@@ -26,3 +26,4 @@ app/src/main/assets/camino/tracks.geojson
 app/src/main/assets/camino/catalog.json
 app/src/main/assets/maps/debug-schaffhausen.pmtiles
 app/src/main/assets/maps/debug-schaffhausen.metadata.json
+app/src/main/assets/camino/debug-*.json

@@ -34,6 +34,11 @@ public final class MainActivity extends Activity {
 
     // TEMPORARY: local walking test for GPS + gyro in Schaffhausen.
     private static final boolean DEBUG_SCHAFFHAUSEN_MAP = true;
+
+    /* TEMPORARY: interactive Camino distance test in Almeria. */
+    private static final boolean DEBUG_CAMINO_TAP_ALMERIA = true;
+    private static final LatLng DEBUG_ALMERIA_POSITION =
+            new LatLng(36.83838096, -2.46707205);
     private static final String DEBUG_MAP_ASSET = "maps/debug-schaffhausen.pmtiles";
     private static final String DEBUG_MAP_METADATA_ASSET = "maps/debug-schaffhausen.metadata.json";
     private static final String DEBUG_LOCAL_MAP_FILENAME = "debug-schaffhausen.pmtiles";
@@ -84,6 +89,7 @@ public final class MainActivity extends Activity {
     private TextView setupStatus;
     private ProgressBar setupProgress;
     private GpsGyroOrientationController orientationController;
+    private CaminoTapDebugController caminoTapDebugController;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,6 +103,8 @@ public final class MainActivity extends Activity {
         setupStatus = findViewById(R.id.map_setup_status);
         setupProgress = findViewById(R.id.map_setup_progress);
         orientationController = new GpsGyroOrientationController(this);
+        caminoTapDebugController = new CaminoTapDebugController(
+                this, mapView, DEBUG_ALMERIA_POSITION);
 
         mapView.getMapAsync(map -> {
             // Allow natural two-finger zoom + rotate at the same time.
@@ -106,9 +114,16 @@ public final class MainActivity extends Activity {
             map.getUiSettings().setDisableRotateWhenScaling(false);
             map.getUiSettings().setIncreaseScaleThresholdWhenRotating(false);
             map.setLatLngBoundsForCameraTarget(
-                    DEBUG_SCHAFFHAUSEN_MAP ? SCHAFFHAUSEN_DEBUG_BOUNDS : IBERIA_CAMERA_BOUNDS
+                    useSchaffhausenDebugMap()
+                            ? SCHAFFHAUSEN_DEBUG_BOUNDS
+                            : IBERIA_CAMERA_BOUNDS
             );
-            orientationController.attachMap(map);
+
+            if (DEBUG_CAMINO_TAP_ALMERIA) {
+                caminoTapDebugController.attachMap(map);
+            } else {
+                orientationController.attachMap(map);
+            }
 
             /*
              * Wait until MapView has its real pixel size. Then calculate the
@@ -124,7 +139,7 @@ public final class MainActivity extends Activity {
         int padding = dpToPx(OVERVIEW_PADDING_DP);
         int[] edgePadding = {padding, padding, padding, padding};
 
-        LatLngBounds overviewBounds = DEBUG_SCHAFFHAUSEN_MAP
+        LatLngBounds overviewBounds = useSchaffhausenDebugMap()
                 ? SCHAFFHAUSEN_DEBUG_BOUNDS
                 : IBERIA_CAMERA_BOUNDS;
 
@@ -140,8 +155,24 @@ public final class MainActivity extends Activity {
              * out than the overview that fits Iberia on this display.
              */
             map.setMinZoomPreference(overview.zoom);
-            map.setCameraPosition(overview);
+
+            if (DEBUG_CAMINO_TAP_ALMERIA) {
+                map.setCameraPosition(
+                        new CameraPosition.Builder()
+                                .target(DEBUG_ALMERIA_POSITION)
+                                .zoom(14.8)
+                                .bearing(0.0)
+                                .tilt(0.0)
+                                .build()
+                );
+            } else {
+                map.setCameraPosition(overview);
+            }
         }
+    }
+
+    private static boolean useSchaffhausenDebugMap() {
+        return DEBUG_SCHAFFHAUSEN_MAP && !DEBUG_CAMINO_TAP_ALMERIA;
     }
 
     private int dpToPx(int dp) {
@@ -150,12 +181,12 @@ public final class MainActivity extends Activity {
 
     private void prepareOfflineMap(MapLibreMap map) {
         try {
-            String activeMapAsset = DEBUG_SCHAFFHAUSEN_MAP ? DEBUG_MAP_ASSET : MAP_ASSET;
-            String activeMapMetadataAsset = DEBUG_SCHAFFHAUSEN_MAP
+            String activeMapAsset = useSchaffhausenDebugMap() ? DEBUG_MAP_ASSET : MAP_ASSET;
+            String activeMapMetadataAsset = useSchaffhausenDebugMap()
                     ? DEBUG_MAP_METADATA_ASSET : MAP_METADATA_ASSET;
-            String activeLocalMapFilename = DEBUG_SCHAFFHAUSEN_MAP
+            String activeLocalMapFilename = useSchaffhausenDebugMap()
                     ? DEBUG_LOCAL_MAP_FILENAME : LOCAL_MAP_FILENAME;
-            String activeMapPreference = DEBUG_SCHAFFHAUSEN_MAP
+            String activeMapPreference = useSchaffhausenDebugMap()
                     ? PREF_INSTALLED_DEBUG_SHA256 : PREF_INSTALLED_SHA256;
 
             MapMetadata mapMetadata = readMapMetadata(activeMapMetadataAsset);
@@ -196,7 +227,12 @@ public final class MainActivity extends Activity {
                         new Style.Builder().fromJson(finalStyleJson),
                         style -> {
                             setupPanel.setVisibility(View.GONE);
-                            orientationController.onStyleLoaded(style);
+
+                            if (DEBUG_CAMINO_TAP_ALMERIA) {
+                                caminoTapDebugController.onStyleLoaded(style);
+                            } else {
+                                orientationController.onStyleLoaded(style);
+                            }
                         }
                 );
             });
@@ -384,12 +420,16 @@ public final class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         mapView.onResume();
-        orientationController.start();
+        if (!DEBUG_CAMINO_TAP_ALMERIA) {
+            orientationController.start();
+        }
     }
 
     @Override
     protected void onPause() {
-        orientationController.stop();
+        if (!DEBUG_CAMINO_TAP_ALMERIA) {
+            orientationController.stop();
+        }
         mapView.onPause();
         super.onPause();
     }
@@ -407,11 +447,10 @@ public final class MainActivity extends Activity {
             int[] grantResults
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        orientationController.onLocationPermissionResult(
-                requestCode,
-                permissions,
-                grantResults
-        );
+        if (!DEBUG_CAMINO_TAP_ALMERIA) {
+            orientationController.onLocationPermissionResult(
+                    requestCode, permissions, grantResults);
+        }
     }
 
     @Override

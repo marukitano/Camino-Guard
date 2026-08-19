@@ -11,7 +11,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.view.View;
 import android.widget.Button;
-import android.widget.TextView;
 
 import org.maplibre.android.camera.*;
 import org.maplibre.android.geometry.LatLng;
@@ -26,64 +25,30 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     public static final int LOCATION_PERMISSION_REQUEST=4207;
 
     private static final String POS_SRC="camino-user-location";
-    private static final String DOT="camino-user-location-dot";
     private static final String ARROW="camino-user-direction";
     private static final String ARROW_IMG="camino-user-direction-arrow";
     private static final String ARROW_IMG_STATIONARY="camino-user-direction-arrow-stationary";
-    private static final String TRACK_SRC="camino-debug-gps-track";
-    private static final String TRACK="camino-debug-gps-track-line";
-    private static final String BSPLINE_SRC="camino-debug-active-bspline-src";
-    private static final String BSPLINE="camino-debug-active-bspline";
-    private static final String BSPLINE_CTRL_SRC="camino-debug-bspline-control-src";
-    private static final String BSPLINE_CTRL="camino-debug-bspline-control";
-    private static final String BSPLINE_POINTS_SRC="camino-debug-bspline-points-src";
-    private static final String BSPLINE_POINTS="camino-debug-bspline-points";
 
     private final Activity activity;
     private final Button recenterButton;
     private final Button rotateButton;
-    private final TextView trackingDebug;
     private MapLibreMap map;
-    private GeoJsonSource posSource, trackSource;
-    private GeoJsonSource bSplineSource, bSplineControlSource, bSplinePointsSource;
+    private GeoJsonSource posSource;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
     private Double navigationZoom;
     private boolean followMode;
     private long lastFollowLocationTime = Long.MIN_VALUE;
-    private ValueAnimator navigationAnimator;
     private LatLng displayedPosition;
     private Double displayedBearing;
-
-    /*
-     * One-fix delayed visual path. We keep four known GPS points and animate
-     * the middle segment with a Catmull-Rom spline. Nothing is extrapolated.
-     */
-    private final Deque<LatLng> curvePoints=new ArrayDeque<>();
-
-    /*
-     * Fixed visual delay. We deliberately render a little over one GPS period
-     * behind real time. Unlike the previous elastic buffer, this can NEVER
-     * accumulate into many seconds of lag.
-     */
-    private static final long DISPLAY_DELAY_MS=1200L;
 
     private static final class TimedPoint {
         final LatLng point;
         final long timeMs;
-        final double velocityLatPerMs;
-        final double velocityLonPerMs;
 
-        TimedPoint(
-                LatLng point,
-                long timeMs,
-                double velocityLatPerMs,
-                double velocityLonPerMs
-        ){
+        TimedPoint(LatLng point,long timeMs){
             this.point=point;
             this.timeMs=timeMs;
-            this.velocityLatPerMs=velocityLatPerMs;
-            this.velocityLonPerMs=velocityLonPerMs;
         }
     }
 
@@ -98,7 +63,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         activity=a;
         recenterButton=a.findViewById(R.id.map_recenter_button);
         rotateButton=a.findViewById(R.id.map_rotate_button);
-        trackingDebug=a.findViewById(R.id.tracking_debug);
         recenterButton.setOnClickListener(v->recenter());
         rotateButton.setOnClickListener(v->followAtCurrentZoom());
     }
@@ -115,56 +79,8 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     }
 
     public void onStyleLoaded(Style style){
-        posSource=new GeoJsonSource(POS_SRC); style.addSource(posSource);
-        trackSource=new GeoJsonSource(TRACK_SRC); style.addSource(trackSource);
-
-        LineLayer line=new LineLayer(TRACK,TRACK_SRC);
-        line.setProperties(
-                PropertyFactory.lineColor(Color.parseColor("#D04432")),
-                PropertyFactory.lineWidth(4f),
-                PropertyFactory.lineOpacity(.88f),
-                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND));
-        style.addLayer(line);
-
-        // TEMP DEBUG: magenta = actual B-spline, cyan = its GPS controls.
-        bSplineSource=new GeoJsonSource(BSPLINE_SRC);
-        style.addSource(bSplineSource);
-        LineLayer bSplineLine=new LineLayer(BSPLINE,BSPLINE_SRC);
-        bSplineLine.setProperties(
-                PropertyFactory.lineColor(Color.parseColor("#E000FF")),
-                PropertyFactory.lineWidth(6f),
-                PropertyFactory.lineOpacity(.95f));
-        style.addLayer(bSplineLine);
-
-        bSplineControlSource=new GeoJsonSource(BSPLINE_CTRL_SRC);
-        style.addSource(bSplineControlSource);
-        LineLayer bSplineControlLine=
-                new LineLayer(BSPLINE_CTRL,BSPLINE_CTRL_SRC);
-        bSplineControlLine.setProperties(
-                PropertyFactory.lineColor(Color.parseColor("#00C8FF")),
-                PropertyFactory.lineWidth(2f),
-                PropertyFactory.lineOpacity(.80f));
-        style.addLayer(bSplineControlLine);
-
-        bSplinePointsSource=new GeoJsonSource(BSPLINE_POINTS_SRC);
-        style.addSource(bSplinePointsSource);
-        CircleLayer bSplinePoints=
-                new CircleLayer(BSPLINE_POINTS,BSPLINE_POINTS_SRC);
-        bSplinePoints.setProperties(
-                PropertyFactory.circleRadius(6f),
-                PropertyFactory.circleColor(Color.parseColor("#00C8FF")),
-                PropertyFactory.circleStrokeColor(Color.parseColor("#202020")),
-                PropertyFactory.circleStrokeWidth(2f));
-        style.addLayer(bSplinePoints);
-
-        CircleLayer dot=new CircleLayer(DOT,POS_SRC);
-        dot.setProperties(
-                PropertyFactory.circleRadius(7f),
-                PropertyFactory.circleColor(Color.parseColor("#F5C98E")),
-                PropertyFactory.circleStrokeColor(Color.parseColor("#3D332C")),
-                PropertyFactory.circleStrokeWidth(2.2f));
-        style.addLayer(dot);
+        posSource=new GeoJsonSource(POS_SRC);
+        style.addSource(posSource);
 
         style.addImage(
                 ARROW_IMG,
@@ -222,12 +138,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
     private void render(CaminoTrackingService.Snapshot s){
         if(s==null)return;
-        if(trackSource!=null && s.track.size()>=2){
-            List<Point> pts=new ArrayList<>();
-            for(android.location.Location l:s.track)
-                pts.add(Point.fromLngLat(l.getLongitude(),l.getLatitude()));
-            trackSource.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(pts)));
-        }
         if(previousStationary && !s.stationary){
             Double base=
                     displayedBearing!=null
@@ -257,7 +167,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         previousStationary=s.stationary;
 
         updateArrow();
-        updateTrackingDebug(s);
 
         if(s.location!=null && s.location.getTime()!=lastFollowLocationTime){
             lastFollowLocationTime=s.location.getTime();
@@ -265,51 +174,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         }
     }
 
-    private void updateTrackingDebug(
-            CaminoTrackingService.Snapshot s
-    ){
-        if(trackingDebug==null)return;
-
-        String speed=
-                s.gpsHasSpeed
-                        ? String.format(java.util.Locale.US,"%.2f",s.gpsSpeedMps)
-                        : "--";
-
-        String accuracy=
-                s.gpsAccuracyM>=0
-                        ? String.format(java.util.Locale.US,"%.1f",s.gpsAccuracyM)
-                        : "--";
-
-        String rms=
-                String.format(java.util.Locale.US,"%.3f",s.accelRms);
-
-        String candidate=
-                String.format(
-                        java.util.Locale.US,
-                        "%.1f",
-                        s.stationaryCandidateMs/1000.0
-                );
-
-        String course=
-                s.courseDeg!=null
-                        ? String.format(java.util.Locale.US,"%.0f",s.courseDeg)
-                        : "--";
-
-        String heading=
-                s.phoneHeadingDeg!=null
-                        ? String.format(java.util.Locale.US,"%.0f",s.phoneHeadingDeg)
-                        : "--";
-
-        trackingDebug.setText(
-                "state: " + s.motionState
-                + "\nGPS speed: " + speed + " m/s"
-                + "\naccuracy: " + accuracy + " m"
-                + "\naccel RMS: " + rms
-                + "\nquiet candidate: " + candidate + " s"
-                + "\ncourse: " + course + "°"
-                + "\narrow: " + heading + "°"
-        );
-    }
 
     private void updateArrow(){
         if(map==null || arrowLayer==null || state==null)
@@ -420,46 +284,13 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 return;
         }
 
-        double velocityLatPerMs=0.0;
-        double velocityLonPerMs=0.0;
-
-        if(previous!=null){
-            double dt=Math.max(
-                    1.0,
-                    timeMs-previous.timeMs);
-
-            double newVelLat=
-                    (newest.getLatitude()
-                            -previous.point.getLatitude())/dt;
-
-            double newVelLon=
-                    (newest.getLongitude()
-                            -previous.point.getLongitude())/dt;
-
-            if(playbackPoints.size()==1){
-                velocityLatPerMs=newVelLat;
-                velocityLonPerMs=newVelLon;
-            } else {
-                velocityLatPerMs=
-                        0.70*newVelLat
-                                +0.30*previous.velocityLatPerMs;
-
-                velocityLonPerMs=
-                        0.70*newVelLon
-                                +0.30*previous.velocityLonPerMs;
-            }
-        }
-
-        TimedPoint newestTimed=
+        playbackPoints.add(
                 new TimedPoint(
                         newest,
-                        timeMs,
-                        velocityLatPerMs,
-                        velocityLonPerMs);
+                        timeMs));
 
-        playbackPoints.add(newestTimed);
-
-        while(playbackPoints.size()>120)
+        /* Only the newest three fixes are used by the active algorithm. */
+        while(playbackPoints.size()>3)
             playbackPoints.remove(0);
 
         if(displayedPosition==null || previous==null){
@@ -524,12 +355,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                                 Math.round(
                                         fixIntervalMs*0.82)));
 
-        drawCurrentHermiteDebug(
-                start,
-                end,
-                startBearing,
-                endBearing);
-
         if(playbackAnimator!=null)
             playbackAnimator.cancel();
 
@@ -587,119 +412,8 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         playbackAnimator.start();
     }
 
-    private void ensurePlaybackAnimator(){
-        if(playbackAnimator!=null)
-            return;
 
-        playbackAnimator=ValueAnimator.ofFloat(0f,1f);
-        playbackAnimator.setDuration(1000L);
-        playbackAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        playbackAnimator.setInterpolator(
-                new android.view.animation.LinearInterpolator());
 
-        playbackAnimator.addUpdateListener(
-                animation -> renderPlaybackFrame());
-
-        playbackAnimator.start();
-    }
-
-    private void renderPlaybackFrame(){
-        if(playbackPoints.size()<2
-                || posSource==null
-                || map==null)
-            return;
-
-        /*
-         * Hard time target, not an accumulated playback clock.
-         *
-         * Therefore:
-         *   visual time = real monotonic time - 1.2 s
-         *
-         * It may pause briefly only if Android fails to deliver a GPS fix for
-         * longer than the delay. It cannot drift to 5, 8 or 10 seconds behind.
-         */
-        double targetTimeMs=
-                android.os.SystemClock.elapsedRealtime()
-                        -DISPLAY_DELAY_MS;
-
-        renderBSplineAtTime(targetTimeMs);
-    }
-
-    private void renderBSplineAtTime(double timeMs){
-        int n=playbackPoints.size();
-
-        if(n<2)
-            return;
-
-        TimedPoint first=playbackPoints.get(0);
-        TimedPoint last=playbackPoints.get(n-1);
-
-        if(timeMs<=first.timeMs){
-            renderSplinePose(
-                    first.point,
-                    displayedBearing!=null
-                            ? displayedBearing
-                            : state!=null && state.courseDeg!=null
-                                    ? (double)state.courseDeg
-                                    : 0.0);
-            return;
-        }
-
-        if(timeMs>=last.timeMs){
-            /*
-             * No extrapolation. Hold the latest known real point until the
-             * next GPS fix arrives.
-             */
-            double bearing=
-                    n>=2
-                            ? bearingDegrees(
-                                    playbackPoints.get(n-2).point,
-                                    last.point)
-                            : displayedBearing!=null
-                                    ? displayedBearing
-                                    : 0.0;
-
-            renderSplinePose(last.point,bearing);
-            return;
-        }
-
-        int segment=0;
-
-        for(int i=0;i<n-1;i++){
-            if(timeMs>=playbackPoints.get(i).timeMs
-                    && timeMs<=playbackPoints.get(i+1).timeMs){
-                segment=i;
-                break;
-            }
-        }
-
-        TimedPoint a=playbackPoints.get(segment);
-        TimedPoint b=playbackPoints.get(segment+1);
-
-        double durationMs=Math.max(
-                1.0,
-                b.timeMs-a.timeMs);
-
-        float t=(float)Math.max(
-                0.0,
-                Math.min(
-                        1.0,
-                        (timeMs-a.timeMs)/durationMs));
-
-        LatLng pos=causalHermite(
-                a,
-                b,
-                t);
-
-        double splineBearing=causalHermiteBearing(
-                a,
-                b,
-                t);
-
-        renderSplinePose(
-                pos,
-                splineBearing);
-    }
 
     private static double blendHeading(
             double from,
@@ -877,67 +591,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                                 north)));
     }
 
-    private void drawCurrentHermiteDebug(
-            LatLng a,
-            LatLng b,
-            double startBearing,
-            double endBearing
-    ){
-        if(bSplineSource==null
-                || bSplineControlSource==null
-                || bSplinePointsSource==null)
-            return;
-
-        List<Point> controls=new ArrayList<>();
-
-        for(TimedPoint tp:playbackPoints){
-            controls.add(
-                    Point.fromLngLat(
-                            tp.point.getLongitude(),
-                            tp.point.getLatitude()));
-        }
-
-        if(controls.size()>=2){
-            bSplineControlSource.setGeoJson(
-                    Feature.fromGeometry(
-                            org.maplibre.geojson.LineString
-                                    .fromLngLats(controls)));
-        }
-
-        if(!controls.isEmpty()){
-            bSplinePointsSource.setGeoJson(
-                    Feature.fromGeometry(
-                            org.maplibre.geojson.MultiPoint
-                                    .fromLngLats(controls)));
-        }
-
-        if(a.getLatitude()==b.getLatitude()
-                && a.getLongitude()==b.getLongitude())
-            return;
-
-        List<Point> curve=new ArrayList<>();
-
-        for(int i=0;i<=80;i++){
-            float t=i/80f;
-
-            LatLng p=headingHermite(
-                    a,
-                    b,
-                    startBearing,
-                    endBearing,
-                    t);
-
-            curve.add(
-                    Point.fromLngLat(
-                            p.getLongitude(),
-                            p.getLatitude()));
-        }
-
-        bSplineSource.setGeoJson(
-                Feature.fromGeometry(
-                        org.maplibre.geojson.LineString
-                                .fromLngLats(curve)));
-    }
 
     private void renderSplinePose(
             LatLng pos,
@@ -983,300 +636,11 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         updateArrow();
     }
 
-    private static LatLng causalHermite(
-            TimedPoint a,
-            TimedPoint b,
-            float t
-    ){
-        double durationMs=Math.max(
-                1.0,
-                b.timeMs-a.timeMs);
 
-        double t2=t*t;
-        double t3=t2*t;
 
-        double h00=2*t3-3*t2+1;
-        double h10=t3-2*t2+t;
-        double h01=-2*t3+3*t2;
-        double h11=t3-t2;
 
-        double dLat=
-                b.point.getLatitude()
-                        -a.point.getLatitude();
-        double dLon=
-                b.point.getLongitude()
-                        -a.point.getLongitude();
 
-        double m0Lat=a.velocityLatPerMs*durationMs;
-        double m0Lon=a.velocityLonPerMs*durationMs;
-        double m1Lat=b.velocityLatPerMs*durationMs;
-        double m1Lon=b.velocityLonPerMs*durationMs;
 
-        /*
-         * Clamp tangent lengths to the segment size. This keeps the curve
-         * organic but prevents small GPS irregularities from creating loops.
-         */
-        double segmentLen=Math.hypot(dLat,dLon);
-        double maxTangent=segmentLen*1.15;
-
-        double m0Len=Math.hypot(m0Lat,m0Lon);
-        if(m0Len>maxTangent && m0Len>0.0){
-            double scale=maxTangent/m0Len;
-            m0Lat*=scale;
-            m0Lon*=scale;
-        }
-
-        double m1Len=Math.hypot(m1Lat,m1Lon);
-        if(m1Len>maxTangent && m1Len>0.0){
-            double scale=maxTangent/m1Len;
-            m1Lat*=scale;
-            m1Lon*=scale;
-        }
-
-        return new LatLng(
-                h00*a.point.getLatitude()
-                        +h10*m0Lat
-                        +h01*b.point.getLatitude()
-                        +h11*m1Lat,
-                h00*a.point.getLongitude()
-                        +h10*m0Lon
-                        +h01*b.point.getLongitude()
-                        +h11*m1Lon);
-    }
-
-    private static double causalHermiteBearing(
-            TimedPoint a,
-            TimedPoint b,
-            float t
-    ){
-        double durationMs=Math.max(
-                1.0,
-                b.timeMs-a.timeMs);
-
-        double t2=t*t;
-
-        double dh00=6*t2-6*t;
-        double dh10=3*t2-4*t+1;
-        double dh01=-6*t2+6*t;
-        double dh11=3*t2-2*t;
-
-        double dLatSegment=
-                b.point.getLatitude()
-                        -a.point.getLatitude();
-        double dLonSegment=
-                b.point.getLongitude()
-                        -a.point.getLongitude();
-
-        double m0Lat=a.velocityLatPerMs*durationMs;
-        double m0Lon=a.velocityLonPerMs*durationMs;
-        double m1Lat=b.velocityLatPerMs*durationMs;
-        double m1Lon=b.velocityLonPerMs*durationMs;
-
-        double segmentLen=
-                Math.hypot(
-                        dLatSegment,
-                        dLonSegment);
-        double maxTangent=segmentLen*1.15;
-
-        double m0Len=Math.hypot(m0Lat,m0Lon);
-        if(m0Len>maxTangent && m0Len>0.0){
-            double scale=maxTangent/m0Len;
-            m0Lat*=scale;
-            m0Lon*=scale;
-        }
-
-        double m1Len=Math.hypot(m1Lat,m1Lon);
-        if(m1Len>maxTangent && m1Len>0.0){
-            double scale=maxTangent/m1Len;
-            m1Lat*=scale;
-            m1Lon*=scale;
-        }
-
-        double dLat=
-                dh00*a.point.getLatitude()
-                        +dh10*m0Lat
-                        +dh01*b.point.getLatitude()
-                        +dh11*m1Lat;
-
-        double dLon=
-                dh00*a.point.getLongitude()
-                        +dh10*m0Lon
-                        +dh01*b.point.getLongitude()
-                        +dh11*m1Lon;
-
-        double lat=
-                causalHermite(a,b,t)
-                        .getLatitude();
-
-        double east=
-                dLon*Math.cos(
-                        Math.toRadians(lat));
-        double north=dLat;
-
-        if(Math.hypot(east,north)<1e-12){
-            return bearingDegrees(
-                    a.point,
-                    b.point);
-        }
-
-        return norm(
-                Math.toDegrees(
-                        Math.atan2(
-                                east,
-                                north)));
-    }
-
-    private void drawFullBSplineDebug(){
-        if(bSplineSource==null
-                || bSplineControlSource==null
-                || bSplinePointsSource==null
-                || playbackPoints.isEmpty())
-            return;
-
-        List<Point> controls=new ArrayList<>();
-
-        for(TimedPoint tp:playbackPoints){
-            controls.add(
-                    Point.fromLngLat(
-                            tp.point.getLongitude(),
-                            tp.point.getLatitude()));
-        }
-
-        if(controls.size()>=2){
-            bSplineControlSource.setGeoJson(
-                    Feature.fromGeometry(
-                            org.maplibre.geojson.LineString
-                                    .fromLngLats(controls)));
-        }
-
-        bSplinePointsSource.setGeoJson(
-                Feature.fromGeometry(
-                        org.maplibre.geojson.MultiPoint
-                                .fromLngLats(controls)));
-
-        if(playbackPoints.size()<2)
-            return;
-
-        List<Point> curve=new ArrayList<>();
-
-        for(int i=0;i<playbackPoints.size()-1;i++){
-            TimedPoint a=playbackPoints.get(i);
-            TimedPoint b=playbackPoints.get(i+1);
-
-            final int samples=40;
-
-            for(int j=0;j<=samples;j++){
-                float t=j/(float)samples;
-                LatLng p=causalHermite(
-                        a,
-                        b,
-                        t);
-
-                curve.add(
-                        Point.fromLngLat(
-                                p.getLongitude(),
-                                p.getLatitude()));
-            }
-        }
-
-        if(curve.size()>=2){
-            bSplineSource.setGeoJson(
-                    Feature.fromGeometry(
-                            org.maplibre.geojson.LineString
-                                    .fromLngLats(curve)));
-        }
-    }
-
-    private static LatLng cubicBSpline(
-            LatLng p0,
-            LatLng p1,
-            LatLng p2,
-            LatLng p3,
-            float t
-    ){
-        double t2=t*t;
-        double t3=t2*t;
-
-        double b0=(-t3+3*t2-3*t+1)/6.0;
-        double b1=(3*t3-6*t2+4)/6.0;
-        double b2=(-3*t3+3*t2+3*t+1)/6.0;
-        double b3=t3/6.0;
-
-        return new LatLng(
-                b0*p0.getLatitude()
-                        +b1*p1.getLatitude()
-                        +b2*p2.getLatitude()
-                        +b3*p3.getLatitude(),
-                b0*p0.getLongitude()
-                        +b1*p1.getLongitude()
-                        +b2*p2.getLongitude()
-                        +b3*p3.getLongitude());
-    }
-
-    private static double cubicBSplineBearing(
-            LatLng p0,
-            LatLng p1,
-            LatLng p2,
-            LatLng p3,
-            float t
-    ){
-        double t2=t*t;
-
-        double d0=(-3*t2+6*t-3)/6.0;
-        double d1=(9*t2-12*t)/6.0;
-        double d2=(-9*t2+6*t+3)/6.0;
-        double d3=(3*t2)/6.0;
-
-        double dLat=
-                d0*p0.getLatitude()
-                        +d1*p1.getLatitude()
-                        +d2*p2.getLatitude()
-                        +d3*p3.getLatitude();
-
-        double dLon=
-                d0*p0.getLongitude()
-                        +d1*p1.getLongitude()
-                        +d2*p2.getLongitude()
-                        +d3*p3.getLongitude();
-
-        double lat=cubicBSpline(p0,p1,p2,p3,t).getLatitude();
-        double east=dLon*Math.cos(Math.toRadians(lat));
-        double north=dLat;
-
-        if(Math.hypot(east,north)<1e-12)
-            return 0.0;
-
-        return norm(Math.toDegrees(Math.atan2(east,north)));
-    }
-
-    private static LatLng catmullRom(
-            LatLng p0,
-            LatLng p1,
-            LatLng p2,
-            LatLng p3,
-            float t
-    ){
-        double t2=t*t;
-        double t3=t2*t;
-
-        double lat=0.5*(
-                2*p1.getLatitude()
-                +(-p0.getLatitude()+p2.getLatitude())*t
-                +(2*p0.getLatitude()-5*p1.getLatitude()
-                    +4*p2.getLatitude()-p3.getLatitude())*t2
-                +(-p0.getLatitude()+3*p1.getLatitude()
-                    -3*p2.getLatitude()+p3.getLatitude())*t3);
-
-        double lon=0.5*(
-                2*p1.getLongitude()
-                +(-p0.getLongitude()+p2.getLongitude())*t
-                +(2*p0.getLongitude()-5*p1.getLongitude()
-                    +4*p2.getLongitude()-p3.getLongitude())*t2
-                +(-p0.getLongitude()+3*p1.getLongitude()
-                    -3*p2.getLongitude()+p3.getLongitude())*t3);
-
-        return new LatLng(lat,lon);
-    }
 
     private static double bearingDegrees(LatLng a,LatLng b){
         double p1=Math.toRadians(a.getLatitude());
@@ -1291,20 +655,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         return norm(Math.toDegrees(Math.atan2(y,x)));
     }
 
-    private static double distanceMeters(LatLng a,LatLng b){
-        double R=6371008.8;
-        double p1=Math.toRadians(a.getLatitude());
-        double p2=Math.toRadians(b.getLatitude());
-        double dp=p2-p1;
-        double dl=Math.toRadians(
-                b.getLongitude()-a.getLongitude());
-
-        double h=Math.sin(dp/2)*Math.sin(dp/2)
-                +Math.cos(p1)*Math.cos(p2)
-                *Math.sin(dl/2)*Math.sin(dl/2);
-
-        return 2*R*Math.asin(Math.min(1.0,Math.sqrt(h)));
-    }
 
     private void follow(CaminoTrackingService.Snapshot s){
         if(map==null || s.location==null)return;
