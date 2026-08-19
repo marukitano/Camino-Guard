@@ -54,7 +54,17 @@ def main() -> int:
                 lon = float(coordinate[1])
                 if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
                     fail(f"Invalid coordinate in {group_id}/{section_id}: {coordinate}")
-                coordinates.append([lat, lon])
+
+                elevation = None
+                if len(coordinate) >= 3 and coordinate[2] is not None:
+                    try:
+                        elevation = float(coordinate[2])
+                    except (TypeError, ValueError):
+                        elevation = None
+
+                # Keep the processed CNIG elevation as the third coordinate.
+                # Android still interprets the first two values as [lat, lon].
+                coordinates.append([lat, lon, elevation])
 
             if len(coordinates) < 2:
                 continue
@@ -87,7 +97,7 @@ def main() -> int:
     OUTPUT.write_text(
         json.dumps(
             {
-                "schema": 2,
+                "schema": 3,
                 "purpose": "temporary Android Camino measurement harness",
                 "routes": routes,
             },

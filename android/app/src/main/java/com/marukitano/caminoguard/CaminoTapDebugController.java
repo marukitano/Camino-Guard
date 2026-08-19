@@ -91,6 +91,15 @@ public final class CaminoTapDebugController {
 
     private static final double EARTH_RADIUS_M = 6371008.8;
 
+    /*
+     * CAMINO_HEIGHT_PROFILE_V1
+     *
+     * Height samples are retained much more sparsely than the raw CNIG survey
+     * geometry. The source geometry still drives route distance exactly.
+     */
+    private static final double HEIGHT_PROFILE_SAMPLE_SPACING_M = 15.0;
+    private static final long HEIGHT_PROFILE_REFRESH_DELAY_MS = 90L;
+
     private static final int DRAG_NONE = 0;
     private static final int DRAG_DUMMY = 1;
     private static final int DRAG_POINT_1 = 2;
@@ -115,6 +124,15 @@ public final class CaminoTapDebugController {
     private GeoJsonSource routeGapSource;
 
     private TextView distanceView;
+    private CaminoHeightProfileView heightProfileView;
+    private boolean heightProfileRefreshScheduled;
+
+    private final Runnable heightProfileRefreshRunnable =
+            () -> {
+                heightProfileRefreshScheduled =
+                        false;
+                refreshHeightProfile();
+            };
 
     private LatLng dummyPosition;
 
@@ -144,6 +162,19 @@ public final class CaminoTapDebugController {
 
         map.addOnMapClickListener(
                 this::handleMapTap
+        );
+
+        /*
+         * Keep the profile alive while the map is panned, zoomed or rotated.
+         * Camera-move updates are deliberately throttled; CameraIdle performs
+         * one exact final refresh.
+         */
+        map.addOnCameraMoveListener(
+                this::scheduleHeightProfileRefresh
+        );
+
+        map.addOnCameraIdleListener(
+                this::handleHeightProfileCameraIdle
         );
 
         mapView.setOnTouchListener(
@@ -532,6 +563,7 @@ public final class CaminoTapDebugController {
             Style style
     ) {
         ensureDistanceView();
+        ensureHeightProfileView();
 
         selectedRouteSource =
                 new GeoJsonSource(
@@ -873,6 +905,9 @@ public final class CaminoTapDebugController {
                 List<LatLng> points =
                         new ArrayList<>();
 
+                List<Double> elevations =
+                        new ArrayList<>();
+
                 for (int pointIndex = 0;
                         pointIndex < coordinates.length();
                         pointIndex++) {
@@ -892,6 +927,13 @@ public final class CaminoTapDebugController {
                                     )
                             )
                     );
+
+                    elevations.add(
+                            coordinate.optDouble(
+                                    2,
+                                    Double.NaN
+                            )
+                    );
                 }
 
                 if (points.size()
@@ -903,6 +945,7 @@ public final class CaminoTapDebugController {
                                             sectionId
                                     ),
                                     points,
+                                    elevations,
                                     fromKey,
                                     toKey,
                                     pseudoFrom,
@@ -1031,6 +1074,10 @@ public final class CaminoTapDebugController {
                 Collections.reverse(
                         firstTrack.points
                 );
+
+                Collections.reverse(
+                        firstTrack.elevations
+                );
             }
         }
 
@@ -1065,6 +1112,10 @@ public final class CaminoTapDebugController {
                 )) {
                     Collections.reverse(
                             track.points
+                    );
+
+                    Collections.reverse(
+                            track.elevations
                     );
                 }
             }
@@ -1168,6 +1219,8 @@ public final class CaminoTapDebugController {
         updateDistanceLabel(
                 startRouteHit
         );
+
+        refreshHeightProfile();
     }
 
     private RouteHit findNearestRouteHit(
@@ -2151,6 +2204,13 @@ public final class CaminoTapDebugController {
                     )
             );
 
+            appendRouteProfilePieces(
+                    result,
+                    start.route,
+                    start.hit,
+                    end.hit
+            );
+
             result.distanceM =
                     routeDistanceWithGaps(
                             start.route,
@@ -2282,7 +2342,581 @@ public final class CaminoTapDebugController {
                 false
         );
 
+        appendCrossRouteProfile(
+                result,
+                start,
+                end,
+                best
+        );
+
         return result;
+    }
+
+    private void appendCrossRouteProfile(
+            MeasurementPath result,
+            RouteHit start,
+            RouteHit end,
+            NetworkCandidate best
+    ) {
+        appendPartialTrackProfile(
+                result,
+                start,
+                best.startSide,
+                true
+        );
+
+        for (NetworkStep step
+                : best.networkPath.steps) {
+
+            if (step.type
+                    == GraphEdge.TYPE_TRACK) {
+
+                appendFullTrackProfile(
+                        result,
+                        step
+                );
+
+            } else {
+                appendGapProfile(
+                        result,
+                        endpointPoint(
+                                step.fromNode
+                        ),
+                        endpointElevation(
+                                step.fromNode
+                        ),
+                        endpointPoint(
+                                step.toNode
+                        ),
+                        endpointElevation(
+                                step.toNode
+                        )
+                );
+            }
+        }
+
+        appendPartialTrackProfile(
+                result,
+                end,
+                best.endSide,
+                false
+        );
+    }
+
+    private void appendRouteProfilePieces(
+            MeasurementPath result,
+            CaminoRoute route,
+            ProjectionHit start,
+            ProjectionHit end
+    ) {
+        if (start.trackIndex
+                == end.trackIndex) {
+
+            appendTrackProfileSlice(
+                    result,
+                    route.tracks.get(
+                            start.trackIndex
+                    ),
+                    start,
+                    end
+            );
+
+            return;
+        }
+
+        boolean forward =
+                start.chainageM
+                        <= end.chainageM;
+
+        if (forward) {
+            for (int trackIndex =
+                    start.trackIndex;
+                    trackIndex
+                            <= end.trackIndex;
+                    trackIndex++) {
+
+                RouteTrack track =
+                        route.tracks.get(
+                                trackIndex
+                        );
+
+                ProjectionHit from =
+                        trackIndex
+                                == start.trackIndex
+                                ? start
+                                : trackStartHit(
+                                        route,
+                                        trackIndex
+                                );
+
+                ProjectionHit to =
+                        trackIndex
+                                == end.trackIndex
+                                ? end
+                                : trackEndHit(
+                                        route,
+                                        trackIndex
+                                );
+
+                appendTrackProfileSlice(
+                        result,
+                        track,
+                        from,
+                        to
+                );
+
+                if (trackIndex
+                        < end.trackIndex) {
+
+                    RouteTrack next =
+                            route.tracks.get(
+                                    trackIndex + 1
+                            );
+
+                    appendGapProfile(
+                            result,
+                            track.points.get(
+                                    track.points.size()
+                                            - 1
+                            ),
+                            track.elevations.get(
+                                    track.elevations.size()
+                                            - 1
+                            ),
+                            next.points.get(
+                                    0
+                            ),
+                            next.elevations.get(
+                                    0
+                            )
+                    );
+                }
+            }
+
+        } else {
+            for (int trackIndex =
+                    start.trackIndex;
+                    trackIndex
+                            >= end.trackIndex;
+                    trackIndex--) {
+
+                RouteTrack track =
+                        route.tracks.get(
+                                trackIndex
+                        );
+
+                ProjectionHit from =
+                        trackIndex
+                                == start.trackIndex
+                                ? start
+                                : trackEndHit(
+                                        route,
+                                        trackIndex
+                                );
+
+                ProjectionHit to =
+                        trackIndex
+                                == end.trackIndex
+                                ? end
+                                : trackStartHit(
+                                        route,
+                                        trackIndex
+                                );
+
+                appendTrackProfileSlice(
+                        result,
+                        track,
+                        from,
+                        to
+                );
+
+                if (trackIndex
+                        > end.trackIndex) {
+
+                    RouteTrack previous =
+                            route.tracks.get(
+                                    trackIndex - 1
+                            );
+
+                    appendGapProfile(
+                            result,
+                            track.points.get(
+                                    0
+                            ),
+                            track.elevations.get(
+                                    0
+                            ),
+                            previous.points.get(
+                                    previous.points.size()
+                                            - 1
+                            ),
+                            previous.elevations.get(
+                                    previous.elevations.size()
+                                            - 1
+                            )
+                    );
+                }
+            }
+        }
+    }
+
+    private void appendPartialTrackProfile(
+            MeasurementPath result,
+            RouteHit routeHit,
+            int endpointSide,
+            boolean measurementStartsHere
+    ) {
+        ProjectionHit endpoint =
+                endpointSide == 0
+                        ? trackStartHit(
+                                routeHit.route,
+                                routeHit.hit.trackIndex
+                        )
+                        : trackEndHit(
+                                routeHit.route,
+                                routeHit.hit.trackIndex
+                        );
+
+        ProjectionHit from =
+                measurementStartsHere
+                        ? routeHit.hit
+                        : endpoint;
+
+        ProjectionHit to =
+                measurementStartsHere
+                        ? endpoint
+                        : routeHit.hit;
+
+        appendTrackProfileSlice(
+                result,
+                routeHit.route.tracks.get(
+                        routeHit.hit.trackIndex
+                ),
+                from,
+                to
+        );
+    }
+
+    private void appendFullTrackProfile(
+            MeasurementPath result,
+            NetworkStep step
+    ) {
+        NetworkTrack reference =
+                networkTracks.get(
+                        step.fromNode / 2
+                );
+
+        int fromSide =
+                step.fromNode % 2;
+
+        int toSide =
+                step.toNode % 2;
+
+        ProjectionHit from =
+                fromSide == 0
+                        ? trackStartHit(
+                                reference.route,
+                                reference.trackIndex
+                        )
+                        : trackEndHit(
+                                reference.route,
+                                reference.trackIndex
+                        );
+
+        ProjectionHit to =
+                toSide == 0
+                        ? trackStartHit(
+                                reference.route,
+                                reference.trackIndex
+                        )
+                        : trackEndHit(
+                                reference.route,
+                                reference.trackIndex
+                        );
+
+        appendTrackProfileSlice(
+                result,
+                reference.track,
+                from,
+                to
+        );
+    }
+
+    private void appendGapProfile(
+            MeasurementPath result,
+            LatLng from,
+            double fromElevationM,
+            LatLng to,
+            double toElevationM
+    ) {
+        appendProfileGeometryPoint(
+                result,
+                from,
+                fromElevationM,
+                false,
+                true
+        );
+
+        /*
+         * No invented terrain through an off-geometry Camino gap: horizontal
+         * distance remains real, but the next official elevation starts a new
+         * profile fragment.
+         */
+        appendProfileGeometryPoint(
+                result,
+                to,
+                toElevationM,
+                true,
+                true
+        );
+    }
+
+    private void appendTrackProfileSlice(
+            MeasurementPath result,
+            RouteTrack track,
+            ProjectionHit from,
+            ProjectionHit to
+    ) {
+        appendProfileGeometryPoint(
+                result,
+                from.point,
+                elevationAtHit(
+                        track,
+                        from
+                ),
+                false,
+                true
+        );
+
+        boolean forward =
+                from.segmentIndex
+                        < to.segmentIndex
+                        || (
+                        from.segmentIndex
+                                == to.segmentIndex
+                                && from.t
+                                <= to.t
+                );
+
+        if (forward) {
+            for (int vertexIndex =
+                    from.segmentIndex + 1;
+                    vertexIndex
+                            <= to.segmentIndex;
+                    vertexIndex++) {
+
+                appendProfileGeometryPoint(
+                        result,
+                        track.points.get(
+                                vertexIndex
+                        ),
+                        track.elevations.get(
+                                vertexIndex
+                        ),
+                        false,
+                        false
+                );
+            }
+
+        } else {
+            for (int vertexIndex =
+                    from.segmentIndex;
+                    vertexIndex
+                            > to.segmentIndex;
+                    vertexIndex--) {
+
+                appendProfileGeometryPoint(
+                        result,
+                        track.points.get(
+                                vertexIndex
+                        ),
+                        track.elevations.get(
+                                vertexIndex
+                        ),
+                        false,
+                        false
+                );
+            }
+        }
+
+        appendProfileGeometryPoint(
+                result,
+                to.point,
+                elevationAtHit(
+                        track,
+                        to
+                ),
+                false,
+                true
+        );
+    }
+
+    private void appendProfileGeometryPoint(
+            MeasurementPath result,
+            LatLng point,
+            double elevationM,
+            boolean breakBefore,
+            boolean forceEmit
+    ) {
+        if (point == null) {
+            return;
+        }
+
+        if (result.profileLastGeometryPoint
+                != null) {
+
+            result.profileCursorM +=
+                    distanceMeters(
+                            result.profileLastGeometryPoint,
+                            point
+                    );
+        }
+
+        result.profileLastGeometryPoint =
+                point;
+
+        if (!Double.isFinite(
+                elevationM
+        )) {
+            result.profileNeedsBreak =
+                    true;
+            return;
+        }
+
+        boolean effectiveBreak =
+                breakBefore
+                        || result.profileNeedsBreak;
+
+        boolean shouldEmit =
+                forceEmit
+                        || effectiveBreak
+                        || result.profilePoints.isEmpty()
+                        || result.profileCursorM
+                        - result.profileLastEmittedDistanceM
+                        >= HEIGHT_PROFILE_SAMPLE_SPACING_M;
+
+        if (!shouldEmit) {
+            return;
+        }
+
+        if (!result.profilePoints.isEmpty()) {
+            ProfilePoint previous =
+                    result.profilePoints.get(
+                            result.profilePoints.size()
+                                    - 1
+                    );
+
+            if (Math.abs(
+                    previous.distanceM
+                            - result.profileCursorM
+            ) < 0.01
+                    && distanceMeters(
+                    previous.point,
+                    point
+            ) < 0.05) {
+
+                result.profileNeedsBreak =
+                        false;
+                return;
+            }
+        }
+
+        result.profilePoints.add(
+                new ProfilePoint(
+                        point,
+                        result.profileCursorM,
+                        elevationM,
+                        effectiveBreak
+                )
+        );
+
+        result.profileLastEmittedDistanceM =
+                result.profileCursorM;
+
+        result.profileNeedsBreak =
+                false;
+    }
+
+    private double elevationAtHit(
+            RouteTrack track,
+            ProjectionHit hit
+    ) {
+        if (track.elevations.isEmpty()) {
+            return Double.NaN;
+        }
+
+        int firstIndex =
+                Math.max(
+                        0,
+                        Math.min(
+                                track.elevations.size() - 1,
+                                hit.segmentIndex
+                        )
+                );
+
+        int secondIndex =
+                Math.max(
+                        0,
+                        Math.min(
+                                track.elevations.size() - 1,
+                                firstIndex + 1
+                        )
+                );
+
+        double first =
+                track.elevations.get(
+                        firstIndex
+                );
+
+        double second =
+                track.elevations.get(
+                        secondIndex
+                );
+
+        if (Double.isFinite(
+                first
+        ) && Double.isFinite(
+                second
+        )) {
+            return first
+                    + hit.t
+                    * (
+                    second
+                            - first
+            );
+        }
+
+        if (Double.isFinite(
+                first
+        )) {
+            return first;
+        }
+
+        return second;
+    }
+
+    private double endpointElevation(
+            int node
+    ) {
+        NetworkTrack reference =
+                networkTracks.get(
+                        node / 2
+                );
+
+        if (reference.track.elevations.isEmpty()) {
+            return Double.NaN;
+        }
+
+        if (node % 2 == 0) {
+            return reference.track.elevations.get(
+                    0
+            );
+        }
+
+        return reference.track.elevations.get(
+                reference.track.elevations.size()
+                        - 1
+        );
     }
 
     private double routeDistanceWithGaps(
@@ -3101,6 +3735,157 @@ public final class CaminoTapDebugController {
         refresh();
     }
 
+    /*
+     * CAMINO_EDGE_PROJECTED_HEIGHT_PROFILE_V2
+     *
+     * Full-height narrow overlay glued to the right map edge. It has no
+     * independent chart Y-axis: route points keep their current screen-Y
+     * position; only elevation becomes horizontal displacement.
+     */
+    private void ensureHeightProfileView() {
+        if (heightProfileView != null) {
+            return;
+        }
+
+        heightProfileView =
+                new CaminoHeightProfileView(
+                        activity
+                );
+
+        heightProfileView.setVisibility(
+                android.view.View.GONE
+        );
+
+        ViewGroup parent =
+                (ViewGroup)
+                        mapView.getParent();
+
+        FrameLayout.LayoutParams params =
+                new FrameLayout.LayoutParams(
+                        dp(126),
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        Gravity.END
+                                | Gravity.TOP
+                );
+
+        params.rightMargin =
+                0;
+
+        parent.addView(
+                heightProfileView,
+                params
+        );
+    }
+
+    private void scheduleHeightProfileRefresh() {
+        if (heightProfileRefreshScheduled) {
+            return;
+        }
+
+        heightProfileRefreshScheduled =
+                true;
+
+        mapView.postDelayed(
+                heightProfileRefreshRunnable,
+                HEIGHT_PROFILE_REFRESH_DELAY_MS
+        );
+    }
+
+    private void handleHeightProfileCameraIdle() {
+        mapView.removeCallbacks(
+                heightProfileRefreshRunnable
+        );
+
+        heightProfileRefreshScheduled =
+                false;
+
+        refreshHeightProfile();
+    }
+
+    private void refreshHeightProfile() {
+        if (heightProfileView == null
+                || map == null
+                || currentMeasurementPath == null
+                || currentMeasurementPath.profilePoints.size()
+                < 2
+                || mapView.getWidth() <= 0
+                || mapView.getHeight() <= 0) {
+
+            if (heightProfileView != null) {
+                heightProfileView.clearProfile();
+            }
+
+            return;
+        }
+
+        float width =
+                mapView.getWidth();
+
+        float height =
+                mapView.getHeight();
+
+        List<CaminoHeightProfileView.Sample> visible =
+                new ArrayList<>();
+
+        int previousVisibleIndex =
+                -2;
+
+        for (int index = 0;
+                index
+                        < currentMeasurementPath.profilePoints.size();
+                index++) {
+
+            ProfilePoint point =
+                    currentMeasurementPath.profilePoints.get(
+                            index
+                    );
+
+            if (!Double.isFinite(
+                    point.elevationM
+            )) {
+                continue;
+            }
+
+            PointF screen =
+                    map.getProjection()
+                            .toScreenLocation(
+                                    point.point
+                            );
+
+            if (!Float.isFinite(
+                    screen.x
+            ) || !Float.isFinite(
+                    screen.y
+            ) || screen.x < 0.0f
+                    || screen.x > width
+                    || screen.y < 0.0f
+                    || screen.y > height) {
+
+                continue;
+            }
+
+            boolean breakBefore =
+                    point.breakBefore
+                            || previousVisibleIndex
+                            != index - 1;
+
+            visible.add(
+                    new CaminoHeightProfileView.Sample(
+                            screen.y / height,
+                            point.elevationM,
+                            breakBefore
+                    )
+            );
+
+            previousVisibleIndex =
+                    index;
+        }
+
+        heightProfileView.setSamples(
+                visible
+        );
+    }
+
     private void ensureDistanceView() {
         if (distanceView != null) {
             return;
@@ -3337,15 +4122,46 @@ public final class CaminoTapDebugController {
         );
     }
 
+    private static final class ProfilePoint {
+        final LatLng point;
+        final double distanceM;
+        final double elevationM;
+        final boolean breakBefore;
+
+        ProfilePoint(
+                LatLng point,
+                double distanceM,
+                double elevationM,
+                boolean breakBefore
+        ) {
+            this.point =
+                    point;
+            this.distanceM =
+                    distanceM;
+            this.elevationM =
+                    elevationM;
+            this.breakBefore =
+                    breakBefore;
+        }
+    }
+
     private static final class MeasurementPath {
         final List<Feature> routeFeatures =
                 new ArrayList<>();
         final List<Feature> gapFeatures =
                 new ArrayList<>();
+        final List<ProfilePoint> profilePoints =
+                new ArrayList<>();
 
         double distanceM;
         CaminoRoute startRoute;
         CaminoRoute endRoute;
+
+        double profileCursorM;
+        double profileLastEmittedDistanceM =
+                Double.NEGATIVE_INFINITY;
+        LatLng profileLastGeometryPoint;
+        boolean profileNeedsBreak;
     }
 
     private static final class NetworkCandidate {
@@ -3484,6 +4300,7 @@ public final class CaminoTapDebugController {
         final String sectionId;
         final int order;
         final List<LatLng> points;
+        final List<Double> elevations;
         final String fromKey;
         final String toKey;
         final boolean pseudoFrom;
@@ -3502,6 +4319,7 @@ public final class CaminoTapDebugController {
                 String sectionId,
                 int order,
                 List<LatLng> points,
+                List<Double> elevations,
                 String fromKey,
                 String toKey,
                 boolean pseudoFrom,
@@ -3515,6 +4333,9 @@ public final class CaminoTapDebugController {
 
             this.points =
                     points;
+
+            this.elevations =
+                    elevations;
 
             this.fromKey =
                     emptyToNull(
