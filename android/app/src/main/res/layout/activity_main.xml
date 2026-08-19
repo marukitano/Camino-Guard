@@ -45,6 +45,41 @@
 
     </FrameLayout>
 
+    <TextView
+        android:id="@+id/tracking_debug"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="10dp"
+        android:background="#DD1F2421"
+        android:fontFamily="monospace"
+        android:paddingStart="8dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="6dp"
+        android:text="tracking debug"
+        android:textColor="#FFFFFFFF"
+        android:textSize="12sp" />
+
+    <Button
+        android:id="@+id/map_rotate_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="62dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:paddingStart="12dp"
+        android:paddingTop="7dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="7dp"
+        android:text="↻ Mitdrehen"
+        android:textAllCaps="false"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/map_recenter_button"
         android:layout_width="wrap_content"

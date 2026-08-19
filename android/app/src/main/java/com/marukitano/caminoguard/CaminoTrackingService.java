@@ -57,13 +57,25 @@ public final class CaminoTrackingService extends Service
         public final Float courseDeg;
         public final Float phoneHeadingDeg;
         public final boolean stationary;
+        public final String motionState;
+        public final boolean gpsHasSpeed;
+        public final float gpsSpeedMps;
+        public final float gpsAccuracyM;
+        public final float accelRms;
+        public final long stationaryCandidateMs;
 
         Snapshot(
                 Location location,
                 List<Location> track,
                 Float courseDeg,
                 Float phoneHeadingDeg,
-                boolean stationary
+                boolean stationary,
+                String motionState,
+                boolean gpsHasSpeed,
+                float gpsSpeedMps,
+                float gpsAccuracyM,
+                float accelRms,
+                long stationaryCandidateMs
         ) {
             this.location =
                     location == null
@@ -78,6 +90,12 @@ public final class CaminoTrackingService extends Service
             this.courseDeg = courseDeg;
             this.phoneHeadingDeg = phoneHeadingDeg;
             this.stationary = stationary;
+            this.motionState = motionState;
+            this.gpsHasSpeed = gpsHasSpeed;
+            this.gpsSpeedMps = gpsSpeedMps;
+            this.gpsAccuracyM = gpsAccuracyM;
+            this.accelRms = accelRms;
+            this.stationaryCandidateMs = stationaryCandidateMs;
         }
     }
 
@@ -109,22 +127,24 @@ public final class CaminoTrackingService extends Service
     private static final long MOTION_START_CONFIRM_MS = 350L;
     private static final long MOTION_PULSE_GAP_MS = 550L;
     private static final long STATIONARY_AFTER_QUIET_MS = 2500L;
-    private static final float STATIONARY_RMS_THRESHOLD = 0.28f;
-    private static final long STATIONARY_RMS_CONFIRM_MS = 2500L;
+    private static final float STATIONARY_RMS_THRESHOLD = 1.50f;
+    private static final float MOVING_RMS_THRESHOLD = 1.80f;
+    private static final long MOTION_STATE_CONFIRM_MS = 1500L;
+    private static final long STATIONARY_RMS_CONFIRM_MS = 1500L;
 
     /*
      * GPS speed is only a backup movement signal.
      * 0.55 m/s is about 2 km/h. Require two consecutive good-speed fixes.
      */
     private static final float GPS_MOVING_SPEED_MPS = 0.55f;
-    private static final int GPS_MOVING_FIXES_REQUIRED = 2;
+    private static final int GPS_MOVING_FIXES_REQUIRED = 1;
 
     /*
      * 0.20 m/s = 0.72 km/h.
      * Three consecutive slow fixes are treated as a real standstill.
      */
     private static final float GPS_STATIONARY_SPEED_MPS = 0.20f;
-    private static final int GPS_STATIONARY_FIXES_REQUIRED = 3;
+    private static final int GPS_STATIONARY_FIXES_REQUIRED = 2;
 
     private static final float GPS_ESCAPE_DISTANCE_M = 25.0f;
 
@@ -137,7 +157,13 @@ public final class CaminoTrackingService extends Service
                     new ArrayList<>(),
                     null,
                     null,
-                    false
+                    false,
+                    "UNKNOWN",
+                    false,
+                    0.0f,
+                    -1.0f,
+                    0.0f,
+                    0L
             );
 
     private LocationManager locationManager;
@@ -149,6 +175,9 @@ public final class CaminoTrackingService extends Service
     private final Deque<Location> courseHistory = new ArrayDeque<>();
 
     private Location acceptedLocation;
+    private boolean latestGpsHasSpeed;
+    private float latestGpsSpeedMps;
+    private float latestGpsAccuracyM = -1.0f;
     private Location lastTrackLocation;
 
     private Float gpsCourseDeg;
@@ -157,6 +186,14 @@ public final class CaminoTrackingService extends Service
     private Float rawCameraYawDeg;
     private Float stationaryRefYawDeg;
     private Float stationaryRefHeadingDeg;
+
+    /*
+     * Relative phone rotation is always active. The reference moves toward
+     * the physical phone yaw by 5 degrees per GPS fix, so deliberate pointing
+     * works immediately but long-term gyro drift is pulled back to zero.
+     */
+    private Float gyroReferenceYawDeg;
+    private static final double GYRO_DECAY_PER_FIX_DEG = 5.0;
 
     private MotionState motionState = MotionState.UNKNOWN;
 
@@ -170,6 +207,7 @@ public final class CaminoTrackingService extends Service
     private long lastSensorPublishMs;
     private float stationaryRmsSq;
     private long stationaryCandidateSinceMs = -1L;
+    private long movingCandidateSinceMs = -1L;
 
     public static void addListener(Listener listener) {
         if (listener == null) {
@@ -336,8 +374,8 @@ public final class CaminoTrackingService extends Service
         }
 
         /*
-         * First trustworthy fix is always shown, even before the movement
-         * classifier has decided MOVING/STATIONARY.
+         * The first trustworthy fix gives us an initial map position.
+         * After that, GPS is gated completely by the accelerometer state.
          */
         if (acceptedLocation == null) {
             acceptedLocation =
@@ -354,14 +392,17 @@ public final class CaminoTrackingService extends Service
             return;
         }
 
-        updateGpsMovementEvidence(location);
-
+        /*
+         * STATIONARY / UNKNOWN:
+         * ignore this GPS packet completely.
+         *
+         * MOVING:
+         * process the fix normally.
+         *
+         * GPS speed/distance no longer participates in motion-state
+         * classification.
+         */
         if (motionState != MotionState.MOVING) {
-            /*
-             * This is the actual jitter filter:
-             * no map point, no red-track point and no course update while
-             * stationary/unknown.
-             */
             return;
         }
 
@@ -432,11 +473,13 @@ public final class CaminoTrackingService extends Service
 
         if (course != null) {
             gpsCourseDeg = course;
+        }
 
-            /*
-             * While moving there is deliberately ZERO gyro contribution.
-             * Arrow and map use the same 15 m walking course.
-             */
+        if (rawCameraYawDeg != null) {
+            gyroReferenceYawDeg = rawCameraYawDeg;
+        }
+
+        if (gpsCourseDeg != null) {
             phoneHeadingDeg = gpsCourseDeg;
         }
     }
@@ -522,24 +565,14 @@ public final class CaminoTrackingService extends Service
         updateRawCameraYaw(event);
 
         if (motionState == MotionState.STATIONARY) {
-            updateStationaryArrow();
-        } else if (motionState == MotionState.MOVING) {
-            /*
-             * Explicitly ignore phone rotation while walking.
-             */
-            if (gpsCourseDeg != null) {
-                phoneHeadingDeg =
-                        gpsCourseDeg;
+            updateGyroAugmentedHeading();
+
+            long now = SystemClock.elapsedRealtime();
+
+            if (now - lastSensorPublishMs >= 50L) {
+                lastSensorPublishMs = now;
+                publish();
             }
-        }
-
-        long now =
-                SystemClock.elapsedRealtime();
-
-        if (now - lastSensorPublishMs
-                >= 50L) {
-            lastSensorPublishMs = now;
-            publish();
         }
     }
 
@@ -553,54 +586,67 @@ public final class CaminoTrackingService extends Service
         float magnitudeSq = x * x + y * y + z * z;
 
         /*
-         * Exponential moving RMS. One isolated noisy sample can no longer
-         * reset the whole standstill decision.
+         * Thresholds measured during real use on this phone:
+         *
+         *   RMS < 1.50  -> standing / only moving phone in hand
+         *   RMS > 1.80  -> walking
+         *
+         * The 1.50..1.80 gap is deliberate hysteresis.
+         * Both transitions require 1.5 seconds beyond the threshold.
          */
         final float alpha = 0.04f;
+
         stationaryRmsSq =
                 stationaryRmsSq == 0.0f
                         ? magnitudeSq
                         : (1.0f - alpha) * stationaryRmsSq
                                 + alpha * magnitudeSq;
 
-        float rms = (float) Math.sqrt(stationaryRmsSq);
-        long now = SystemClock.elapsedRealtime();
+        float rms =
+                (float) Math.sqrt(stationaryRmsSq);
 
-        if (rms <= STATIONARY_RMS_THRESHOLD) {
+        long now =
+                SystemClock.elapsedRealtime();
+
+        if (rms < STATIONARY_RMS_THRESHOLD) {
+            movingCandidateSinceMs = -1L;
+
             if (stationaryCandidateSinceMs < 0L) {
                 stationaryCandidateSinceMs = now;
             }
 
             if (motionState != MotionState.STATIONARY
                     && now - stationaryCandidateSinceMs
-                            >= STATIONARY_RMS_CONFIRM_MS) {
+                            >= MOTION_STATE_CONFIRM_MS) {
                 enterStationary();
             }
-        } else {
+
+            return;
+        }
+
+        if (rms > MOVING_RMS_THRESHOLD) {
             stationaryCandidateSinceMs = -1L;
+
+            if (movingCandidateSinceMs < 0L) {
+                movingCandidateSinceMs = now;
+            }
+
+            if (motionState != MotionState.MOVING
+                    && now - movingCandidateSinceMs
+                            >= MOTION_STATE_CONFIRM_MS) {
+                enterMoving();
+            }
+
+            return;
         }
 
         /*
-         * Acceleration may help only while state is UNKNOWN.
-         * Once STATIONARY, rotating the phone cannot kick us back to MOVING.
-         * Leaving STATIONARY is decided by GPS speed/distance.
+         * Dead band 1.50..1.80:
+         * keep the current state, but require a fresh confirmation once a
+         * threshold is crossed again.
          */
-        if (motionState == MotionState.UNKNOWN
-                && rms >= MOTION_ACCEL_THRESHOLD) {
-            if (motionBurstStartedMs < 0L
-                    || lastStrongMotionMs < 0L
-                    || now - lastStrongMotionMs
-                            > MOTION_PULSE_GAP_MS) {
-                motionBurstStartedMs = now;
-            }
-
-            lastStrongMotionMs = now;
-
-            if (now - motionBurstStartedMs
-                    >= MOTION_START_CONFIRM_MS) {
-                enterMoving();
-            }
-        }
+        stationaryCandidateSinceMs = -1L;
+        movingCandidateSinceMs = -1L;
     }
 
     private void enterMoving() {
@@ -614,25 +660,12 @@ public final class CaminoTrackingService extends Service
         consecutiveGpsMovingFixes = 0;
         consecutiveGpsStationaryFixes = 0;
 
-        stationaryRefYawDeg = null;
-        stationaryRefHeadingDeg = null;
-
-        /*
-         * A new walking episode gets a fresh 15 m window.
-         * Seed it from the exact frozen stop point. After roughly 15 m in the
-         * new direction the new course becomes authoritative.
-         */
         courseHistory.clear();
 
         if (acceptedLocation != null) {
             courseHistory.addLast(
                     new Location(acceptedLocation)
             );
-        }
-
-        if (gpsCourseDeg != null) {
-            phoneHeadingDeg =
-                    gpsCourseDeg;
         }
 
         publish();
@@ -649,22 +682,10 @@ public final class CaminoTrackingService extends Service
         consecutiveGpsStationaryFixes = 0;
         motionBurstStartedMs = -1L;
 
-        /*
-         * Establish a relative gyro zero exactly when the phone/person becomes
-         * stationary. The last GPS walking course remains the absolute base.
-         */
-        stationaryRefYawDeg =
-                rawCameraYawDeg;
+        gyroReferenceYawDeg = rawCameraYawDeg;
 
         if (gpsCourseDeg != null) {
-            stationaryRefHeadingDeg =
-                    gpsCourseDeg;
-
-            phoneHeadingDeg =
-                    gpsCourseDeg;
-        } else {
-            stationaryRefHeadingDeg =
-                    phoneHeadingDeg;
+            phoneHeadingDeg = gpsCourseDeg;
         }
 
         publish();
@@ -705,6 +726,66 @@ public final class CaminoTrackingService extends Service
                                 )
                         )
                 );
+    }
+
+    private void updateGyroAugmentedHeading() {
+        if (rawCameraYawDeg == null) {
+            return;
+        }
+
+        if (gyroReferenceYawDeg == null) {
+            gyroReferenceYawDeg = rawCameraYawDeg;
+        }
+
+        Float baseHeading =
+                gpsCourseDeg != null
+                        ? gpsCourseDeg
+                        : phoneHeadingDeg;
+
+        if (baseHeading == null) {
+            return;
+        }
+
+        float offset =
+                shortestAngleDegrees(
+                        gyroReferenceYawDeg,
+                        rawCameraYawDeg
+                );
+
+        phoneHeadingDeg =
+                normalizeDegrees(
+                        baseHeading + offset
+                );
+    }
+
+    private void decayGyroOffsetTowardZero() {
+        if (gyroReferenceYawDeg == null
+                || rawCameraYawDeg == null) {
+            return;
+        }
+
+        float offset =
+                shortestAngleDegrees(
+                        gyroReferenceYawDeg,
+                        rawCameraYawDeg
+                );
+
+        float step =
+                (float) Math.min(
+                        Math.abs(offset),
+                        GYRO_DECAY_PER_FIX_DEG
+                );
+
+        if (offset < 0.0f) {
+            step = -step;
+        }
+
+        gyroReferenceYawDeg =
+                normalizeDegrees(
+                        gyroReferenceYawDeg + step
+                );
+
+        updateGyroAugmentedHeading();
     }
 
     private void updateStationaryArrow() {
@@ -749,13 +830,28 @@ public final class CaminoTrackingService extends Service
     }
 
     private void publish() {
+        long stationaryCandidateMs =
+                stationaryCandidateSinceMs < 0L
+                        ? 0L
+                        : Math.max(
+                                0L,
+                                SystemClock.elapsedRealtime()
+                                        - stationaryCandidateSinceMs
+                        );
+
         Snapshot snapshot =
                 new Snapshot(
                         acceptedLocation,
                         track,
                         gpsCourseDeg,
                         phoneHeadingDeg,
-                        motionState == MotionState.STATIONARY
+                        motionState == MotionState.STATIONARY,
+                        motionState.name(),
+                        latestGpsHasSpeed,
+                        latestGpsSpeedMps,
+                        latestGpsAccuracyM,
+                        (float) Math.sqrt(stationaryRmsSq),
+                        stationaryCandidateMs
                 );
 
         latestSnapshot = snapshot;
