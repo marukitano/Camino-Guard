@@ -2,6 +2,8 @@ package com.marukitano.caminoguard;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.os.SystemClock;
+import android.text.format.DateFormat;
 import android.graphics.PointF;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
@@ -51,6 +53,12 @@ import java.util.PriorityQueue;
  *  - route-aware distance/name display
  */
 public final class CaminoTapDebugController {
+
+    // CAMINO_RESUME_20S_AFTER_IDLE_V17
+
+    // CAMINO_LIVE_NAV_DELEGATE_V15
+
+    // CAMINO_LIVE_POSITION_SOURCE_V14
 
     private static final String ROUTE_ASSET =
             "camino/debug-all-primary-caminos.json";
@@ -111,6 +119,12 @@ public final class CaminoTapDebugController {
     // CAMINO_TAP_TABS_NO_SYSTEM_EDGE_V7
     // CAMINO_CHEVRON_NAV_FOLLOW_V8
     // CAMINO_HUD_POLISH_STATS_ZORDER_V11
+    // CAMINO_INFO_PANEL_FLEX_SPEED_ETA_V12
+    // CAMINO_DYNAMIC_FLEX_VILLAGE_STATS_V13
+    // CAMINO_SPEED_STRING_LITERAL_FIX_V12A
+
+    private static final double SPEED_SAMPLE_MIN_MOVE_M = 1.5;
+    private static final double SPEED_SAMPLE_MAX_JUMP_M = 2000.0;
 
     private static final long NAVIGATION_RECENTER_DELAY_MS = 20_000L;
     private static final double NAVIGATION_VERTICAL_WINDOW_M = 1500.0;
@@ -149,8 +163,16 @@ public final class CaminoTapDebugController {
 
 
     private String infoTitleText = "";
-    private String distanceBaseText = "";
+    private String summaryLeftText = "";
+    private String summaryRightText = "";
     private String heightStatsText = "";
+    private String speedStatsText = "";
+
+    private long travelSessionStartElapsedMs = -1L;
+    private long travelMovingElapsedMs = 0L;
+    private double travelDistanceM = 0.0;
+    private LatLng lastTravelSamplePosition;
+    private long lastTravelSampleElapsedMs = -1L;
     private boolean heightProfileRefreshScheduled;
 
     private final Runnable heightProfileRefreshRunnable =
@@ -161,6 +183,21 @@ public final class CaminoTapDebugController {
             };
 
     private LatLng dummyPosition;
+
+    /*
+     * One active position source:
+     *   false -> draggable planning/debug marker
+     *   true  -> accepted real GPS position from CaminoTrackingService
+     */
+    private boolean livePositionMode;
+    private String routeAsset = ROUTE_ASSET;
+    private Float liveCourseDeg;
+    private long lastLiveFixStamp = Long.MIN_VALUE;
+    private boolean livePositionListenerRegistered;
+    private GpsGyroOrientationController liveNavigationController;
+
+    private final CaminoTrackingService.Listener livePositionListener =
+            this::handleLiveTrackingState;
 
     private CaminoRoute selectedRoute;
     private ProjectionHit selectedHit;
@@ -179,6 +216,126 @@ public final class CaminoTapDebugController {
         this.activity = activity;
         this.mapView = mapView;
         this.dummyPosition = initialPosition;
+    }
+
+
+    public void configureLivePositionMode(
+            String routeAsset,
+            LatLng initialPosition
+    ) {
+        if (routeAsset == null
+                || routeAsset.trim().isEmpty()
+                || initialPosition == null) {
+            throw new IllegalArgumentException(
+                    "Live-position debug mode requires route asset + initial position"
+            );
+        }
+
+        this.livePositionMode = true;
+        this.routeAsset = routeAsset;
+        this.dummyPosition = initialPosition;
+        this.navigationFollowEnabled = true;
+        this.navigationFollowSuspended = false;
+    }
+
+    public void startLivePosition() {
+        if (!livePositionMode
+                || livePositionListenerRegistered) {
+            return;
+        }
+
+        livePositionListenerRegistered = true;
+        CaminoTrackingService.addListener(
+                livePositionListener
+        );
+
+        if (liveNavigationController != null) {
+            liveNavigationController
+                    .setExternalNavigationFollowEnabled(
+                            navigationFollowEnabled
+                    );
+        }
+    }
+
+    public void stopLivePosition() {
+        if (!livePositionListenerRegistered) {
+            return;
+        }
+
+        livePositionListenerRegistered = false;
+        CaminoTrackingService.removeListener(
+                livePositionListener
+        );
+    }
+
+    private void handleLiveTrackingState(
+            CaminoTrackingService.Snapshot snapshot
+    ) {
+        if (!livePositionMode
+                || snapshot == null
+                || snapshot.location == null) {
+            return;
+        }
+
+        long stamp =
+                snapshot.location.getElapsedRealtimeNanos() > 0L
+                        ? snapshot.location.getElapsedRealtimeNanos()
+                        : snapshot.location.getTime() * 1_000_000L;
+
+        /*
+         * Stationary gyro snapshots arrive much faster than GPS. Do not rebuild
+         * route/profile on every gyro publication.
+         */
+        if (stamp == lastLiveFixStamp) {
+            liveCourseDeg = snapshot.courseDeg;
+            return;
+        }
+
+        lastLiveFixStamp = stamp;
+
+        LatLng position =
+                new LatLng(
+                        snapshot.location.getLatitude(),
+                        snapshot.location.getLongitude()
+                );
+
+        Float course =
+                snapshot.courseDeg;
+
+        activity.runOnUiThread(
+                () -> {
+                    if (!livePositionMode) {
+                        return;
+                    }
+
+                    dummyPosition = position;
+                    liveCourseDeg = course;
+
+                    if (map == null
+                            || routes.isEmpty()) {
+                        return;
+                    }
+
+                    refresh();
+
+                }
+        );
+    }
+
+
+    public void setLiveNavigationController(
+            GpsGyroOrientationController controller
+    ) {
+        liveNavigationController =
+                controller;
+
+        if (livePositionMode
+                && liveNavigationController != null) {
+            liveNavigationController
+                    .setExternalNavigationFollowEnabled(
+                            navigationFollowEnabled
+                    );
+        }
     }
 
     public void attachMap(
@@ -435,19 +592,22 @@ public final class CaminoTapDebugController {
             }
         }
 
-        float dummyDistanceSq =
-                screenDistanceSq(
-                        x,
-                        y,
-                        dummyPosition
-                );
+        if (!livePositionMode) {
+            float dummyDistanceSq =
+                    screenDistanceSq(
+                            x,
+                            y,
+                            dummyPosition
+                    );
 
-        if (dummyDistanceSq
-                <= maxDistanceSq
-                && dummyDistanceSq
-                < bestDistanceSq) {
-            bestTarget =
-                    DRAG_DUMMY;
+            if (dummyDistanceSq
+                    <= maxDistanceSq
+                    && dummyDistanceSq
+                    < bestDistanceSq) {
+                bestTarget =
+                        DRAG_DUMMY;
+            }
+
         }
 
         return bestTarget;
@@ -497,6 +657,10 @@ public final class CaminoTapDebugController {
                 refreshDragPreview();
             } else {
                 refresh();
+
+                noteTravelSample(
+                        dummyPosition
+                );
 
                 if (navigationFollowEnabled
                         && !navigationFollowSuspended) {
@@ -768,6 +932,9 @@ public final class CaminoTapDebugController {
                 );
 
         dummy.setProperties(
+                PropertyFactory.circleOpacity(
+                        livePositionMode ? 0.0f : 1.0f
+                ),
                 PropertyFactory.circleRadius(
                         10.0f
                 ),
@@ -888,9 +1055,7 @@ public final class CaminoTapDebugController {
             throws Exception {
         JSONObject root =
                 new JSONObject(
-                        readAssetText(
-                                ROUTE_ASSET
-                        )
+                        readAssetText(routeAsset)
                 );
 
         JSONArray routesJson =
@@ -3651,8 +3816,9 @@ public final class CaminoTapDebugController {
                     ""
             );
 
-            setLabel(
-                    "Lade Caminos …"
+            setSummaryTexts(
+                    "Lade Caminos …",
+                    ""
             );
 
             return;
@@ -3666,8 +3832,9 @@ public final class CaminoTapDebugController {
                         ""
                 );
 
-                setLabel(
-                        "Kein Camino gefunden"
+                setSummaryTexts(
+                        "Kein Camino gefunden",
+                        ""
                 );
 
                 return;
@@ -3680,13 +3847,14 @@ public final class CaminoTapDebugController {
             double offRouteM =
                     startRouteHit.hit.distanceFromQueryM;
 
-            setLabel(
+            setSummaryTexts(
                     offRouteM < 3.0
                             ? "Auf dem Camino"
                             : formatDistance(
                                     offRouteM
                             )
-                            + " bis Camino"
+                            + " bis Camino",
+                    ""
             );
 
             return;
@@ -3701,8 +3869,9 @@ public final class CaminoTapDebugController {
                         selectedRoute.name
                 );
 
-                setLabel(
-                        "Zweiter Camino fehlt"
+                setSummaryTexts(
+                        "Zweiter Camino fehlt",
+                        ""
                 );
 
                 return;
@@ -3726,8 +3895,9 @@ public final class CaminoTapDebugController {
                         selectedRoute.name
                 );
 
-                setLabel(
-                        "Startpunkt konnte nicht projiziert werden"
+                setSummaryTexts(
+                        "Startpunkt konnte nicht projiziert werden",
+                        ""
                 );
 
                 return;
@@ -3751,36 +3921,38 @@ public final class CaminoTapDebugController {
         );
 
         if (currentMeasurementPath == null) {
-            setLabel(
-                    "Keine Camino-Verbindung"
+            setSummaryTexts(
+                    "Keine Camino-Verbindung",
+                    ""
             );
 
             return;
         }
 
-        String text =
+        String leftText =
+                "";
+
+        if (secondTapHit == null) {
+            leftText =
+                    startRouteHit.hit.distanceFromQueryM < 3.0
+                            ? "Auf dem Camino"
+                            : formatDistance(
+                                    startRouteHit.hit.distanceFromQueryM
+                            )
+                            + " bis Camino";
+        }
+
+        String rightText =
                 formatDistance(
                         currentMeasurementPath.distanceM
                 )
-                        + " Etappe";
+                        + " Etappenlänge";
 
-        if (secondTapHit == null
-                && startRouteHit.hit.distanceFromQueryM
-                >= 3.0) {
-
-            text +=
-                    "\n"
-                            + formatDistance(
-                            startRouteHit.hit.distanceFromQueryM
-                    )
-                            + " Start";
-        }
-
-        setLabel(
-                text
+        setSummaryTexts(
+                leftText,
+                rightText
         );
     }
-
     private String measurementRouteLabel(
             RouteHit start,
             RouteHit end
@@ -3910,6 +4082,43 @@ public final class CaminoTapDebugController {
                 false;
 
         refreshHeightProfile();
+
+        if (!livePositionMode
+                || !navigationFollowEnabled
+                || !navigationFollowSuspended
+                || liveNavigationController == null) {
+
+            return;
+        }
+
+        /*
+         * Gesture is finished. Only NOW start the 20-second no-input timer.
+         */
+        final int generation =
+                ++navigationResumeGeneration;
+
+        mapView.postDelayed(
+                () -> {
+                    if (!livePositionMode
+                            || !navigationFollowEnabled
+                            || !navigationFollowSuspended
+                            || generation
+                            != navigationResumeGeneration
+                            || liveNavigationController == null) {
+
+                        return;
+                    }
+
+                    navigationFollowSuspended =
+                            false;
+
+                    liveNavigationController
+                            .setExternalNavigationSuspended(
+                                    false
+                            );
+                },
+                NAVIGATION_RECENTER_DELAY_MS
+        );
     }
 
     private void refreshHeightProfile() {
@@ -4184,6 +4393,17 @@ public final class CaminoTapDebugController {
             );
         }
 
+        if (livePositionMode
+                && liveNavigationController != null) {
+
+            liveNavigationController
+                    .setExternalNavigationFollowEnabled(
+                            navigationFollowEnabled
+                    );
+
+            return;
+        }
+
         if (navigationFollowEnabled) {
             applyNavigationFollow(
                     true
@@ -4205,8 +4425,35 @@ public final class CaminoTapDebugController {
         navigationFollowSuspended =
                 true;
 
+        /*
+         * Kill any older pending resume as soon as a new user gesture begins.
+         */
+        navigationResumeGeneration++;
+
+        if (livePositionMode
+                && liveNavigationController != null) {
+
+            /*
+             * From this instant the GPS controller is forbidden to touch the
+             * camera. Pan/zoom/rotate is pure MapLibre manual interaction.
+             */
+            liveNavigationController
+                    .setExternalNavigationSuspended(
+                            true
+                    );
+
+            /*
+             * No timer here. The 20 seconds begin only after CameraIdle,
+             * i.e. after the user has actually stopped interacting.
+             */
+            return;
+        }
+
+        /*
+         * Preserve historical planning/debug behavior outside live GPS mode.
+         */
         final int generation =
-                ++navigationResumeGeneration;
+                navigationResumeGeneration;
 
         mapView.postDelayed(
                 () -> {
@@ -4340,6 +4587,20 @@ public final class CaminoTapDebugController {
     }
 
     private double navigationBearingAtPosition() {
+        if (livePositionMode
+                && liveCourseDeg != null
+                && Float.isFinite(
+                liveCourseDeg
+        )) {
+            double bearing =
+                    liveCourseDeg % 360.0;
+
+            return bearing < 0.0
+                    ? bearing + 360.0
+                    : bearing;
+        }
+
+
         RouteHit routeHit =
                 routes.isEmpty()
                         ? null
@@ -4514,6 +4775,595 @@ public final class CaminoTapDebugController {
         );
     }
 
+    private void noteTravelSample(
+            LatLng position
+    ) {
+        if (position == null) {
+            return;
+        }
+
+        long now =
+                SystemClock.elapsedRealtime();
+
+        if (travelSessionStartElapsedMs < 0L) {
+            travelSessionStartElapsedMs =
+                    now;
+
+            lastTravelSampleElapsedMs =
+                    now;
+
+            lastTravelSamplePosition =
+                    new LatLng(
+                            position.getLatitude(),
+                            position.getLongitude()
+                    );
+
+            setSpeedStats(
+                    buildSpeedStatsText()
+            );
+
+            return;
+        }
+
+        if (lastTravelSamplePosition == null) {
+            lastTravelSamplePosition =
+                    new LatLng(
+                            position.getLatitude(),
+                            position.getLongitude()
+                    );
+
+            lastTravelSampleElapsedMs =
+                    now;
+
+            setSpeedStats(
+                    buildSpeedStatsText()
+            );
+
+            return;
+        }
+
+        long deltaMs =
+                now
+                        - lastTravelSampleElapsedMs;
+
+        if (deltaMs <= 0L
+                || deltaMs
+                > 15L * 60L * 1000L) {
+
+            lastTravelSamplePosition =
+                    new LatLng(
+                            position.getLatitude(),
+                            position.getLongitude()
+                    );
+
+            lastTravelSampleElapsedMs =
+                    now;
+
+            setSpeedStats(
+                    buildSpeedStatsText()
+            );
+
+            return;
+        }
+
+        double segmentM =
+                travelDistanceBetween(
+                        lastTravelSamplePosition,
+                        position
+                );
+
+        if (segmentM >= SPEED_SAMPLE_MIN_MOVE_M
+                && segmentM <= SPEED_SAMPLE_MAX_JUMP_M) {
+
+            travelDistanceM +=
+                    segmentM;
+
+            travelMovingElapsedMs +=
+                    deltaMs;
+        }
+
+        lastTravelSamplePosition =
+                new LatLng(
+                        position.getLatitude(),
+                        position.getLongitude()
+                );
+
+        lastTravelSampleElapsedMs =
+                now;
+
+        setSpeedStats(
+                buildSpeedStatsText()
+        );
+    }
+
+    private String buildSpeedStatsText() {
+        long totalElapsedMs =
+                travelSessionStartElapsedMs < 0L
+                        ? 0L
+                        : SystemClock.elapsedRealtime()
+                        - travelSessionStartElapsedMs;
+
+        double movingKmh =
+                travelMovingElapsedMs <= 0L
+                        ? Double.NaN
+                        : travelDistanceM
+                        / (
+                        travelMovingElapsedMs
+                                / 1000.0
+                )
+                        * 3.6;
+
+        double totalKmh =
+                totalElapsedMs <= 0L
+                        ? Double.NaN
+                        : travelDistanceM
+                        / (
+                        totalElapsedMs
+                                / 1000.0
+                )
+                        * 3.6;
+
+        double realWorldSpeedMps =
+                !Double.isNaN(
+                        totalKmh
+                )
+                        && totalKmh >= 0.4
+                        ? totalKmh / 3.6
+                        : (
+                        !Double.isNaN(
+                                movingKmh
+                        )
+                                && movingKmh >= 0.4
+                                ? movingKmh / 3.6
+                                : Double.NaN
+                );
+
+        String stageEta =
+                "—";
+
+        if (currentMeasurementPath != null
+                && !Double.isNaN(
+                        realWorldSpeedMps
+                )
+                && realWorldSpeedMps > 0.0) {
+
+            long etaWallClockMs =
+                    System.currentTimeMillis()
+                            + (long) (
+                            currentMeasurementPath.distanceM
+                                    / realWorldSpeedMps
+                                    * 1000.0
+                    );
+
+            stageEta =
+                    DateFormat.format(
+                            "HH:mm",
+                            etaWallClockMs
+                    ).toString();
+        }
+
+        double[] village =
+                nextVillageMetrics();
+
+        String villageDistance =
+                "—";
+
+        String villageTime =
+                "—";
+
+        String villageAscent =
+                "—";
+
+        if (village != null) {
+            villageDistance =
+                    formatDistance(
+                            village[0]
+                    );
+
+            villageAscent =
+                    String.format(
+                            Locale.GERMANY,
+                            "%.0f Hm",
+                            village[1]
+                    );
+
+            if (!Double.isNaN(
+                    realWorldSpeedMps
+            )
+                    && realWorldSpeedMps > 0.0) {
+
+                villageTime =
+                        formatDuration(
+                                village[0]
+                                        / realWorldSpeedMps
+                        );
+            }
+        }
+
+        return String.format(
+                Locale.GERMANY,
+                "Ø Moving   %s\n"
+                        + "Ø Gesamt   %s\n"
+                        + "Ankunft    %s\n"
+                        + "bis Dorf   %s\n"
+                        + "Dorf Zeit  %s\n"
+                        + "Dorf ↑     %s",
+                formatSpeedKmh(
+                        movingKmh
+                ),
+                formatSpeedKmh(
+                        totalKmh
+                ),
+                stageEta,
+                villageDistance,
+                villageTime,
+                villageAscent
+        );
+    }
+
+    private String formatSpeedKmh(
+            double kmh
+    ) {
+        if (Double.isNaN(
+                kmh
+        )
+                || kmh <= 0.0) {
+
+            return "—";
+        }
+
+        return String.format(
+                Locale.GERMANY,
+                "%.1f km/h",
+                kmh
+        );
+    }
+
+    private String formatDuration(
+            double seconds
+    ) {
+        if (!Double.isFinite(
+                seconds
+        )
+                || seconds < 0.0) {
+
+            return "—";
+        }
+
+        long minutes =
+                Math.max(
+                        0L,
+                        Math.round(
+                                seconds / 60.0
+                        )
+                );
+
+        if (minutes < 60L) {
+            return minutes
+                    + " min";
+        }
+
+        long hours =
+                minutes / 60L;
+
+        long restMinutes =
+                minutes % 60L;
+
+        return String.format(
+                Locale.GERMANY,
+                "%d h %02d min",
+                hours,
+                restMinutes
+        );
+    }
+
+    private double[] nextVillageMetrics() {
+        if (routes.isEmpty()
+                || dummyPosition == null) {
+
+            return null;
+        }
+
+        RouteHit start =
+                findNearestRouteHit(
+                        dummyPosition
+                );
+
+        if (start == null
+                || start.hit.trackIndex < 0
+                || start.hit.trackIndex
+                >= start.route.tracks.size()) {
+
+            return null;
+        }
+
+        CaminoRoute route =
+                start.route;
+
+        int trackIndex =
+                start.hit.trackIndex;
+
+        RouteTrack firstTrack =
+                route.tracks.get(
+                        trackIndex
+                );
+
+        double alongTrackM =
+                start.hit.chainageM
+                        - firstTrack.baseChainageM;
+
+        alongTrackM =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                firstTrack.lengthM,
+                                alongTrackM
+                        )
+                );
+
+        double distanceM =
+                firstTrack.lengthM
+                        - alongTrackM;
+
+        double ascentM =
+                positiveAscentFromHitToTrackEnd(
+                        firstTrack,
+                        start.hit
+                );
+
+        if (isVillageEndpoint(
+                firstTrack
+        )) {
+            return new double[]{
+                    distanceM,
+                    ascentM
+            };
+        }
+
+        for (int index =
+                trackIndex + 1;
+                index < route.tracks.size();
+                index++) {
+
+            RouteTrack previous =
+                    route.tracks.get(
+                            index - 1
+                    );
+
+            RouteTrack current =
+                    route.tracks.get(
+                            index
+                    );
+
+            distanceM +=
+                    gapBetweenTracks(
+                            route,
+                            index - 1,
+                            index
+                    );
+
+            distanceM +=
+                    current.lengthM;
+
+            /*
+             * Gaps have real horizontal distance but no invented terrain.
+             * Ascent resumes only on the next official CNIG geometry.
+             */
+            ascentM +=
+                    positiveAscentWholeTrack(
+                            current
+                    );
+
+            if (isVillageEndpoint(
+                    current
+            )) {
+                return new double[]{
+                        distanceM,
+                        ascentM
+                };
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isVillageEndpoint(
+            RouteTrack track
+    ) {
+        return track != null
+                && !track.pseudoTo
+                && track.toKey != null
+                && !track.toKey.isEmpty();
+    }
+
+    private double positiveAscentFromHitToTrackEnd(
+            RouteTrack track,
+            ProjectionHit hit
+    ) {
+        if (track == null
+                || hit == null
+                || track.elevations.isEmpty()) {
+
+            return 0.0;
+        }
+
+        double previous =
+                elevationAtHit(
+                        track,
+                        hit
+                );
+
+        double ascentM =
+                0.0;
+
+        int firstVertex =
+                Math.max(
+                        0,
+                        Math.min(
+                                track.elevations.size(),
+                                hit.segmentIndex + 1
+                        )
+                );
+
+        for (int index =
+                firstVertex;
+                index < track.elevations.size();
+                index++) {
+
+            double elevation =
+                    track.elevations.get(
+                            index
+                    );
+
+            if (Double.isFinite(
+                    previous
+            )
+                    && Double.isFinite(
+                    elevation
+            )) {
+
+                double delta =
+                        elevation
+                                - previous;
+
+                if (delta > 0.0) {
+                    ascentM +=
+                            delta;
+                }
+            }
+
+            if (Double.isFinite(
+                    elevation
+            )) {
+                previous =
+                        elevation;
+            }
+        }
+
+        return ascentM;
+    }
+
+    private double positiveAscentWholeTrack(
+            RouteTrack track
+    ) {
+        if (track == null
+                || track.elevations.size() < 2) {
+
+            return 0.0;
+        }
+
+        double ascentM =
+                0.0;
+
+        double previous =
+                track.elevations.get(
+                        0
+                );
+
+        for (int index = 1;
+                index < track.elevations.size();
+                index++) {
+
+            double elevation =
+                    track.elevations.get(
+                            index
+                    );
+
+            if (Double.isFinite(
+                    previous
+            )
+                    && Double.isFinite(
+                    elevation
+            )) {
+
+                double delta =
+                        elevation
+                                - previous;
+
+                if (delta > 0.0) {
+                    ascentM +=
+                            delta;
+                }
+            }
+
+            if (Double.isFinite(
+                    elevation
+            )) {
+                previous =
+                        elevation;
+            }
+        }
+
+        return ascentM;
+    }
+
+    private static double travelDistanceBetween(
+            LatLng from,
+            LatLng to
+    ) {
+        double lat1 =
+                Math.toRadians(
+                        from.getLatitude()
+                );
+
+        double lon1 =
+                Math.toRadians(
+                        from.getLongitude()
+                );
+
+        double lat2 =
+                Math.toRadians(
+                        to.getLatitude()
+                );
+
+        double lon2 =
+                Math.toRadians(
+                        to.getLongitude()
+                );
+
+        double dLat =
+                lat2
+                        - lat1;
+
+        double dLon =
+                lon2
+                        - lon1;
+
+        double a =
+                Math.sin(
+                        dLat / 2.0
+                )
+                        * Math.sin(
+                        dLat / 2.0
+                )
+                        + Math.cos(
+                        lat1
+                )
+                        * Math.cos(
+                        lat2
+                )
+                        * Math.sin(
+                        dLon / 2.0
+                )
+                        * Math.sin(
+                        dLon / 2.0
+                );
+
+        double c =
+                2.0
+                        * Math.atan2(
+                        Math.sqrt(
+                                a
+                        ),
+                        Math.sqrt(
+                                1.0 - a
+                        )
+                );
+
+        return EARTH_RADIUS_M
+                * c;
+    }
+
     private void updateInfoCompass() {
         if (infoPanel == null
                 || map == null) {
@@ -4540,10 +5390,25 @@ public final class CaminoTapDebugController {
     private void setLabel(
             String text
     ) {
-        distanceBaseText =
-                text == null
+        setSummaryTexts(
+                text,
+                ""
+        );
+    }
+
+    private void setSummaryTexts(
+            String left,
+            String right
+    ) {
+        summaryLeftText =
+                left == null
                         ? ""
-                        : text;
+                        : left;
+
+        summaryRightText =
+                right == null
+                        ? ""
+                        : right;
 
         updateDistancePanelText();
     }
@@ -4559,9 +5424,19 @@ public final class CaminoTapDebugController {
         updateDistancePanelText();
     }
 
+    private void setSpeedStats(
+            String text
+    ) {
+        speedStatsText =
+                text == null
+                        ? ""
+                        : text;
+
+        updateDistancePanelText();
+    }
+
     private void updateDistancePanelText() {
-        if (distanceView == null
-                || infoPanel == null) {
+        if (infoPanel == null) {
             return;
         }
 
@@ -4569,15 +5444,16 @@ public final class CaminoTapDebugController {
                 infoTitleText
         );
 
-        infoPanel.setStageText(
-                distanceBaseText
+        infoPanel.setSummaryTexts(
+                summaryLeftText,
+                summaryRightText
         );
 
-        distanceView.setText(
-                heightStatsText
+        infoPanel.setStatsTexts(
+                heightStatsText,
+                speedStatsText
         );
     }
-
     private int dp(
             int value
     ) {

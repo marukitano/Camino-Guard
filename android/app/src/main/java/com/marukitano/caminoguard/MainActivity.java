@@ -32,17 +32,41 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
 
+    // CAMINO_ORIGINAL_MAPLIBRE_WORLD_V25
+
+    // CAMINO_DUAL_REGIONAL_MAP_SOURCES_V20
+
+    // CAMINO_WORLD_CAMERA_UNLOCK_V19
+
+    // CAMINO_TUX_LOOP_NAV_BRIDGE_V15
+
+    // CAMINO_SCHAFFHAUSEN_REAL_GPS_INTEGRATION_V14
+
     // TEMPORARY: local walking test for GPS + gyro in Schaffhausen.
     private static final boolean DEBUG_SCHAFFHAUSEN_MAP = true;
 
     /* TEMPORARY: interactive Camino distance test in Almeria. */
-    private static final boolean DEBUG_CAMINO_TAP_ALMERIA = true;
+    private static final boolean DEBUG_CAMINO_TAP_ALMERIA = false;
     private static final LatLng DEBUG_ALMERIA_POSITION =
             new LatLng(36.83838096, -2.46707205);
+    private static final LatLng DEBUG_SCHAFFHAUSEN_POSITION =
+            new LatLng(47.69811, 8.63268);
+    private static final String DEBUG_SCHAFFHAUSEN_CAMINO_ASSET =
+            "camino/debug-schaffhausen-camino.json";
+    private static final String DEBUG_SCHAFFHAUSEN_TRACKS_ASSET_URL =
+            "asset://camino/debug-schaffhausen-tracks.geojson";
     private static final String DEBUG_MAP_ASSET = "maps/debug-schaffhausen.pmtiles";
     private static final String DEBUG_MAP_METADATA_ASSET = "maps/debug-schaffhausen.metadata.json";
     private static final String DEBUG_LOCAL_MAP_FILENAME = "debug-schaffhausen.pmtiles";
     private static final String PREF_INSTALLED_DEBUG_SHA256 = "installed_debug_schaffhausen_sha256";
+    private static final String WORLD_MAP_ASSET =
+            "maps/world-maplibre.pmtiles";
+    private static final String WORLD_MAP_METADATA_ASSET =
+            "maps/world-maplibre.metadata.json";
+    private static final String WORLD_LOCAL_MAP_FILENAME =
+            "world-maplibre.pmtiles";
+    private static final String PREF_INSTALLED_WORLD_SHA256 =
+            "installed_world_maplibre_sha256";
     private static final LatLngBounds SCHAFFHAUSEN_DEBUG_BOUNDS =
             new LatLngBounds.Builder()
                     .include(new LatLng(47.80, 8.45))
@@ -57,6 +81,10 @@ public final class MainActivity extends Activity {
     private static final String TERRAIN_METADATA_ASSET = "maps/terrain.metadata.json";
     private static final String STYLE_ASSET = "styles/camino-basic.json";
     private static final String STYLE_PM_TILES_TOKEN = "__PMTILES_URL__";
+    private static final String STYLE_SCHAFFHAUSEN_PM_TILES_TOKEN =
+            "__SCHAFFHAUSEN_PMTILES_URL__";
+    private static final String STYLE_WORLD_PM_TILES_TOKEN =
+            "__WORLD_PM_TILES_URL__";
     private static final String STYLE_CONTOURS_TOKEN = "__CONTOURS_URL__";
     private static final String STYLE_TERRAIN_TOKEN = "__TERRAIN_URL__";
     private static final String LOCAL_MAP_DIRECTORY = "maps";
@@ -106,6 +134,21 @@ public final class MainActivity extends Activity {
         caminoTapDebugController = new CaminoTapDebugController(
                 this, mapView, DEBUG_ALMERIA_POSITION);
 
+        if (useSchaffhausenDebugMap()) {
+            orientationController.setExternalNavigationManaged(
+                    true
+            );
+
+            caminoTapDebugController.configureLivePositionMode(
+                    DEBUG_SCHAFFHAUSEN_CAMINO_ASSET,
+                    DEBUG_SCHAFFHAUSEN_POSITION
+            );
+
+            caminoTapDebugController.setLiveNavigationController(
+                    orientationController
+            );
+        }
+
         mapView.getMapAsync(map -> {
             // Allow natural two-finger zoom + rotate at the same time.
             // MapLibre can otherwise disable rotation when scale wins the
@@ -113,16 +156,14 @@ public final class MainActivity extends Activity {
             map.getUiSettings().setRotateGesturesEnabled(true);
             map.getUiSettings().setDisableRotateWhenScaling(false);
             map.getUiSettings().setIncreaseScaleThresholdWhenRotating(false);
-            map.setLatLngBoundsForCameraTarget(
-                    useSchaffhausenDebugMap()
-                            ? SCHAFFHAUSEN_DEBUG_BOUNDS
-                            : IBERIA_CAMERA_BOUNDS
-            );
-
-            if (DEBUG_CAMINO_TAP_ALMERIA) {
+if (DEBUG_CAMINO_TAP_ALMERIA) {
                 caminoTapDebugController.attachMap(map);
             } else {
                 orientationController.attachMap(map);
+
+                if (useSchaffhausenDebugMap()) {
+                    caminoTapDebugController.attachMap(map);
+                }
             }
 
             /*
@@ -154,7 +195,11 @@ public final class MainActivity extends Activity {
              * Users may zoom in as far as they like, but cannot zoom farther
              * out than the overview that fits Iberia on this display.
              */
-            map.setMinZoomPreference(overview.zoom);
+            /*
+             * Camera freedom is global. Offline map coverage is a rendering
+             * concern, not a navigation restriction.
+             */
+            map.setMinZoomPreference(0.0);
 
             if (DEBUG_CAMINO_TAP_ALMERIA) {
                 map.setCameraPosition(
@@ -181,18 +226,50 @@ public final class MainActivity extends Activity {
 
     private void prepareOfflineMap(MapLibreMap map) {
         try {
-            String activeMapAsset = useSchaffhausenDebugMap() ? DEBUG_MAP_ASSET : MAP_ASSET;
-            String activeMapMetadataAsset = useSchaffhausenDebugMap()
-                    ? DEBUG_MAP_METADATA_ASSET : MAP_METADATA_ASSET;
-            String activeLocalMapFilename = useSchaffhausenDebugMap()
-                    ? DEBUG_LOCAL_MAP_FILENAME : LOCAL_MAP_FILENAME;
-            String activeMapPreference = useSchaffhausenDebugMap()
-                    ? PREF_INSTALLED_DEBUG_SHA256 : PREF_INSTALLED_SHA256;
+            /*
+             * V20: regional map sources are additive, never exclusive.
+             *
+             * Iberia remains the normal protomaps source.
+             * Schaffhausen is installed as a second PMTiles source.
+             */
+            MapMetadata iberiaMapMetadata =
+                    readMapMetadata(
+                            MAP_METADATA_ASSET
+                    );
 
-            MapMetadata mapMetadata = readMapMetadata(activeMapMetadataAsset);
-            File localMap = ensureMapInstalled(
-                    mapMetadata, activeMapAsset, activeLocalMapFilename, activeMapPreference
-            );
+            File localIberiaMap =
+                    ensureMapInstalled(
+                            iberiaMapMetadata,
+                            MAP_ASSET,
+                            LOCAL_MAP_FILENAME,
+                            PREF_INSTALLED_SHA256
+                    );
+
+            MapMetadata schaffhausenMapMetadata =
+                    readMapMetadata(
+                            DEBUG_MAP_METADATA_ASSET
+                    );
+
+            File localSchaffhausenMap =
+                    ensureMapInstalled(
+                            schaffhausenMapMetadata,
+                            DEBUG_MAP_ASSET,
+                            DEBUG_LOCAL_MAP_FILENAME,
+                            PREF_INSTALLED_DEBUG_SHA256
+                    );
+
+            MapMetadata worldMapMetadata =
+                    readMapMetadata(
+                            WORLD_MAP_METADATA_ASSET
+                    );
+
+            File localWorldMap =
+                    ensureMapInstalled(
+                            worldMapMetadata,
+                            WORLD_MAP_ASSET,
+                            WORLD_LOCAL_MAP_FILENAME,
+                            PREF_INSTALLED_WORLD_SHA256
+                    );
 
             MapMetadata contourMetadata =
                     readMapMetadata(CONTOUR_METADATA_ASSET);
@@ -205,8 +282,14 @@ public final class MainActivity extends Activity {
                     );
 
             String styleJson = readAssetText(STYLE_ASSET);
-            String pmTilesUrl = "pmtiles://" + Uri.fromFile(localMap);
-            String contoursUrl = "pmtiles://" + Uri.fromFile(localContours);
+            String pmTilesUrl =
+                    "pmtiles://" + Uri.fromFile(localIberiaMap);
+            String schaffhausenPmTilesUrl =
+                    "pmtiles://" + Uri.fromFile(localSchaffhausenMap);
+            String worldPmTilesUrl =
+                    "pmtiles://" + Uri.fromFile(localWorldMap);
+            String contoursUrl =
+                    "pmtiles://" + Uri.fromFile(localContours);
 
             if (!styleJson.contains(STYLE_PM_TILES_TOKEN)) {
                 throw new IOException("Offline style is missing PMTiles URL token.");
@@ -214,10 +297,44 @@ public final class MainActivity extends Activity {
             if (!styleJson.contains(STYLE_CONTOURS_TOKEN)) {
                 throw new IOException("Offline style is missing contour URL token.");
             }
+            if (!styleJson.contains(
+                    STYLE_SCHAFFHAUSEN_PM_TILES_TOKEN
+            )) {
+                throw new IOException(
+                        "Offline style is missing Schaffhausen PMTiles URL token."
+                );
+            }
+            if (!styleJson.contains(
+                    STYLE_WORLD_PM_TILES_TOKEN
+            )) {
+                throw new IOException(
+                        "Offline style is missing MapLibre World PMTiles URL token."
+                );
+            }
 
             styleJson = styleJson
-                    .replace(STYLE_PM_TILES_TOKEN, pmTilesUrl)
-                    .replace(STYLE_CONTOURS_TOKEN, contoursUrl);
+                    .replace(
+                            STYLE_PM_TILES_TOKEN,
+                            pmTilesUrl
+                    )
+                    .replace(
+                            STYLE_SCHAFFHAUSEN_PM_TILES_TOKEN,
+                            schaffhausenPmTilesUrl
+                    )
+                    .replace(
+                            STYLE_WORLD_PM_TILES_TOKEN,
+                            worldPmTilesUrl
+                    )
+                    .replace(
+                            STYLE_CONTOURS_TOKEN,
+                            contoursUrl
+                    );
+
+            /*
+             * Official ES/PT Camino GeoJSON stays loaded.
+             * Schaffhausen/Tux is a separate style source.
+             */
+
 
             String finalStyleJson = styleJson;
             runOnUiThread(() -> {
@@ -232,6 +349,10 @@ public final class MainActivity extends Activity {
                                 caminoTapDebugController.onStyleLoaded(style);
                             } else {
                                 orientationController.onStyleLoaded(style);
+
+                                if (useSchaffhausenDebugMap()) {
+                                    caminoTapDebugController.onStyleLoaded(style);
+                                }
                             }
                         }
                 );
@@ -422,12 +543,18 @@ public final class MainActivity extends Activity {
         mapView.onResume();
         if (!DEBUG_CAMINO_TAP_ALMERIA) {
             orientationController.start();
+            if (useSchaffhausenDebugMap()) {
+                caminoTapDebugController.startLivePosition();
+            }
         }
     }
 
     @Override
     protected void onPause() {
         if (!DEBUG_CAMINO_TAP_ALMERIA) {
+            if (useSchaffhausenDebugMap()) {
+                caminoTapDebugController.stopLivePosition();
+            }
             orientationController.stop();
         }
         mapView.onPause();

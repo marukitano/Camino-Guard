@@ -8,28 +8,31 @@ import android.graphics.Path;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
- * CAMINO_INFO_PANEL_CHEVRON_NAV_V4
- * CAMINO_HUD_POLISH_STATS_ZORDER_V11
+ * CAMINO_INFO_PANEL_DYNAMIC_FLEX_VILLAGE_V13
  *
- * Bottom HUD:
- *  - centered flat chevron on the upper edge
- *  - compass in the lower-right corner
- *  - same-size navigation button immediately left of the compass
+ * Native Android equivalent of a CSS flex layout:
  *
- * Chevron:
- *  down = hide panel
- *  up   = restore panel
+ * title
+ *   own full-width row, centered, up to two lines
  *
- * Navigation button:
- *  arrow = enter navigation follow mode
- *  M     = return to manual map mode
+ * summary
+ *   both values present -> 50/50 left + right
+ *   only one present    -> remaining value fills row and centers itself
+ *
+ * stats
+ *   two vertical lists: altitude left, pace/navigation right
+ *
+ * controls
+ *   navigation + compass in reserved bottom area
  */
 final class CaminoInfoPanel extends FrameLayout {
 
@@ -37,8 +40,10 @@ final class CaminoInfoPanel extends FrameLayout {
 
     private final ImageView compassView;
     private final TextView titleView;
-    private final TextView stageView;
-    private final TextView textView;
+    private final TextView summaryLeftView;
+    private final TextView summaryRightView;
+    private final TextView statsLeftView;
+    private final TextView statsRightView;
     private final ChevronView panelToggleView;
     private final NavigationButton navigationButton;
 
@@ -49,7 +54,7 @@ final class CaminoInfoPanel extends FrameLayout {
         super(context);
 
         setClickable(true);
-        setMinimumWidth(dpInt(260));
+        setMinimumWidth(dpInt(286));
 
         GradientDrawable background =
                 new GradientDrawable();
@@ -63,6 +68,65 @@ final class CaminoInfoPanel extends FrameLayout {
         );
 
         setBackground(background);
+
+        panelToggleView =
+                new ChevronView(
+                        context,
+                        ChevronView.DOWN
+                );
+
+        panelToggleView.setClickable(
+                true
+        );
+
+        FrameLayout.LayoutParams toggleParams =
+                new FrameLayout.LayoutParams(
+                        dpInt(46),
+                        dpInt(27),
+                        Gravity.TOP | Gravity.CENTER_HORIZONTAL
+                );
+
+        toggleParams.topMargin =
+                dpInt(1);
+
+        addView(
+                panelToggleView,
+                toggleParams
+        );
+
+        panelToggleView.setOnClickListener(
+                view -> togglePanel()
+        );
+
+        LinearLayout contentColumn =
+                new LinearLayout(context);
+
+        contentColumn.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        /*
+         * Bottom padding is a dedicated control area. The longer right stats
+         * list can therefore grow vertically without colliding with nav/compass.
+         */
+        contentColumn.setPadding(
+                dpInt(14),
+                dpInt(25),
+                dpInt(14),
+                dpInt(54)
+        );
+
+        FrameLayout.LayoutParams contentParams =
+                new FrameLayout.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.WRAP_CONTENT,
+                        Gravity.TOP | Gravity.FILL_HORIZONTAL
+                );
+
+        addView(
+                contentColumn,
+                contentParams
+        );
 
         titleView =
                 new TextView(context);
@@ -84,136 +148,114 @@ final class CaminoInfoPanel extends FrameLayout {
                 Gravity.CENTER
         );
 
-        FrameLayout.LayoutParams titleParams =
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        Gravity.TOP | Gravity.CENTER_HORIZONTAL
-                );
+        titleView.setMaxLines(
+                2
+        );
 
-        titleParams.topMargin =
-                dpInt(25);
+        titleView.setEllipsize(
+                TextUtils.TruncateAt.END
+        );
 
-        titleParams.leftMargin =
-                dpInt(12);
-
-        titleParams.rightMargin =
-                dpInt(12);
-
-        addView(
+        contentColumn.addView(
                 titleView,
-                titleParams
-        );
-
-        stageView =
-                new TextView(context);
-
-        stageView.setTextColor(
-                Color.rgb(
-                        255,
-                        240,
-                        200
+                new LinearLayout.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.WRAP_CONTENT
                 )
         );
 
-        stageView.setTextSize(
-                14.5f
+        LinearLayout summaryRow =
+                new LinearLayout(context);
+
+        summaryRow.setOrientation(
+                LinearLayout.HORIZONTAL
         );
 
-        stageView.setGravity(
-                Gravity.CENTER
-        );
-
-        FrameLayout.LayoutParams stageParams =
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        Gravity.TOP | Gravity.CENTER_HORIZONTAL
+        LinearLayout.LayoutParams summaryRowParams =
+                new LinearLayout.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.WRAP_CONTENT
                 );
 
-        stageParams.topMargin =
-                dpInt(48);
+        summaryRowParams.topMargin =
+                dpInt(7);
 
-        stageParams.leftMargin =
-                dpInt(12);
-
-        stageParams.rightMargin =
-                dpInt(12);
-
-        addView(
-                stageView,
-                stageParams
+        contentColumn.addView(
+                summaryRow,
+                summaryRowParams
         );
 
-        textView =
-                new TextView(context);
+        summaryLeftView =
+                summaryTextView(
+                        context
+                );
 
-        textView.setTextColor(
-                Color.WHITE
+        summaryRightView =
+                summaryTextView(
+                        context
+                );
+
+        summaryRow.addView(
+                summaryLeftView,
+                summaryCellParams()
         );
 
-        textView.setTextSize(
-                14.5f
+        summaryRow.addView(
+                summaryRightView,
+                summaryCellParams()
         );
 
-        textView.setGravity(
-                Gravity.START | Gravity.TOP
+        LinearLayout statsRow =
+                new LinearLayout(context);
+
+        statsRow.setOrientation(
+                LinearLayout.HORIZONTAL
         );
 
-        /*
-         * Stats begin below title/stage. Right/bottom padding keeps the
-         * navigation and compass controls clear.
-         */
-        textView.setPadding(
-                dpInt(14),
-                dpInt(72),
-                dpInt(108),
-                dpInt(44)
+        LinearLayout.LayoutParams statsRowParams =
+                new LinearLayout.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.WRAP_CONTENT
+                );
+
+        statsRowParams.topMargin =
+                dpInt(10);
+
+        contentColumn.addView(
+                statsRow,
+                statsRowParams
         );
 
-        addView(
-                textView,
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        Gravity.START | Gravity.TOP
+        statsLeftView =
+                statsTextView(
+                        context
+                );
+
+        statsRightView =
+                statsTextView(
+                        context
+                );
+
+        statsRow.addView(
+                statsLeftView,
+                new LinearLayout.LayoutParams(
+                        0,
+                        LayoutParams.WRAP_CONTENT,
+                        1.0f
                 )
         );
 
-        panelToggleView =
-                new ChevronView(
-                        context,
-                        ChevronView.DOWN
-                );
-
-        panelToggleView.setClickable(
-                true
-        );
-
-        FrameLayout.LayoutParams toggleParams =
-                new FrameLayout.LayoutParams(
-                        dpInt(46),
-                        dpInt(27),
-                        Gravity.TOP
-                                | Gravity.CENTER_HORIZONTAL
-                );
-
-        toggleParams.topMargin =
-                dpInt(1);
-
-        addView(
-                panelToggleView,
-                toggleParams
-        );
-
-        panelToggleView.setOnClickListener(
-                view -> togglePanel()
+        statsRow.addView(
+                statsRightView,
+                new LinearLayout.LayoutParams(
+                        0,
+                        LayoutParams.WRAP_CONTENT,
+                        1.0f
+                )
         );
 
         compassView =
-                new ImageView(
-                        context
-                );
+                new ImageView(context);
 
         compassView.setScaleType(
                 ImageView.ScaleType.CENTER_INSIDE
@@ -223,8 +265,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 new FrameLayout.LayoutParams(
                         dpInt(40),
                         dpInt(40),
-                        Gravity.END
-                                | Gravity.BOTTOM
+                        Gravity.END | Gravity.BOTTOM
                 );
 
         compassParams.rightMargin =
@@ -251,8 +292,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 new FrameLayout.LayoutParams(
                         dpInt(40),
                         dpInt(40),
-                        Gravity.END
-                                | Gravity.BOTTOM
+                        Gravity.END | Gravity.BOTTOM
                 );
 
         navigationParams.rightMargin =
@@ -268,26 +308,86 @@ final class CaminoInfoPanel extends FrameLayout {
 
         navigationButton.setOnClickListener(
                 view -> {
-                    if (navigationAction
-                            != null) {
-
+                    if (navigationAction != null) {
                         navigationAction.run();
                     }
                 }
         );
     }
 
+    private TextView summaryTextView(
+            Context context
+    ) {
+        TextView view =
+                new TextView(context);
+
+        view.setTextColor(
+                Color.rgb(
+                        255,
+                        240,
+                        200
+                )
+        );
+
+        view.setTextSize(
+                14.2f
+        );
+
+        view.setGravity(
+                Gravity.CENTER
+        );
+
+        view.setMaxLines(
+                2
+        );
+
+        return view;
+    }
+
+    private LinearLayout.LayoutParams summaryCellParams() {
+        return new LinearLayout.LayoutParams(
+                0,
+                LayoutParams.WRAP_CONTENT,
+                1.0f
+        );
+    }
+
+    private TextView statsTextView(
+            Context context
+    ) {
+        TextView view =
+                new TextView(context);
+
+        view.setTextColor(
+                Color.WHITE
+        );
+
+        view.setTextSize(
+                14.1f
+        );
+
+        /*
+         * Both columns are actual vertical lists aligned to their own left
+         * edge. Values are not scattered by END gravity anymore.
+         */
+        view.setGravity(
+                Gravity.START | Gravity.TOP
+        );
+
+        return view;
+    }
+
     TextView getTextView() {
-        return textView;
+        return statsLeftView;
     }
 
     void setTitle(
             String title
     ) {
         String value =
-                title == null
-                        ? ""
-                        : title.trim();
+                clean(
+                        title
+                );
 
         titleView.setText(
                 value
@@ -303,20 +403,100 @@ final class CaminoInfoPanel extends FrameLayout {
     void setStageText(
             String text
     ) {
-        String value =
-                text == null
-                        ? ""
-                        : text.trim();
+        setSummaryTexts(
+                text,
+                ""
+        );
+    }
 
-        stageView.setText(
-                value
+    void setSummaryTexts(
+            String left,
+            String right
+    ) {
+        String leftValue =
+                clean(
+                        left
+                );
+
+        String rightValue =
+                clean(
+                        right
+                );
+
+        boolean hasLeft =
+                !leftValue.isEmpty();
+
+        boolean hasRight =
+                !rightValue.isEmpty();
+
+        summaryLeftView.setText(
+                leftValue
         );
 
-        stageView.setVisibility(
-                value.isEmpty()
-                        ? GONE
-                        : VISIBLE
+        summaryRightView.setText(
+                rightValue
         );
+
+        summaryLeftView.setVisibility(
+                hasLeft
+                        ? VISIBLE
+                        : GONE
+        );
+
+        summaryRightView.setVisibility(
+                hasRight
+                        ? VISIBLE
+                        : GONE
+        );
+
+        if (hasLeft && hasRight) {
+            summaryLeftView.setGravity(
+                    Gravity.START
+            );
+
+            summaryRightView.setGravity(
+                    Gravity.END
+            );
+
+        } else if (hasLeft) {
+            /*
+             * Right cell is GONE; left retains weight=1 and therefore expands
+             * to the full row exactly like a remaining CSS flex child.
+             */
+            summaryLeftView.setGravity(
+                    Gravity.CENTER
+            );
+
+        } else if (hasRight) {
+            summaryRightView.setGravity(
+                    Gravity.CENTER
+            );
+        }
+    }
+
+    void setStatsTexts(
+            String left,
+            String right
+    ) {
+        statsLeftView.setText(
+                clean(
+                        left
+                )
+        );
+
+        statsRightView.setText(
+                clean(
+                        right
+                )
+        );
+    }
+
+    private static String clean(
+            String text
+    ) {
+        return text == null
+                ? ""
+                : text.trim();
     }
 
     void setCompassDrawable(
@@ -355,8 +535,7 @@ final class CaminoInfoPanel extends FrameLayout {
             double bearing
     ) {
         compassView.setRotation(
-                (float)
-                        -bearing
+                (float) -bearing
         );
     }
 
@@ -454,9 +633,7 @@ final class CaminoInfoPanel extends FrameLayout {
             int value
     ) {
         return Math.round(
-                dp(
-                        value
-                )
+                dp(value)
         );
     }
 
@@ -486,9 +663,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 Context context,
                 int direction
         ) {
-            super(
-                    context
-            );
+            super(context);
 
             this.direction =
                     direction;
@@ -506,9 +681,7 @@ final class CaminoInfoPanel extends FrameLayout {
             );
 
             paint.setStrokeWidth(
-                    dp(
-                            2.2f
-                    )
+                    dp(2.2f)
             );
 
             paint.setStrokeCap(
@@ -545,19 +718,11 @@ final class CaminoInfoPanel extends FrameLayout {
                     getHeight()
                             / 2.0f;
 
-            /*
-             * Wide, shallow chevron: visually related to a V, but deliberately
-             * less pointy and lighter than a literal text character.
-             */
             float halfWidth =
-                    dp(
-                            9.5f
-                    );
+                    dp(9.5f);
 
             float depth =
-                    dp(
-                            5.0f
-                    );
+                    dp(5.0f);
 
             Path path =
                     new Path();
@@ -670,9 +835,7 @@ final class CaminoInfoPanel extends FrameLayout {
             );
 
             outlinePaint.setStrokeWidth(
-                    dp(
-                            1.3f
-                    )
+                    dp(1.3f)
             );
 
             iconPaint.setColor(
@@ -700,9 +863,7 @@ final class CaminoInfoPanel extends FrameLayout {
             );
 
             textPaint.setTextSize(
-                    sp(
-                            15.0f
-                    )
+                    sp(15.0f)
             );
 
             textPaint.setFakeBoldText(
@@ -777,13 +938,8 @@ final class CaminoInfoPanel extends FrameLayout {
                 return;
             }
 
-            /*
-             * Small navigation/course arrow matching the map's directional
-             * language without reusing a font glyph.
-             */
             float size =
-                    radius
-                            * 1.10f;
+                    radius * 1.10f;
 
             Path arrow =
                     new Path();
