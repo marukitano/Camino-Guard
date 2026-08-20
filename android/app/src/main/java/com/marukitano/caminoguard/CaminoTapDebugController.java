@@ -12,6 +12,8 @@ import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.maplibre.android.camera.CameraPosition;
+import org.maplibre.android.camera.CameraUpdateFactory;
 import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
@@ -20,6 +22,7 @@ import org.maplibre.android.style.layers.CircleLayer;
 import org.maplibre.android.style.layers.LineLayer;
 import org.maplibre.android.style.layers.Property;
 import org.maplibre.android.style.layers.PropertyFactory;
+import org.maplibre.android.style.expressions.Expression;
 import org.maplibre.android.style.sources.GeoJsonSource;
 import org.maplibre.geojson.Feature;
 import org.maplibre.geojson.FeatureCollection;
@@ -56,6 +59,8 @@ public final class CaminoTapDebugController {
             "camino-debug-selected-route-source";
     private static final String SELECTED_ROUTE_LAYER =
             "camino-debug-selected-route";
+    private static final String SELECTED_ROUTE_HALO_LAYER =
+            "camino-debug-selected-route-halo";
 
     private static final String CONNECTOR_SOURCE =
             "camino-debug-start-connector-source";
@@ -100,6 +105,17 @@ public final class CaminoTapDebugController {
     private static final double HEIGHT_PROFILE_SAMPLE_SPACING_M = 15.0;
     private static final long HEIGHT_PROFILE_REFRESH_DELAY_MS = 90L;
 
+    // CAMINO_PROFILE_LABELS_STATS_V4
+    // CAMINO_SWIPE_HUD_ROUTE_COLORS_V5
+    // CAMINO_HUD_PERSISTENT_HIDE_DARK_HALO_V6
+    // CAMINO_TAP_TABS_NO_SYSTEM_EDGE_V7
+    // CAMINO_CHEVRON_NAV_FOLLOW_V8
+    // CAMINO_HUD_POLISH_STATS_ZORDER_V11
+
+    private static final long NAVIGATION_RECENTER_DELAY_MS = 20_000L;
+    private static final double NAVIGATION_VERTICAL_WINDOW_M = 1500.0;
+    private static final double NAVIGATION_CAMERA_LEAD_M = 250.0;
+
     private static final int DRAG_NONE = 0;
     private static final int DRAG_DUMMY = 1;
     private static final int DRAG_POINT_1 = 2;
@@ -125,6 +141,16 @@ public final class CaminoTapDebugController {
 
     private TextView distanceView;
     private CaminoHeightProfileView heightProfileView;
+    private CaminoInfoPanel infoPanel;
+
+    private boolean navigationFollowEnabled;
+    private boolean navigationFollowSuspended;
+    private int navigationResumeGeneration;
+
+
+    private String infoTitleText = "";
+    private String distanceBaseText = "";
+    private String heightStatsText = "";
     private boolean heightProfileRefreshScheduled;
 
     private final Runnable heightProfileRefreshRunnable =
@@ -175,6 +201,10 @@ public final class CaminoTapDebugController {
 
         map.addOnCameraIdleListener(
                 this::handleHeightProfileCameraIdle
+        );
+
+        map.addOnCameraMoveStartedListener(
+                this::handleNavigationCameraMoveStarted
         );
 
         mapView.setOnTouchListener(
@@ -467,6 +497,13 @@ public final class CaminoTapDebugController {
                 refreshDragPreview();
             } else {
                 refresh();
+
+                if (navigationFollowEnabled
+                        && !navigationFollowSuspended) {
+                    applyNavigationFollow(
+                            true
+                    );
+                }
             }
             return;
         }
@@ -545,7 +582,7 @@ public final class CaminoTapDebugController {
         );
 
         updateConnector(
-                startHit
+                startRouteHit
         );
 
         /*
@@ -575,6 +612,36 @@ public final class CaminoTapDebugController {
                 selectedRouteSource
         );
 
+        LineLayer selectedRouteHaloLayer =
+                new LineLayer(
+                        SELECTED_ROUTE_HALO_LAYER,
+                        SELECTED_ROUTE_SOURCE
+                );
+
+        selectedRouteHaloLayer.setProperties(
+                PropertyFactory.lineColor(
+                        Expression.get(
+                                "highlight_color"
+                        )
+                ),
+                PropertyFactory.lineWidth(
+                        11.5f
+                ),
+                PropertyFactory.lineOpacity(
+                        0.96f
+                ),
+                PropertyFactory.lineCap(
+                        Property.LINE_CAP_ROUND
+                ),
+                PropertyFactory.lineJoin(
+                        Property.LINE_JOIN_ROUND
+                )
+        );
+
+        style.addLayer(
+                selectedRouteHaloLayer
+        );
+
         LineLayer selectedRouteLayer =
                 new LineLayer(
                         SELECTED_ROUTE_LAYER,
@@ -583,15 +650,15 @@ public final class CaminoTapDebugController {
 
         selectedRouteLayer.setProperties(
                 PropertyFactory.lineColor(
-                        Color.parseColor(
-                                "#D04432"
+                        Expression.get(
+                                "color"
                         )
                 ),
                 PropertyFactory.lineWidth(
-                        6.0f
+                        5.6f
                 ),
                 PropertyFactory.lineOpacity(
-                        0.96f
+                        1.0f
                 ),
                 PropertyFactory.lineCap(
                         Property.LINE_CAP_ROUND
@@ -623,8 +690,8 @@ public final class CaminoTapDebugController {
 
         connector.setProperties(
                 PropertyFactory.lineColor(
-                        Color.parseColor(
-                                "#D04432"
+                        Expression.get(
+                                "highlight_color"
                         )
                 ),
                 PropertyFactory.lineWidth(
@@ -660,8 +727,8 @@ public final class CaminoTapDebugController {
 
         routeGapLayer.setProperties(
                 PropertyFactory.lineColor(
-                        Color.parseColor(
-                                "#D04432"
+                        Expression.get(
+                                "highlight_color"
                         )
                 ),
                 PropertyFactory.lineWidth(
@@ -851,6 +918,10 @@ public final class CaminoTapDebugController {
                             ),
                             routeJson.getString(
                                     "name"
+                            ),
+                            routeJson.optString(
+                                    "color",
+                                    "#6a994e"
                             )
                     );
 
@@ -946,6 +1017,8 @@ public final class CaminoTapDebugController {
                                     ),
                                     points,
                                     elevations,
+                                    route.color,
+                                    route.highlightColor,
                                     fromKey,
                                     toKey,
                                     pseudoFrom,
@@ -1205,8 +1278,8 @@ public final class CaminoTapDebugController {
             );
 
             updateConnector(
-                    startHit
-            );
+                startRouteHit
+        );
 
         } else {
             hideStartProjectionAndConnector();
@@ -1654,20 +1727,22 @@ public final class CaminoTapDebugController {
     }
 
     private void updateConnector(
-            ProjectionHit startHit
+            RouteHit startRouteHit
     ) {
         if (connectorSource == null) {
             return;
         }
 
-        if (startHit == null
-                || startHit.distanceFromQueryM
-                < 3.0) {
+        ProjectionHit startHit =
+                startRouteHit == null
+                        ? null
+                        : startRouteHit.hit;
 
+        if (startHit == null
+                || startHit.distanceFromQueryM < 3.0) {
             connectorSource.setGeoJson(
                     emptyFeatures()
             );
-
             return;
         }
 
@@ -1676,29 +1751,29 @@ public final class CaminoTapDebugController {
 
         points.add(
                 Point.fromLngLat(
-                        dummyPosition
-                                .getLongitude(),
-                        dummyPosition
-                                .getLatitude()
+                        dummyPosition.getLongitude(),
+                        dummyPosition.getLatitude()
                 )
         );
 
         points.add(
                 Point.fromLngLat(
-                        startHit.point
-                                .getLongitude(),
-                        startHit.point
-                                .getLatitude()
+                        startHit.point.getLongitude(),
+                        startHit.point.getLatitude()
                 )
         );
 
-        connectorSource.setGeoJson(
+        Feature feature =
                 Feature.fromGeometry(
-                        LineString.fromLngLats(
-                                points
-                        )
-                )
+                        LineString.fromLngLats(points)
+                );
+
+        feature.addStringProperty(
+                "highlight_color",
+                startRouteHit.route.highlightColor
         );
+
+        connectorSource.setGeoJson(feature);
     }
 
     private void hideStartProjectionAndConnector() {
@@ -1989,34 +2064,19 @@ public final class CaminoTapDebugController {
                         to
                 );
 
-        if (slice.size()
-                < 2) {
+        if (slice.size() < 2) {
             return;
         }
 
-        /*
-         * Distance is calculated elsewhere from the full-resolution CNIG
-         * geometry. This list exists only to paint the red overlay, so feeding
-         * MapLibre every 1–2 m survey point is wasted work. Keep endpoints and
-         * enough intermediate points for a visually faithful ~12 m overlay.
-         */
-        final double minRenderSpacingM =
-                12.0;
+        final double minRenderSpacingM = 12.0;
 
         List<Point> points =
                 new ArrayList<>();
 
-        LatLng lastRendered =
-                null;
+        LatLng lastRendered = null;
 
-        for (int index = 0;
-                index < slice.size();
-                index++) {
-
-            LatLng point =
-                    slice.get(
-                            index
-                    );
+        for (int index = 0; index < slice.size(); index++) {
+            LatLng point = slice.get(index);
 
             boolean endpoint =
                     index == 0
@@ -2038,22 +2098,29 @@ public final class CaminoTapDebugController {
                     )
             );
 
-            lastRendered =
-                    point;
+            lastRendered = point;
         }
 
-        if (points.size()
-                < 2) {
+        if (points.size() < 2) {
             return;
         }
 
-        output.add(
+        Feature feature =
                 Feature.fromGeometry(
-                        LineString.fromLngLats(
-                                points
-                        )
-                )
+                        LineString.fromLngLats(points)
+                );
+
+        feature.addStringProperty(
+                "color",
+                track.color
         );
+
+        feature.addStringProperty(
+                "highlight_color",
+                track.highlightColor
+        );
+
+        output.add(feature);
     }
 
     private List<LatLng> sliceTrack(
@@ -2330,6 +2397,9 @@ public final class CaminoTapDebugController {
                         ),
                         endpointPoint(
                                 step.toNode
+                        ),
+                        endpointHighlightColor(
+                                step.fromNode
                         )
                 );
             }
@@ -2999,7 +3069,8 @@ public final class CaminoTapDebugController {
                     ),
                     second.points.get(
                             0
-                    )
+                    ),
+                    route.highlightColor
             );
         }
 
@@ -3035,14 +3106,12 @@ public final class CaminoTapDebugController {
     private void addGapFeature(
             List<Feature> output,
             LatLng from,
-            LatLng to
+            LatLng to,
+            String highlightColor
     ) {
         if (from == null
                 || to == null
-                || distanceMeters(
-                        from,
-                        to
-                ) < 0.05) {
+                || distanceMeters(from, to) < 0.05) {
             return;
         }
 
@@ -3063,13 +3132,17 @@ public final class CaminoTapDebugController {
                 )
         );
 
-        output.add(
+        Feature feature =
                 Feature.fromGeometry(
-                        LineString.fromLngLats(
-                                points
-                        )
-                )
+                        LineString.fromLngLats(points)
+                );
+
+        feature.addStringProperty(
+                "highlight_color",
+                highlightColor
         );
+
+        output.add(feature);
     }
 
     private void buildNetworkGraph() {
@@ -3520,6 +3593,17 @@ public final class CaminoTapDebugController {
         );
     }
 
+    private String endpointHighlightColor(
+            int node
+    ) {
+        NetworkTrack reference =
+                networkTracks.get(
+                        node / 2
+                );
+
+        return reference.route.highlightColor;
+    }
+
     private LatLng endpointPoint(
             int node
     ) {
@@ -3563,6 +3647,10 @@ public final class CaminoTapDebugController {
             RouteHit startRouteHit
     ) {
         if (routes.isEmpty()) {
+            setInfoTitle(
+                    ""
+            );
+
             setLabel(
                     "Lade Caminos …"
             );
@@ -3570,38 +3658,37 @@ public final class CaminoTapDebugController {
             return;
         }
 
-        /*
-         * No measurement point yet: the fake position still behaves like a
-         * real navigation position and immediately shows its nearest Camino.
-         */
         if (selectedRoute == null
                 || selectedHit == null) {
 
             if (startRouteHit == null) {
+                setInfoTitle(
+                        ""
+                );
+
                 setLabel(
                         "Kein Camino gefunden"
                 );
+
                 return;
             }
+
+            setInfoTitle(
+                    startRouteHit.route.name
+            );
 
             double offRouteM =
                     startRouteHit.hit.distanceFromQueryM;
 
-            String text =
+            setLabel(
                     offRouteM < 3.0
                             ? "Auf dem Camino"
                             : formatDistance(
                                     offRouteM
                             )
-                            + " bis Camino";
-
-            text +=
-                    "\n"
-                            + startRouteHit.route.name;
-
-            setLabel(
-                    text
+                            + " bis Camino"
             );
+
             return;
         }
 
@@ -3610,9 +3697,14 @@ public final class CaminoTapDebugController {
 
         if (secondTapHit != null) {
             if (secondSelectedRoute == null) {
+                setInfoTitle(
+                        selectedRoute.name
+                );
+
                 setLabel(
                         "Zweiter Camino fehlt"
                 );
+
                 return;
             }
 
@@ -3630,9 +3722,14 @@ public final class CaminoTapDebugController {
 
         } else {
             if (startRouteHit == null) {
+                setInfoTitle(
+                        selectedRoute.name
+                );
+
                 setLabel(
                         "Startpunkt konnte nicht projiziert werden"
                 );
+
                 return;
             }
 
@@ -3646,14 +3743,18 @@ public final class CaminoTapDebugController {
                     );
         }
 
+        setInfoTitle(
+                measurementRouteLabel(
+                        measurementStart,
+                        measurementEnd
+                )
+        );
+
         if (currentMeasurementPath == null) {
             setLabel(
-                    "Keine Camino-Verbindung\n"
-                            + measurementRouteLabel(
-                            measurementStart,
-                            measurementEnd
-                    )
+                    "Keine Camino-Verbindung"
             );
+
             return;
         }
 
@@ -3661,11 +3762,7 @@ public final class CaminoTapDebugController {
                 formatDistance(
                         currentMeasurementPath.distanceM
                 )
-                        + " "
-                        + measurementRouteLabel(
-                        measurementStart,
-                        measurementEnd
-                );
+                        + " Etappe";
 
         if (secondTapHit == null
                 && startRouteHit.hit.distanceFromQueryM
@@ -3760,24 +3857,35 @@ public final class CaminoTapDebugController {
                 (ViewGroup)
                         mapView.getParent();
 
+        /*
+         * Full-screen transparent overlay: the profile still occupies only the
+         * rightmost 126 dp when drawn, but the cursor guide can now extend all
+         * the way back to the corresponding Camino point.
+         *
+         * onTouchEvent() returns false outside the profile strip, so normal map
+         * gestures keep working everywhere else.
+         */
         FrameLayout.LayoutParams params =
                 new FrameLayout.LayoutParams(
-                        dp(126),
                         FrameLayout.LayoutParams.MATCH_PARENT,
-                        Gravity.END
-                                | Gravity.TOP
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        Gravity.TOP
+                                | Gravity.START
                 );
-
-        params.rightMargin =
-                0;
 
         parent.addView(
                 heightProfileView,
                 params
         );
+
+        heightProfileView.setElevation(
+                dp(2)
+        );
     }
 
     private void scheduleHeightProfileRefresh() {
+        updateInfoCompass();
+
         if (heightProfileRefreshScheduled) {
             return;
         }
@@ -3792,6 +3900,8 @@ public final class CaminoTapDebugController {
     }
 
     private void handleHeightProfileCameraIdle() {
+        updateInfoCompass();
+
         mapView.removeCallbacks(
                 heightProfileRefreshRunnable
         );
@@ -3815,6 +3925,10 @@ public final class CaminoTapDebugController {
                 heightProfileView.clearProfile();
             }
 
+            setHeightStats(
+                    ""
+            );
+
             return;
         }
 
@@ -3829,6 +3943,24 @@ public final class CaminoTapDebugController {
 
         int previousVisibleIndex =
                 -2;
+
+        double previousElevation =
+                Double.NaN;
+
+        double minElevation =
+                Double.POSITIVE_INFINITY;
+
+        double maxElevation =
+                Double.NEGATIVE_INFINITY;
+
+        double netElevationChange =
+                0.0;
+
+        double accumulatedAscent =
+                0.0;
+
+        double accumulatedDescent =
+                0.0;
 
         for (int index = 0;
                 index
@@ -3871,18 +4003,101 @@ public final class CaminoTapDebugController {
 
             visible.add(
                     new CaminoHeightProfileView.Sample(
+                            screen.x / width,
                             screen.y / height,
                             point.elevationM,
                             breakBefore
                     )
             );
 
+            minElevation =
+                    Math.min(
+                            minElevation,
+                            point.elevationM
+                    );
+
+            maxElevation =
+                    Math.max(
+                            maxElevation,
+                            point.elevationM
+                    );
+
+            if (!breakBefore
+                    && Double.isFinite(
+                    previousElevation
+            )) {
+
+                double delta =
+                        point.elevationM
+                                - previousElevation;
+
+                netElevationChange +=
+                        delta;
+
+                if (delta
+                        > 0.0) {
+
+                    accumulatedAscent +=
+                            delta;
+
+                } else if (delta
+                        < 0.0) {
+
+                    accumulatedDescent +=
+                            -delta;
+                }
+            }
+
+            previousElevation =
+                    point.elevationM;
+
             previousVisibleIndex =
                     index;
         }
 
+        if (visible.size()
+                < 2
+                || !Double.isFinite(
+                minElevation
+        )
+                || !Double.isFinite(
+                maxElevation
+        )) {
+
+            heightProfileView.clearProfile();
+
+            setHeightStats(
+                    ""
+            );
+
+            return;
+        }
+
         heightProfileView.setSamples(
                 visible
+        );
+
+        /*
+         * CAMINO_PROFILE_LABELS_STATS_V4
+         *
+         * One metric per line keeps the bottom information panel readable.
+         * Sigma-down is a positive magnitude: total descended vertical metres
+         * over the currently visible route fragments.
+         */
+        setHeightStats(
+                String.format(
+                        Locale.GERMANY,
+                        "Altₘᵢₙ   %.0f m\n"
+                                + "Altₘₐₓ   %.0f m\n"
+                                + "AltΔ     %+.0f m\n"
+                                + "AltΣ↑    %.0f m\n"
+                                + "AltΣ↓    %.0f m",
+                        minElevation,
+                        maxElevation,
+                        netElevationChange,
+                        accumulatedAscent,
+                        accumulatedDescent
+                )
         );
     }
 
@@ -3891,54 +4106,35 @@ public final class CaminoTapDebugController {
             return;
         }
 
-        distanceView =
-                new TextView(
+        infoPanel =
+                new CaminoInfoPanel(
                         activity
                 );
 
-        distanceView.setTextColor(
-                Color.WHITE
+        distanceView =
+                infoPanel.getTextView();
+
+        infoPanel.setNavigationAction(
+                this::toggleNavigationFollow
         );
 
-        distanceView.setTextSize(
-                15.0f
+        infoPanel.setNavigationFollowEnabled(
+                navigationFollowEnabled
         );
 
-        /*
-         * Left-align the text inside the panel so the numeric values on
-         * consecutive lines share exactly the same starting x-position:
-         *
-         *   430m  Camino ...
-         *   173m  Start
-         */
-        distanceView.setGravity(
-                Gravity.START
-                        | Gravity.CENTER_VERTICAL
-        );
+        if (map != null) {
+            infoPanel.setCompassDrawable(
+                    map.getUiSettings()
+                            .getCompassImage()
+            );
 
-        distanceView.setPadding(
-                dp(14),
-                dp(9),
-                dp(14),
-                dp(9)
-        );
+            map.getUiSettings()
+                    .setCompassEnabled(
+                            false
+                    );
 
-        GradientDrawable background =
-                new GradientDrawable();
-
-        background.setColor(
-                Color.parseColor(
-                        "#E63D332C"
-                )
-        );
-
-        background.setCornerRadius(
-                dp(18)
-        );
-
-        distanceView.setBackground(
-                background
-        );
+            updateInfoCompass();
+        }
 
         ViewGroup parent =
                 (ViewGroup)
@@ -3956,19 +4152,430 @@ public final class CaminoTapDebugController {
                 dp(18);
 
         parent.addView(
-                distanceView,
+                infoPanel,
                 params
         );
+
+        /*
+         * The HUD is intentionally the highest Android View in this overlay
+         * stack. The full-screen profile may draw under it, never touch over it.
+         */
+        infoPanel.setElevation(
+                dp(1000)
+        );
+
+        infoPanel.bringToFront();
+
+        updateDistancePanelText();
+    }
+
+    private void toggleNavigationFollow() {
+        navigationResumeGeneration++;
+
+        navigationFollowEnabled =
+                !navigationFollowEnabled;
+
+        navigationFollowSuspended =
+                false;
+
+        if (infoPanel != null) {
+            infoPanel.setNavigationFollowEnabled(
+                    navigationFollowEnabled
+            );
+        }
+
+        if (navigationFollowEnabled) {
+            applyNavigationFollow(
+                    true
+            );
+        }
+    }
+
+    private void handleNavigationCameraMoveStarted(
+            int reason
+    ) {
+        if (!navigationFollowEnabled
+                || reason
+                != MapLibreMap.OnCameraMoveStartedListener
+                .REASON_API_GESTURE) {
+
+            return;
+        }
+
+        navigationFollowSuspended =
+                true;
+
+        final int generation =
+                ++navigationResumeGeneration;
+
+        mapView.postDelayed(
+                () -> {
+                    if (!navigationFollowEnabled
+                            || generation
+                            != navigationResumeGeneration) {
+
+                        return;
+                    }
+
+                    navigationFollowSuspended =
+                            false;
+
+                    applyNavigationFollow(
+                            true
+                    );
+                },
+                NAVIGATION_RECENTER_DELAY_MS
+        );
+    }
+
+    private void applyNavigationFollow(
+            boolean animated
+    ) {
+        if (map == null
+                || dummyPosition == null
+                || mapView.getHeight() <= 0) {
+
+            return;
+        }
+
+        double bearing =
+                navigationBearingAtPosition();
+
+        /*
+         * 1.0 km ahead + 0.5 km behind = 1.5 km vertical ground window.
+         * A camera centre 250 m ahead of the user places the user at roughly
+         * two thirds of the screen height:
+         *
+         *   top ----- 1000 m ----- user ----- 500 m ----- bottom
+         */
+        LatLng cameraTarget =
+                navigationDestination(
+                        dummyPosition,
+                        bearing,
+                        NAVIGATION_CAMERA_LEAD_M
+                );
+
+        double zoom =
+                navigationZoomForVerticalMeters(
+                        dummyPosition.getLatitude(),
+                        NAVIGATION_VERTICAL_WINDOW_M
+                );
+
+        CameraPosition position =
+                new CameraPosition.Builder(
+                        map.getCameraPosition()
+                )
+                        .target(
+                                cameraTarget
+                        )
+                        .zoom(
+                                zoom
+                        )
+                        .bearing(
+                                bearing
+                        )
+                        .tilt(
+                                0.0
+                        )
+                        .build();
+
+        if (animated) {
+            map.easeCamera(
+                    CameraUpdateFactory.newCameraPosition(
+                            position
+                    ),
+                    550
+            );
+
+        } else {
+            map.setCameraPosition(
+                    position
+            );
+        }
+    }
+
+    private double navigationZoomForVerticalMeters(
+            double latitude,
+            double verticalMeters
+    ) {
+        double currentZoom =
+                map.getCameraPosition()
+                        .zoom;
+
+        double currentMetersPerPixel =
+                map.getProjection()
+                        .getMetersPerPixelAtLatitude(
+                                latitude
+                        );
+
+        double desiredMetersPerPixel =
+                verticalMeters
+                        / Math.max(
+                        1.0,
+                        mapView.getHeight()
+                );
+
+        if (!Double.isFinite(
+                currentMetersPerPixel
+        )
+                || currentMetersPerPixel <= 0.0
+                || !Double.isFinite(
+                desiredMetersPerPixel
+        )
+                || desiredMetersPerPixel <= 0.0) {
+
+            return currentZoom;
+        }
+
+        double zoomDelta =
+                Math.log(
+                        currentMetersPerPixel
+                                / desiredMetersPerPixel
+                ) / Math.log(
+                        2.0
+                );
+
+        return currentZoom
+                + zoomDelta;
+    }
+
+    private double navigationBearingAtPosition() {
+        RouteHit routeHit =
+                routes.isEmpty()
+                        ? null
+                        : findNearestRouteHit(
+                                dummyPosition
+                        );
+
+        if (routeHit == null
+                || routeHit.hit.trackIndex < 0
+                || routeHit.hit.trackIndex
+                >= routeHit.route.tracks.size()) {
+
+            return map.getCameraPosition()
+                    .bearing;
+        }
+
+        RouteTrack track =
+                routeHit.route.tracks.get(
+                        routeHit.hit.trackIndex
+                );
+
+        if (track.points.size()
+                < 2) {
+
+            return map.getCameraPosition()
+                    .bearing;
+        }
+
+        int segment =
+                Math.max(
+                        0,
+                        Math.min(
+                                track.points.size() - 2,
+                                routeHit.hit.segmentIndex
+                        )
+                );
+
+        return navigationBearingDegrees(
+                track.points.get(
+                        segment
+                ),
+                track.points.get(
+                        segment + 1
+                )
+        );
+    }
+
+    private static double navigationBearingDegrees(
+            LatLng from,
+            LatLng to
+    ) {
+        double lat1 =
+                Math.toRadians(
+                        from.getLatitude()
+                );
+
+        double lat2 =
+                Math.toRadians(
+                        to.getLatitude()
+                );
+
+        double deltaLon =
+                Math.toRadians(
+                        to.getLongitude()
+                                - from.getLongitude()
+                );
+
+        double y =
+                Math.sin(
+                        deltaLon
+                ) * Math.cos(
+                        lat2
+                );
+
+        double x =
+                Math.cos(
+                        lat1
+                ) * Math.sin(
+                        lat2
+                )
+                        - Math.sin(
+                        lat1
+                ) * Math.cos(
+                        lat2
+                ) * Math.cos(
+                        deltaLon
+                );
+
+        double bearing =
+                Math.toDegrees(
+                        Math.atan2(
+                                y,
+                                x
+                        )
+                );
+
+        bearing %=
+                360.0;
+
+        return bearing < 0.0
+                ? bearing + 360.0
+                : bearing;
+    }
+
+    private static LatLng navigationDestination(
+            LatLng from,
+            double bearingDegrees,
+            double meters
+    ) {
+        double angularDistance =
+                meters
+                        / EARTH_RADIUS_M;
+
+        double bearing =
+                Math.toRadians(
+                        bearingDegrees
+                );
+
+        double lat1 =
+                Math.toRadians(
+                        from.getLatitude()
+                );
+
+        double lon1 =
+                Math.toRadians(
+                        from.getLongitude()
+                );
+
+        double lat2 =
+                Math.asin(
+                        Math.sin(
+                                lat1
+                        ) * Math.cos(
+                                angularDistance
+                        )
+                                + Math.cos(
+                                lat1
+                        ) * Math.sin(
+                                angularDistance
+                        ) * Math.cos(
+                                bearing
+                        )
+                );
+
+        double lon2 =
+                lon1
+                        + Math.atan2(
+                        Math.sin(
+                                bearing
+                        ) * Math.sin(
+                                angularDistance
+                        ) * Math.cos(
+                                lat1
+                        ),
+                        Math.cos(
+                                angularDistance
+                        )
+                                - Math.sin(
+                                lat1
+                        ) * Math.sin(
+                                lat2
+                        )
+                );
+
+        return new LatLng(
+                Math.toDegrees(
+                        lat2
+                ),
+                Math.toDegrees(
+                        lon2
+                )
+        );
+    }
+
+    private void updateInfoCompass() {
+        if (infoPanel == null
+                || map == null) {
+            return;
+        }
+
+        infoPanel.setBearing(
+                map.getCameraPosition()
+                        .bearing
+        );
+    }
+
+    private void setInfoTitle(
+            String text
+    ) {
+        infoTitleText =
+                text == null
+                        ? ""
+                        : text;
+
+        updateDistancePanelText();
     }
 
     private void setLabel(
             String text
     ) {
-        if (distanceView != null) {
-            distanceView.setText(
-                    text
-            );
+        distanceBaseText =
+                text == null
+                        ? ""
+                        : text;
+
+        updateDistancePanelText();
+    }
+
+    private void setHeightStats(
+            String text
+    ) {
+        heightStatsText =
+                text == null
+                        ? ""
+                        : text;
+
+        updateDistancePanelText();
+    }
+
+    private void updateDistancePanelText() {
+        if (distanceView == null
+                || infoPanel == null) {
+            return;
         }
+
+        infoPanel.setTitle(
+                infoTitleText
+        );
+
+        infoPanel.setStageText(
+                distanceBaseText
+        );
+
+        distanceView.setText(
+                heightStatsText
+        );
     }
 
     private int dp(
@@ -4007,6 +4614,72 @@ public final class CaminoTapDebugController {
                         b.getLongitude()
                                 - a.getLongitude()
                 )
+        );
+    }
+
+    private static String normaliseColor(
+            String value
+    ) {
+        if (value == null) {
+            return "#6a994e";
+        }
+
+        try {
+            int parsed =
+                    Color.parseColor(value);
+
+            return String.format(
+                    Locale.ROOT,
+                    "#%02x%02x%02x",
+                    Color.red(parsed),
+                    Color.green(parsed),
+                    Color.blue(parsed)
+            );
+
+        } catch (IllegalArgumentException error) {
+            return "#6a994e";
+        }
+    }
+
+    private static String darkenColor(
+            String value,
+            float amount
+    ) {
+        int color =
+                Color.parseColor(
+                        normaliseColor(value)
+                );
+
+        float clamped =
+                Math.max(
+                        0.0f,
+                        Math.min(1.0f, amount)
+                );
+
+        float keep =
+                1.0f - clamped;
+
+        int red =
+                Math.round(
+                        Color.red(color) * keep
+                );
+
+        int green =
+                Math.round(
+                        Color.green(color) * keep
+                );
+
+        int blue =
+                Math.round(
+                        Color.blue(color) * keep
+                );
+
+        return String.format(
+                Locale.ROOT,
+                "#%02x%02x%02x",
+                red,
+                green,
+                blue
         );
     }
 
@@ -4284,15 +4957,21 @@ public final class CaminoTapDebugController {
     private static final class CaminoRoute {
         final String id;
         final String name;
+        final String color;
+        final String highlightColor;
         final List<RouteTrack> tracks =
                 new ArrayList<>();
 
         CaminoRoute(
                 String id,
-                String name
+                String name,
+                String color
         ) {
             this.id = id;
             this.name = name;
+            this.color = normaliseColor(color);
+            this.highlightColor =
+                    darkenColor(this.color, 0.48f);
         }
     }
 
@@ -4301,6 +4980,8 @@ public final class CaminoTapDebugController {
         final int order;
         final List<LatLng> points;
         final List<Double> elevations;
+        final String color;
+        final String highlightColor;
         final String fromKey;
         final String toKey;
         final boolean pseudoFrom;
@@ -4320,6 +5001,8 @@ public final class CaminoTapDebugController {
                 int order,
                 List<LatLng> points,
                 List<Double> elevations,
+                String color,
+                String highlightColor,
                 String fromKey,
                 String toKey,
                 boolean pseudoFrom,
@@ -4336,6 +5019,12 @@ public final class CaminoTapDebugController {
 
             this.elevations =
                     elevations;
+
+            this.color =
+                    color;
+
+            this.highlightColor =
+                    highlightColor;
 
             this.fromKey =
                     emptyToNull(

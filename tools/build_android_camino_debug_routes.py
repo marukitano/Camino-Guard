@@ -7,6 +7,15 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# CAMINO_DEBUG_ROUTE_PALETTE_V1
+# Same palette/order as build_android_camino_tracks.py.
+PALETTE = [
+    "#d1495b", "#00798c", "#edae49", "#30638e",
+    "#6a994e", "#8f5d5d", "#7b2cbf", "#2a9d8f",
+    "#e76f51", "#457b9d", "#bc6c25", "#5a189a",
+    "#588157", "#c1121f", "#3a86ff", "#9c6644",
+]
 GROUP_DIR = ROOT / "data/processed/groups"
 OUTPUT = ROOT / "android/app/src/main/assets/camino/debug-all-primary-caminos.json"
 
@@ -33,11 +42,15 @@ def main() -> int:
     track_count = 0
     point_count = 0
 
-    for path in sorted(GROUP_DIR.glob("*.json")):
+    group_paths = sorted(
+        p for p in GROUP_DIR.glob("*.json")
+        if p.stem.startswith(("ES", "PT"))
+    )
+
+    for group_index, path in enumerate(group_paths):
         group = json.loads(path.read_text(encoding="utf-8"))
         group_id = str(group.get("route_group_id") or path.stem)
-        if not group_id.startswith(("ES", "PT")):
-            continue
+        color = PALETTE[group_index % len(PALETTE)]
 
         tracks = []
         for track in group.get("tracks", []):
@@ -87,6 +100,7 @@ def main() -> int:
         routes.append({
             "route_group_id": group_id,
             "name": group.get("name") or group.get("official_name") or group_id,
+            "color": color,
             "tracks": tracks,
         })
 
@@ -97,7 +111,7 @@ def main() -> int:
     OUTPUT.write_text(
         json.dumps(
             {
-                "schema": 3,
+                "schema": 4,
                 "purpose": "temporary Android Camino measurement harness",
                 "routes": routes,
             },
