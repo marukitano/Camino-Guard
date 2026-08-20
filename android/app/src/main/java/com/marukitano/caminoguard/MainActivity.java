@@ -32,6 +32,8 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
 
+    // CAMINO_CLEAN_CLIPPED_SCHAFFHAUSEN_V30
+
     // CAMINO_ORIGINAL_MAPLIBRE_WORLD_V25
 
     // CAMINO_DUAL_REGIONAL_MAP_SOURCES_V20
@@ -59,6 +61,14 @@ public final class MainActivity extends Activity {
     private static final String DEBUG_MAP_METADATA_ASSET = "maps/debug-schaffhausen.metadata.json";
     private static final String DEBUG_LOCAL_MAP_FILENAME = "debug-schaffhausen.pmtiles";
     private static final String PREF_INSTALLED_DEBUG_SHA256 = "installed_debug_schaffhausen_sha256";
+    private static final String DEBUG_CONTOUR_ASSET =
+            "maps/debug-schaffhausen-contours.pmtiles";
+    private static final String DEBUG_CONTOUR_METADATA_ASSET =
+            "maps/debug-schaffhausen-contours.metadata.json";
+    private static final String DEBUG_LOCAL_CONTOUR_FILENAME =
+            "debug-schaffhausen-contours.pmtiles";
+    private static final String PREF_INSTALLED_DEBUG_CONTOUR_SHA256 =
+            "installed_debug_schaffhausen_contour_sha256";
     private static final String WORLD_MAP_ASSET =
             "maps/world-maplibre.pmtiles";
     private static final String WORLD_MAP_METADATA_ASSET =
@@ -83,6 +93,8 @@ public final class MainActivity extends Activity {
     private static final String STYLE_PM_TILES_TOKEN = "__PMTILES_URL__";
     private static final String STYLE_SCHAFFHAUSEN_PM_TILES_TOKEN =
             "__SCHAFFHAUSEN_PMTILES_URL__";
+    private static final String STYLE_SCHAFFHAUSEN_CONTOURS_TOKEN =
+            "__SCHAFFHAUSEN_CONTOURS_URL__";
     private static final String STYLE_WORLD_PM_TILES_TOKEN =
             "__WORLD_PM_TILES_URL__";
     private static final String STYLE_CONTOURS_TOKEN = "__CONTOURS_URL__";
@@ -258,6 +270,19 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                             PREF_INSTALLED_DEBUG_SHA256
                     );
 
+            MapMetadata schaffhausenContourMetadata =
+                    readMapMetadata(
+                            DEBUG_CONTOUR_METADATA_ASSET
+                    );
+
+            File localSchaffhausenContours =
+                    ensureMapInstalled(
+                            schaffhausenContourMetadata,
+                            DEBUG_CONTOUR_ASSET,
+                            DEBUG_LOCAL_CONTOUR_FILENAME,
+                            PREF_INSTALLED_DEBUG_CONTOUR_SHA256
+                    );
+
             MapMetadata worldMapMetadata =
                     readMapMetadata(
                             WORLD_MAP_METADATA_ASSET
@@ -286,6 +311,8 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                     "pmtiles://" + Uri.fromFile(localIberiaMap);
             String schaffhausenPmTilesUrl =
                     "pmtiles://" + Uri.fromFile(localSchaffhausenMap);
+            String schaffhausenContoursUrl =
+                    "pmtiles://" + Uri.fromFile(localSchaffhausenContours);
             String worldPmTilesUrl =
                     "pmtiles://" + Uri.fromFile(localWorldMap);
             String contoursUrl =
@@ -305,6 +332,13 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                 );
             }
             if (!styleJson.contains(
+                    STYLE_SCHAFFHAUSEN_CONTOURS_TOKEN
+            )) {
+                throw new IOException(
+                        "Offline style is missing Schaffhausen contour URL token."
+                );
+            }
+            if (!styleJson.contains(
                     STYLE_WORLD_PM_TILES_TOKEN
             )) {
                 throw new IOException(
@@ -320,6 +354,10 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                     .replace(
                             STYLE_SCHAFFHAUSEN_PM_TILES_TOKEN,
                             schaffhausenPmTilesUrl
+                    )
+                    .replace(
+                            STYLE_SCHAFFHAUSEN_CONTOURS_TOKEN,
+                            schaffhausenContoursUrl
                     )
                     .replace(
                             STYLE_WORLD_PM_TILES_TOKEN,
