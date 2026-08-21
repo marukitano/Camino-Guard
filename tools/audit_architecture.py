@@ -415,6 +415,41 @@ if height_profile_view_path.is_file():
     check("public boolean onTouchEvent(" in height_profile_view,
           "CaminoHeightProfileView no longer owns UI touch behavior")
 
+overlay_dir = ASSETS / "map-overlays"
+style_path = ASSETS / "styles/camino-basic.json"
+
+check(
+    (overlay_dir / "schaffhausen-munot-mask.geojson").is_file(),
+    "missing current Schaffhausen Munot round mask",
+)
+check(
+    not (overlay_dir / "debug-schaffhausen-south-curtain.geojson").exists(),
+    "current Munot mask still has obsolete south-curtain filename",
+)
+check(
+    not (overlay_dir / "debug-schaffhausen-transition-mask.geojson").exists(),
+    "obsolete Schaffhausen transition-mask asset still present",
+)
+
+if style_path.is_file():
+    style_text = style_path.read_text()
+    check(
+        '"schaffhausen-munot-mask": {' in style_text,
+        "style missing Schaffhausen Munot mask source",
+    )
+    check(
+        '"source": "schaffhausen-munot-mask"' in style_text,
+        "style missing Schaffhausen Munot mask layer binding",
+    )
+    check(
+        '"id": "schaffhausen-munot-mask-fill"' in style_text,
+        "style missing Schaffhausen Munot mask fill layer",
+    )
+    check(
+        "schaffhausen-south-curtain" not in style_text,
+        "obsolete south-curtain naming remains in style",
+    )
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -445,4 +480,6 @@ print("  separated Camino info-panel drawing controls")
 print("  separated Camino height-profile sample model")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
+print("  current Schaffhausen Munot round mask preserved")
+print("  obsolete Schaffhausen transition mask removed")
 print("  no regional Camino behavior switch")

@@ -68,9 +68,9 @@
       "url": "__SCHAFFHAUSEN_CONTOURS_URL__",
       "attribution": "Terrain: Mapterhorn open-data sources"
     },
-    "schaffhausen-south-curtain": {
+    "schaffhausen-munot-mask": {
       "type": "geojson",
-      "data": "asset://map-overlays/debug-schaffhausen-south-curtain.geojson"
+      "data": "asset://map-overlays/schaffhausen-munot-mask.geojson"
     }
   },
   "layers": [
@@ -6334,9 +6334,9 @@
       "minzoom": 10.0
     },
     {
-      "id": "schaffhausen-south-curtain-fill",
+      "id": "schaffhausen-munot-mask-fill",
       "type": "fill",
-      "source": "schaffhausen-south-curtain",
+      "source": "schaffhausen-munot-mask",
       "paint": {
         "fill-color": "#eee2c2",
         "fill-opacity": 1.0
