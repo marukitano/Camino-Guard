@@ -450,6 +450,43 @@ if style_path.is_file():
         "obsolete south-curtain naming remains in style",
     )
 
+test_file = ROOT / "android/app/src/test/java/com/marukitano/caminoguard/CaminoDomainTest.java"
+app_gradle = ROOT / "android/app/build.gradle.kts"
+
+check(
+    test_file.is_file(),
+    "missing P0 Camino domain tests",
+)
+
+if test_file.is_file():
+    test_text = test_file.read_text()
+    for required_test in (
+        "canonicalAssetKeepsDataContract",
+        "colorsKeepGlobalNormalizationAndDarkeningContract",
+        "haversineDistanceKeepsRadiusUnitsAndSymmetry",
+        "projectionFindsNearestPointOnSingleTrack",
+        "networkFindPathUsesTrackWeightAndHandlesBounds",
+    ):
+        check(
+            required_test in test_text,
+            "missing P0 domain test: " + required_test,
+        )
+
+if app_gradle.is_file():
+    gradle_text = app_gradle.read_text()
+    check(
+        'testImplementation("junit:junit:4.13.2")' in gradle_text,
+        "missing JUnit unit-test dependency",
+    )
+    check(
+        'testImplementation("org.json:json:20250517")' in gradle_text,
+        "missing pure-JVM JSON test dependency",
+    )
+    check(
+        "org.robolectric" not in gradle_text,
+        "P0 domain tests should not depend on Robolectric",
+    )
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -482,4 +519,5 @@ print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  current Schaffhausen Munot round mask preserved")
 print("  obsolete Schaffhausen transition mask removed")
+print("  P0 Camino pure-JVM domain tests present")
 print("  no regional Camino behavior switch")
