@@ -58,9 +58,6 @@ public final class CaminoTrackingService extends Service
         public final Float phoneHeadingDeg;
         public final boolean stationary;
         public final String motionState;
-        public final boolean gpsHasSpeed;
-        public final float gpsSpeedMps;
-        public final float gpsAccuracyM;
         public final float accelRms;
         public final long stationaryCandidateMs;
 
@@ -71,9 +68,6 @@ public final class CaminoTrackingService extends Service
                 Float phoneHeadingDeg,
                 boolean stationary,
                 String motionState,
-                boolean gpsHasSpeed,
-                float gpsSpeedMps,
-                float gpsAccuracyM,
                 float accelRms,
                 long stationaryCandidateMs
         ) {
@@ -91,9 +85,6 @@ public final class CaminoTrackingService extends Service
             this.phoneHeadingDeg = phoneHeadingDeg;
             this.stationary = stationary;
             this.motionState = motionState;
-            this.gpsHasSpeed = gpsHasSpeed;
-            this.gpsSpeedMps = gpsSpeedMps;
-            this.gpsAccuracyM = gpsAccuracyM;
             this.accelRms = accelRms;
             this.stationaryCandidateMs = stationaryCandidateMs;
         }
@@ -131,9 +122,6 @@ public final class CaminoTrackingService extends Service
                     null,
                     false,
                     "UNKNOWN",
-                    false,
-                    0.0f,
-                    -1.0f,
                     0.0f,
                     0L
             );
@@ -147,9 +135,6 @@ public final class CaminoTrackingService extends Service
     private final Deque<Location> courseHistory = new ArrayDeque<>();
 
     private Location acceptedLocation;
-    private boolean latestGpsHasSpeed;
-    private float latestGpsSpeedMps;
-    private float latestGpsAccuracyM = -1.0f;
     private Location lastTrackLocation;
 
     private Float gpsCourseDeg;
@@ -696,9 +681,6 @@ public final class CaminoTrackingService extends Service
                         phoneHeadingDeg,
                         motionState == MotionState.STATIONARY,
                         motionState.name(),
-                        latestGpsHasSpeed,
-                        latestGpsSpeedMps,
-                        latestGpsAccuracyM,
                         (float) Math.sqrt(stationaryRmsSq),
                         stationaryCandidateMs
                 );
