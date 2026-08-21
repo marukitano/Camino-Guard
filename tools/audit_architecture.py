@@ -33,6 +33,9 @@ map_coordinator_path = JAVA / "MapCoordinator.java"
 travel_stats_path = JAVA / "TravelStatsController.java"
 drag_path = JAVA / "CaminoDragController.java"
 selection_path = JAVA / "CaminoSelectionController.java"
+info_panel_path = JAVA / "CaminoInfoPanel.java"
+info_chevron_path = JAVA / "CaminoChevronView.java"
+info_navigation_button_path = JAVA / "CaminoNavigationButton.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -49,6 +52,9 @@ check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
 check(travel_stats_path.is_file(), "missing TravelStatsController.java")
 check(drag_path.is_file(), "missing CaminoDragController.java")
 check(selection_path.is_file(), "missing CaminoSelectionController.java")
+check(info_panel_path.is_file(), "missing CaminoInfoPanel.java")
+check(info_chevron_path.is_file(), "missing CaminoChevronView.java")
+check(info_navigation_button_path.is_file(), "missing CaminoNavigationButton.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -355,6 +361,29 @@ if controller_path.is_file():
     check("CaminoSelectionController" in controller,
           "CaminoController is not wired to CaminoSelectionController")
 
+if info_panel_path.is_file():
+    info_panel = info_panel_path.read_text()
+    check("CaminoChevronView" in info_panel,
+          "CaminoInfoPanel is not wired to CaminoChevronView")
+    check("CaminoNavigationButton" in info_panel,
+          "CaminoInfoPanel is not wired to CaminoNavigationButton")
+    check("private static final class ChevronView" not in info_panel,
+          "CaminoInfoPanel still owns chevron drawing implementation")
+    check("private static final class NavigationButton" not in info_panel,
+          "CaminoInfoPanel still owns navigation-button drawing implementation")
+
+if info_chevron_path.is_file():
+    info_chevron = info_chevron_path.read_text()
+    check("protected void onDraw(" in info_chevron,
+          "CaminoChevronView does not own chevron drawing")
+
+if info_navigation_button_path.is_file():
+    info_navigation_button = info_navigation_button_path.read_text()
+    check("void setFollowEnabled(" in info_navigation_button,
+          "CaminoNavigationButton does not own follow visual state")
+    check("protected void onDraw(" in info_navigation_button,
+          "CaminoNavigationButton does not own navigation control drawing")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -381,6 +410,7 @@ print("  one MapLibre startup / style coordinator")
 print("  one travel statistics / village ETA controller")
 print("  one Camino drag interaction controller")
 print("  one Camino tap-selection controller")
+print("  separated Camino info-panel drawing controls")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")

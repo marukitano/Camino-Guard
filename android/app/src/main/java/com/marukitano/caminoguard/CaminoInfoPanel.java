@@ -1,16 +1,12 @@
 package com.marukitano.caminoguard;
 
 import android.content.Context;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -44,8 +40,8 @@ final class CaminoInfoPanel extends FrameLayout {
     private final TextView summaryRightView;
     private final TextView statsLeftView;
     private final TextView statsRightView;
-    private final ChevronView panelToggleView;
-    private final NavigationButton navigationButton;
+    private final CaminoChevronView panelToggleView;
+    private final CaminoNavigationButton navigationButton;
 
     private Runnable navigationAction;
     private boolean hidden;
@@ -70,9 +66,9 @@ final class CaminoInfoPanel extends FrameLayout {
         setBackground(background);
 
         panelToggleView =
-                new ChevronView(
+                new CaminoChevronView(
                         context,
-                        ChevronView.DOWN
+                        CaminoChevronView.DOWN
                 );
 
         panelToggleView.setClickable(
@@ -280,7 +276,7 @@ final class CaminoInfoPanel extends FrameLayout {
         );
 
         navigationButton =
-                new NavigationButton(
+                new CaminoNavigationButton(
                         context
                 );
 
@@ -575,7 +571,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 true;
 
         panelToggleView.setDirection(
-                ChevronView.UP
+                CaminoChevronView.UP
         );
 
         post(
@@ -613,7 +609,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 false;
 
         panelToggleView.setDirection(
-                ChevronView.DOWN
+                CaminoChevronView.DOWN
         );
 
         animate()
@@ -644,350 +640,5 @@ final class CaminoInfoPanel extends FrameLayout {
                 * getResources()
                 .getDisplayMetrics()
                 .density;
-    }
-
-    private static final class ChevronView
-            extends View {
-
-        static final int DOWN = 0;
-        static final int UP = 1;
-
-        private final Paint paint =
-                new Paint(
-                        Paint.ANTI_ALIAS_FLAG
-                );
-
-        private int direction;
-
-        ChevronView(
-                Context context,
-                int direction
-        ) {
-            super(context);
-
-            this.direction =
-                    direction;
-
-            paint.setColor(
-                    Color.rgb(
-                            255,
-                            240,
-                            200
-                    )
-            );
-
-            paint.setStyle(
-                    Paint.Style.STROKE
-            );
-
-            paint.setStrokeWidth(
-                    dp(2.2f)
-            );
-
-            paint.setStrokeCap(
-                    Paint.Cap.ROUND
-            );
-
-            paint.setStrokeJoin(
-                    Paint.Join.ROUND
-            );
-        }
-
-        void setDirection(
-                int direction
-        ) {
-            this.direction =
-                    direction;
-
-            invalidate();
-        }
-
-        @Override
-        protected void onDraw(
-                Canvas canvas
-        ) {
-            super.onDraw(
-                    canvas
-            );
-
-            float cx =
-                    getWidth()
-                            / 2.0f;
-
-            float cy =
-                    getHeight()
-                            / 2.0f;
-
-            float halfWidth =
-                    dp(9.5f);
-
-            float depth =
-                    dp(5.0f);
-
-            Path path =
-                    new Path();
-
-            if (direction == DOWN) {
-                path.moveTo(
-                        cx - halfWidth,
-                        cy - depth
-                );
-
-                path.lineTo(
-                        cx,
-                        cy + depth
-                );
-
-                path.lineTo(
-                        cx + halfWidth,
-                        cy - depth
-                );
-
-            } else {
-                path.moveTo(
-                        cx - halfWidth,
-                        cy + depth
-                );
-
-                path.lineTo(
-                        cx,
-                        cy - depth
-                );
-
-                path.lineTo(
-                        cx + halfWidth,
-                        cy + depth
-                );
-            }
-
-            canvas.drawPath(
-                    path,
-                    paint
-            );
-        }
-
-        private float dp(
-                float value
-        ) {
-            return value
-                    * getResources()
-                    .getDisplayMetrics()
-                    .density;
-        }
-    }
-
-    private static final class NavigationButton
-            extends View {
-
-        private final Paint circlePaint =
-                new Paint(
-                        Paint.ANTI_ALIAS_FLAG
-                );
-
-        private final Paint outlinePaint =
-                new Paint(
-                        Paint.ANTI_ALIAS_FLAG
-                );
-
-        private final Paint iconPaint =
-                new Paint(
-                        Paint.ANTI_ALIAS_FLAG
-                );
-
-        private final Paint textPaint =
-                new Paint(
-                        Paint.ANTI_ALIAS_FLAG
-                );
-
-        private boolean followEnabled;
-
-        NavigationButton(
-                Context context
-        ) {
-            super(
-                    context
-            );
-
-            circlePaint.setColor(
-                    Color.argb(
-                            46,
-                            255,
-                            240,
-                            200
-                    )
-            );
-
-            circlePaint.setStyle(
-                    Paint.Style.FILL
-            );
-
-            outlinePaint.setColor(
-                    Color.argb(
-                            190,
-                            255,
-                            240,
-                            200
-                    )
-            );
-
-            outlinePaint.setStyle(
-                    Paint.Style.STROKE
-            );
-
-            outlinePaint.setStrokeWidth(
-                    dp(1.3f)
-            );
-
-            iconPaint.setColor(
-                    Color.rgb(
-                            255,
-                            240,
-                            200
-                    )
-            );
-
-            iconPaint.setStyle(
-                    Paint.Style.FILL
-            );
-
-            textPaint.setColor(
-                    Color.rgb(
-                            255,
-                            240,
-                            200
-                    )
-            );
-
-            textPaint.setTextAlign(
-                    Paint.Align.CENTER
-            );
-
-            textPaint.setTextSize(
-                    sp(15.0f)
-            );
-
-            textPaint.setFakeBoldText(
-                    true
-            );
-        }
-
-        void setFollowEnabled(
-                boolean enabled
-        ) {
-            followEnabled =
-                    enabled;
-
-            invalidate();
-        }
-
-        @Override
-        protected void onDraw(
-                Canvas canvas
-        ) {
-            super.onDraw(
-                    canvas
-            );
-
-            float cx =
-                    getWidth()
-                            / 2.0f;
-
-            float cy =
-                    getHeight()
-                            / 2.0f;
-
-            float radius =
-                    Math.min(
-                            getWidth(),
-                            getHeight()
-                    ) * 0.43f;
-
-            canvas.drawCircle(
-                    cx,
-                    cy,
-                    radius,
-                    circlePaint
-            );
-
-            canvas.drawCircle(
-                    cx,
-                    cy,
-                    radius,
-                    outlinePaint
-            );
-
-            if (followEnabled) {
-                Paint.FontMetrics metrics =
-                        textPaint
-                                .getFontMetrics();
-
-                float baseline =
-                        cy
-                                - (
-                                metrics.ascent
-                                        + metrics.descent
-                        ) / 2.0f;
-
-                canvas.drawText(
-                        "M",
-                        cx,
-                        baseline,
-                        textPaint
-                );
-
-                return;
-            }
-
-            float size =
-                    radius * 1.10f;
-
-            Path arrow =
-                    new Path();
-
-            arrow.moveTo(
-                    cx,
-                    cy - size
-            );
-
-            arrow.lineTo(
-                    cx + size * 0.64f,
-                    cy + size * 0.72f
-            );
-
-            arrow.lineTo(
-                    cx,
-                    cy + size * 0.42f
-            );
-
-            arrow.lineTo(
-                    cx - size * 0.64f,
-                    cy + size * 0.72f
-            );
-
-            arrow.close();
-
-            canvas.drawPath(
-                    arrow,
-                    iconPaint
-            );
-        }
-
-        private float dp(
-                float value
-        ) {
-            return value
-                    * getResources()
-                    .getDisplayMetrics()
-                    .density;
-        }
-
-        private float sp(
-                float value
-        ) {
-            return value
-                    * getResources()
-                    .getDisplayMetrics()
-                    .scaledDensity;
-        }
     }
 }
