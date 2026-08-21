@@ -65,19 +65,13 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private static final class TimedPoint {
         final LatLng point;
         final long timeMs;
-        final double velocityLatPerMs;
-        final double velocityLonPerMs;
 
         TimedPoint(
                 LatLng point,
-                long timeMs,
-                double velocityLatPerMs,
-                double velocityLonPerMs
+                long timeMs
         ){
             this.point=point;
             this.timeMs=timeMs;
-            this.velocityLatPerMs=velocityLatPerMs;
-            this.velocityLonPerMs=velocityLonPerMs;
         }
     }
 
@@ -407,42 +401,10 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 return;
         }
 
-        double velocityLatPerMs=0.0;
-        double velocityLonPerMs=0.0;
-
-        if(previous!=null){
-            double dt=Math.max(
-                    1.0,
-                    timeMs-previous.timeMs);
-
-            double newVelLat=
-                    (newest.getLatitude()
-                            -previous.point.getLatitude())/dt;
-
-            double newVelLon=
-                    (newest.getLongitude()
-                            -previous.point.getLongitude())/dt;
-
-            if(playbackPoints.size()==1){
-                velocityLatPerMs=newVelLat;
-                velocityLonPerMs=newVelLon;
-            } else {
-                velocityLatPerMs=
-                        0.70*newVelLat
-                                +0.30*previous.velocityLatPerMs;
-
-                velocityLonPerMs=
-                        0.70*newVelLon
-                                +0.30*previous.velocityLonPerMs;
-            }
-        }
-
         TimedPoint newestTimed=
                 new TimedPoint(
                         newest,
-                        timeMs,
-                        velocityLatPerMs,
-                        velocityLonPerMs);
+                        timeMs);
 
         playbackPoints.add(newestTimed);
 
@@ -654,7 +616,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         double t2=t*t;
         double t3=t2*t;
 
-        double h00=2*t3-3*t2+1;
         double h10=t3-2*t2+t;
         double h01=-2*t3+3*t2;
         double h11=t3-t2;
