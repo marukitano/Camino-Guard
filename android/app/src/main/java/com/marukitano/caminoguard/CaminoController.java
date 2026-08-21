@@ -41,66 +41,54 @@ import java.util.Locale;
 import java.util.PriorityQueue;
 
 /**
- * Temporary all-Camino interaction harness.
+ * Global Camino interaction controller.
  *
- * Normal Camino geometry remains in the map style and therefore stays green.
- * This controller only adds:
- *
- *  - draggable fake current position
- *  - projected start point + straight off-route connector
- *  - one or two draggable Camino selection points
- *  - red overlay only on the measured Camino section
- *  - route-aware distance/name display
+ * Selection, measurement, routing, height profile and live navigation
+ * use the same canonical Camino dataset everywhere.
  */
-public final class CaminoTapDebugController {
-
-    // CAMINO_RESUME_20S_AFTER_IDLE_V17
-
-    // CAMINO_LIVE_NAV_DELEGATE_V15
-
-    // CAMINO_LIVE_POSITION_SOURCE_V14
-
-    private static final String ROUTE_ASSET =
-            "camino/camino-global.json";
+public final class CaminoController {
 
     private static final String SELECTED_ROUTE_SOURCE =
-            "camino-debug-selected-route-source";
+            "camino-selected-route-source";
     private static final String SELECTED_ROUTE_LAYER =
-            "camino-debug-selected-route";
+            "camino-selected-route";
     private static final String SELECTED_ROUTE_HALO_LAYER =
-            "camino-debug-selected-route-halo";
+            "camino-selected-route-halo";
 
     private static final String CONNECTOR_SOURCE =
-            "camino-debug-start-connector-source";
+            "camino-start-connector-source";
     private static final String CONNECTOR_LAYER =
-            "camino-debug-start-connector";
+            "camino-start-connector";
 
     private static final String DUMMY_SOURCE =
-            "camino-debug-dummy-position-source";
+            "camino-dummy-position-source";
     private static final String DUMMY_LAYER =
-            "camino-debug-dummy-position";
+            "camino-dummy-position";
 
     private static final String START_SNAP_SOURCE =
-            "camino-debug-start-snap-source";
+            "camino-start-snap-source";
     private static final String START_SNAP_LAYER =
-            "camino-debug-start-snap";
+            "camino-start-snap";
 
     private static final String SELECTED_SOURCE =
-            "camino-debug-selected-position-source";
+            "camino-selected-position-source";
     private static final String SELECTED_LAYER =
-            "camino-debug-selected-position";
+            "camino-selected-position";
 
     private static final String ROUTE_GAP_SOURCE =
-            "camino-debug-route-gap-source";
+            "camino-route-gap-source";
     private static final String ROUTE_GAP_LAYER =
-            "camino-debug-route-gap";
+            "camino-route-gap";
 
     /*
      * Cross-group semantic place matches may still have offset official
      * geometry. Keep the same conservative 5 km guard used by the processed
      * place identity and count the actual straight gap in the measurement.
      */
-    private static final double MAX_SEMANTIC_TRANSFER_GAP_M = 5000.0;
+    private static final double MAX_SEMANTIC_TRANSFER_GAP_M =
+            CaminoConfig.get().doubleValue(
+                    "measurement.maxSemanticTransferGapMeters"
+            );
 
     private static final double EARTH_RADIUS_M = 6371008.8;
 
@@ -110,25 +98,35 @@ public final class CaminoTapDebugController {
      * Height samples are retained much more sparsely than the raw CNIG survey
      * geometry. The source geometry still drives route distance exactly.
      */
-    private static final double HEIGHT_PROFILE_SAMPLE_SPACING_M = 15.0;
-    private static final long HEIGHT_PROFILE_REFRESH_DELAY_MS = 90L;
+    private static final double HEIGHT_PROFILE_SAMPLE_SPACING_M =
+            CaminoConfig.get().doubleValue(
+                    "measurement.heightProfileSampleSpacingMeters"
+            );
+    private static final long HEIGHT_PROFILE_REFRESH_DELAY_MS =
+            CaminoConfig.get().longValue(
+                    "measurement.heightProfileRefreshDelayMs"
+            );
+    private static final double SPEED_SAMPLE_MIN_MOVE_M =
+            CaminoConfig.get().doubleValue(
+                    "measurement.speedSampleMinMoveMeters"
+            );
+    private static final double SPEED_SAMPLE_MAX_JUMP_M =
+            CaminoConfig.get().doubleValue(
+                    "measurement.speedSampleMaxJumpMeters"
+            );
 
-    // CAMINO_PROFILE_LABELS_STATS_V4
-    // CAMINO_SWIPE_HUD_ROUTE_COLORS_V5
-    // CAMINO_HUD_PERSISTENT_HIDE_DARK_HALO_V6
-    // CAMINO_TAP_TABS_NO_SYSTEM_EDGE_V7
-    // CAMINO_CHEVRON_NAV_FOLLOW_V8
-    // CAMINO_HUD_POLISH_STATS_ZORDER_V11
-    // CAMINO_INFO_PANEL_FLEX_SPEED_ETA_V12
-    // CAMINO_DYNAMIC_FLEX_VILLAGE_STATS_V13
-    // CAMINO_SPEED_STRING_LITERAL_FIX_V12A
-
-    private static final double SPEED_SAMPLE_MIN_MOVE_M = 1.5;
-    private static final double SPEED_SAMPLE_MAX_JUMP_M = 2000.0;
-
-    private static final long NAVIGATION_RECENTER_DELAY_MS = 20_000L;
-    private static final double NAVIGATION_VERTICAL_WINDOW_M = 1500.0;
-    private static final double NAVIGATION_CAMERA_LEAD_M = 250.0;
+    private static final long NAVIGATION_RECENTER_DELAY_MS =
+            CaminoConfig.get().longValue(
+                    "navigation.recenterDelayMs"
+            );
+    private static final double NAVIGATION_VERTICAL_WINDOW_M =
+            CaminoConfig.get().doubleValue(
+                    "navigation.verticalWindowMeters"
+            );
+    private static final double NAVIGATION_CAMERA_LEAD_M =
+            CaminoConfig.get().doubleValue(
+                    "navigation.cameraLeadMeters"
+            );
 
     private static final int DRAG_NONE = 0;
     private static final int DRAG_DUMMY = 1;
@@ -207,7 +205,7 @@ public final class CaminoTapDebugController {
 
     private int dragTarget = DRAG_NONE;
 
-    public CaminoTapDebugController(
+    public CaminoController(
             Activity activity,
             MapView mapView,
             LatLng initialPosition
@@ -791,7 +789,9 @@ public final class CaminoTapDebugController {
                         )
                 ),
                 PropertyFactory.lineWidth(
-                        11.5f
+                        CaminoConfig.get().floatValue(
+                                "routes.selection.haloWidth"
+                        )
                 ),
                 PropertyFactory.lineOpacity(
                         0.96f
@@ -821,7 +821,9 @@ public final class CaminoTapDebugController {
                         )
                 ),
                 PropertyFactory.lineWidth(
-                        5.6f
+                        CaminoConfig.get().floatValue(
+                                "routes.selection.lineWidth"
+                        )
                 ),
                 PropertyFactory.lineOpacity(
                         1.0f
@@ -1057,7 +1059,12 @@ public final class CaminoTapDebugController {
             throws Exception {
         JSONObject root =
                 new JSONObject(
-                        readAssetText(ROUTE_ASSET)
+                        readAssetText(
+                                CaminoConfig.get()
+                                        .string(
+                                                "data.caminoAsset"
+                                        )
+                        )
                 );
 
         JSONArray routesJson =
@@ -1088,7 +1095,7 @@ public final class CaminoTapDebugController {
                             ),
                             routeJson.optString(
                                     "color",
-                                    "#6a994e"
+                                    CaminoConfig.get().string("routes.defaultColor")
                             )
                     );
 
@@ -1187,7 +1194,7 @@ public final class CaminoTapDebugController {
                      * track in the single global dataset uses this same loader.
                      */
                     String trackColor =
-                            normaliseColor(
+                            CaminoColors.normalize(
                                     trackJson.optString(
                                             "color",
                                             route.color
@@ -1195,9 +1202,8 @@ public final class CaminoTapDebugController {
                             );
 
                     String trackHighlightColor =
-                            darkenColor(
-                                    trackColor,
-                                    0.48f
+                            CaminoColors.darken(
+                                    trackColor
                             );
 
                     route.tracks.add(
@@ -1260,7 +1266,7 @@ public final class CaminoTapDebugController {
 
         if (routes.isEmpty()) {
             throw new IllegalStateException(
-                    "keine Camino-Routen im Debug-Asset"
+                    "keine Camino-Routen im kanonischen Datensatz"
             );
         }
 
@@ -5519,71 +5525,6 @@ public final class CaminoTapDebugController {
         );
     }
 
-    private static String normaliseColor(
-            String value
-    ) {
-        if (value == null) {
-            return "#6a994e";
-        }
-
-        try {
-            int parsed =
-                    Color.parseColor(value);
-
-            return String.format(
-                    Locale.ROOT,
-                    "#%02x%02x%02x",
-                    Color.red(parsed),
-                    Color.green(parsed),
-                    Color.blue(parsed)
-            );
-
-        } catch (IllegalArgumentException error) {
-            return "#6a994e";
-        }
-    }
-
-    private static String darkenColor(
-            String value,
-            float amount
-    ) {
-        int color =
-                Color.parseColor(
-                        normaliseColor(value)
-                );
-
-        float clamped =
-                Math.max(
-                        0.0f,
-                        Math.min(1.0f, amount)
-                );
-
-        float keep =
-                1.0f - clamped;
-
-        int red =
-                Math.round(
-                        Color.red(color) * keep
-                );
-
-        int green =
-                Math.round(
-                        Color.green(color) * keep
-                );
-
-        int blue =
-                Math.round(
-                        Color.blue(color) * keep
-                );
-
-        return String.format(
-                Locale.ROOT,
-                "#%02x%02x%02x",
-                red,
-                green,
-                blue
-        );
-    }
 
     private static String emptyToNull(
             String value
@@ -5871,9 +5812,9 @@ public final class CaminoTapDebugController {
         ) {
             this.id = id;
             this.name = name;
-            this.color = normaliseColor(color);
+            this.color = CaminoColors.normalize(color);
             this.highlightColor =
-                    darkenColor(this.color, 0.48f);
+                    CaminoColors.darken(this.color);
         }
     }
 

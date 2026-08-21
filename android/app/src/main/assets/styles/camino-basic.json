@@ -14,7 +14,10 @@
     },
     "camino-tracks": {
       "type": "geojson",
-      "data": "asset://camino/tracks-global.geojson"
+      "data": {
+        "type": "FeatureCollection",
+        "features": []
+      }
     },
     "terrain-dem": {
       "type": "raster-dem",
@@ -36,7 +39,7 @@
     "protomaps-schaffhausen": {
       "type": "vector",
       "url": "__SCHAFFHAUSEN_PMTILES_URL__",
-      "attribution": "Schaffhausen debug map © OpenStreetMap contributors"
+      "attribution": "Schaffhausen local map © OpenStreetMap contributors"
     },
     "maplibre-world": {
       "type": "vector",

@@ -32,40 +32,17 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
 
-    // CAMINO_CLEAN_CLIPPED_SCHAFFHAUSEN_V30
-
-    // CAMINO_ORIGINAL_MAPLIBRE_WORLD_V25
-
-    // CAMINO_DUAL_REGIONAL_MAP_SOURCES_V20
-
-    // CAMINO_WORLD_CAMERA_UNLOCK_V19
-
-    // CAMINO_TUX_LOOP_NAV_BRIDGE_V15
-
-    // CAMINO_SCHAFFHAUSEN_REAL_GPS_INTEGRATION_V14
-
-    // TEMPORARY: local walking test for GPS + gyro in Schaffhausen.
-    private static final boolean DEBUG_SCHAFFHAUSEN_MAP = true;
-
-    /* TEMPORARY: interactive Camino distance test in Almeria. */
-    private static final boolean DEBUG_CAMINO_TAP_ALMERIA = false;
-    private static final LatLng DEBUG_ALMERIA_POSITION =
-            new LatLng(36.83838096, -2.46707205);
-    private static final LatLng DEBUG_SCHAFFHAUSEN_POSITION =
-            new LatLng(47.69811, 8.63268);
-    private static final String DEBUG_SCHAFFHAUSEN_TRACKS_ASSET_URL =
-            "asset://camino/debug-schaffhausen-tracks.geojson";
-    private static final String DEBUG_MAP_ASSET = "maps/debug-schaffhausen.pmtiles";
-    private static final String DEBUG_MAP_METADATA_ASSET = "maps/debug-schaffhausen.metadata.json";
-    private static final String DEBUG_LOCAL_MAP_FILENAME = "debug-schaffhausen.pmtiles";
-    private static final String PREF_INSTALLED_DEBUG_SHA256 = "installed_debug_schaffhausen_sha256";
-    private static final String DEBUG_CONTOUR_ASSET =
+    private static final String SCHAFFHAUSEN_MAP_ASSET = "maps/debug-schaffhausen.pmtiles";
+    private static final String SCHAFFHAUSEN_MAP_METADATA_ASSET = "maps/debug-schaffhausen.metadata.json";
+    private static final String SCHAFFHAUSEN_LOCAL_MAP_FILENAME = "debug-schaffhausen.pmtiles";
+    private static final String PREF_INSTALLED_SCHAFFHAUSEN_SHA256 = "installed_debug_schaffhausen_sha256";
+    private static final String SCHAFFHAUSEN_CONTOUR_ASSET =
             "maps/debug-schaffhausen-contours.pmtiles";
-    private static final String DEBUG_CONTOUR_METADATA_ASSET =
+    private static final String SCHAFFHAUSEN_CONTOUR_METADATA_ASSET =
             "maps/debug-schaffhausen-contours.metadata.json";
-    private static final String DEBUG_LOCAL_CONTOUR_FILENAME =
+    private static final String SCHAFFHAUSEN_LOCAL_CONTOUR_FILENAME =
             "debug-schaffhausen-contours.pmtiles";
-    private static final String PREF_INSTALLED_DEBUG_CONTOUR_SHA256 =
+    private static final String PREF_INSTALLED_SCHAFFHAUSEN_CONTOUR_SHA256 =
             "installed_debug_schaffhausen_contour_sha256";
     private static final String WORLD_MAP_ASSET =
             "maps/world-maplibre.pmtiles";
@@ -107,18 +84,6 @@ public final class MainActivity extends Activity {
             "installed_contour_sha256";
     private static final long PROGRESS_UPDATE_INTERVAL_MS = 150L;
     private static final int COPY_BUFFER_BYTES = 4 * 1024 * 1024;
-    private static final int OVERVIEW_PADDING_DP = 18;
-
-    /*
-     * Camino Guard is an Iberian Camino app, not a world map.
-     * These camera bounds contain mainland Portugal, mainland Spain and
-     * Saint-Jean-Pied-de-Port, while preventing irrelevant world panning.
-     */
-    private static final LatLngBounds IBERIA_CAMERA_BOUNDS =
-            new LatLngBounds.Builder()
-                    .include(new LatLng(43.90, -10.10))
-                    .include(new LatLng(35.70, 3.50))
-                    .build();
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
 
@@ -127,11 +92,14 @@ public final class MainActivity extends Activity {
     private TextView setupStatus;
     private ProgressBar setupProgress;
     private GpsGyroOrientationController orientationController;
-    private CaminoTapDebugController caminoTapDebugController;
+    private CaminoController caminoController;
+    private CaminoMapRenderer caminoMapRenderer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        CaminoConfig.initialize(this);
 
         MapLibre.getInstance(this);
         setContentView(R.layout.activity_main);
@@ -140,23 +108,28 @@ public final class MainActivity extends Activity {
         setupPanel = findViewById(R.id.map_setup_panel);
         setupStatus = findViewById(R.id.map_setup_status);
         setupProgress = findViewById(R.id.map_setup_progress);
-        orientationController = new GpsGyroOrientationController(this);
-        caminoTapDebugController = new CaminoTapDebugController(
-                this, mapView, DEBUG_ALMERIA_POSITION);
+        LatLng startupPosition =
+                new LatLng(
+                        CaminoConfig.get().doubleValue("startup.latitude"),
+                        CaminoConfig.get().doubleValue("startup.longitude")
+                );
 
-        if (useSchaffhausenDebugMap()) {
-            orientationController.setExternalNavigationManaged(
-                    true
-            );
+        orientationController =
+                new GpsGyroOrientationController(this);
 
-            caminoTapDebugController.configureLivePositionMode(
-                    DEBUG_SCHAFFHAUSEN_POSITION
-            );
+        caminoController =
+                new CaminoController(
+                        this,
+                        mapView,
+                        startupPosition
+                );
 
-            caminoTapDebugController.setLiveNavigationController(
-                    orientationController
-            );
-        }
+        caminoMapRenderer =
+                new CaminoMapRenderer(this);
+
+        orientationController.setExternalNavigationManaged(true);
+        caminoController.configureLivePositionMode(startupPosition);
+        caminoController.setLiveNavigationController(orientationController);
 
         mapView.getMapAsync(map -> {
             // Allow natural two-finger zoom + rotate at the same time.
@@ -165,81 +138,42 @@ public final class MainActivity extends Activity {
             map.getUiSettings().setRotateGesturesEnabled(true);
             map.getUiSettings().setDisableRotateWhenScaling(false);
             map.getUiSettings().setIncreaseScaleThresholdWhenRotating(false);
-if (DEBUG_CAMINO_TAP_ALMERIA) {
-                caminoTapDebugController.attachMap(map);
-            } else {
-                orientationController.attachMap(map);
-
-                if (useSchaffhausenDebugMap()) {
-                    caminoTapDebugController.attachMap(map);
-                }
-            }
+orientationController.attachMap(map);
+            caminoController.attachMap(map);
 
             /*
              * Wait until MapView has its real pixel size. Then calculate the
              * zoom at which the Iberian bounds just fit this phone display.
              */
-            mapView.post(() -> configureIberiaOverview(map));
+            mapView.post(() -> configureStartupCamera(map));
 
             ioExecutor.execute(() -> prepareOfflineMap(map));
         });
     }
 
-    private void configureIberiaOverview(MapLibreMap map) {
-        int padding = dpToPx(OVERVIEW_PADDING_DP);
-        int[] edgePadding = {padding, padding, padding, padding};
-
-        LatLngBounds overviewBounds = useSchaffhausenDebugMap()
-                ? SCHAFFHAUSEN_DEBUG_BOUNDS
-                : IBERIA_CAMERA_BOUNDS;
-
-        CameraPosition overview =
-                map.getCameraForLatLngBounds(
-                        overviewBounds,
-                        edgePadding
-                );
-
-        if (overview != null) {
-            /*
-             * Users may zoom in as far as they like, but cannot zoom farther
-             * out than the overview that fits Iberia on this display.
-             */
-            /*
-             * Camera freedom is global. Offline map coverage is a rendering
-             * concern, not a navigation restriction.
-             */
-            map.setMinZoomPreference(0.0);
-
-            if (DEBUG_CAMINO_TAP_ALMERIA) {
-                map.setCameraPosition(
-                        new CameraPosition.Builder()
-                                .target(DEBUG_ALMERIA_POSITION)
-                                .zoom(14.8)
-                                .bearing(0.0)
-                                .tilt(0.0)
-                                .build()
-                );
-            } else {
-                map.setCameraPosition(overview);
-            }
-        }
+    private void configureStartupCamera(MapLibreMap map) {
+        map.setMinZoomPreference(0.0);
+        map.setCameraPosition(
+                new CameraPosition.Builder()
+                        .target(
+                                new LatLng(
+                                        CaminoConfig.get().doubleValue("startup.latitude"),
+                                        CaminoConfig.get().doubleValue("startup.longitude")
+                                )
+                        )
+                        .zoom(CaminoConfig.get().doubleValue("startup.zoom"))
+                        .bearing(CaminoConfig.get().doubleValue("startup.bearing"))
+                        .tilt(CaminoConfig.get().doubleValue("startup.tilt"))
+                        .build()
+        );
     }
 
-    private static boolean useSchaffhausenDebugMap() {
-        return DEBUG_SCHAFFHAUSEN_MAP && !DEBUG_CAMINO_TAP_ALMERIA;
-    }
-
-    private int dpToPx(int dp) {
-        return Math.round(dp * getResources().getDisplayMetrics().density);
-    }
 
     private void prepareOfflineMap(MapLibreMap map) {
         try {
             /*
-             * V20: regional map sources are additive, never exclusive.
-             *
-             * Iberia remains the normal protomaps source.
-             * Schaffhausen is installed as a second PMTiles source.
+             * Regional PMTiles are physical data coverage only.
+             * They never select a different Camino implementation.
              */
             MapMetadata iberiaMapMetadata =
                     readMapMetadata(
@@ -256,28 +190,28 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
 
             MapMetadata schaffhausenMapMetadata =
                     readMapMetadata(
-                            DEBUG_MAP_METADATA_ASSET
+                            SCHAFFHAUSEN_MAP_METADATA_ASSET
                     );
 
             File localSchaffhausenMap =
                     ensureMapInstalled(
                             schaffhausenMapMetadata,
-                            DEBUG_MAP_ASSET,
-                            DEBUG_LOCAL_MAP_FILENAME,
-                            PREF_INSTALLED_DEBUG_SHA256
+                            SCHAFFHAUSEN_MAP_ASSET,
+                            SCHAFFHAUSEN_LOCAL_MAP_FILENAME,
+                            PREF_INSTALLED_SCHAFFHAUSEN_SHA256
                     );
 
             MapMetadata schaffhausenContourMetadata =
                     readMapMetadata(
-                            DEBUG_CONTOUR_METADATA_ASSET
+                            SCHAFFHAUSEN_CONTOUR_METADATA_ASSET
                     );
 
             File localSchaffhausenContours =
                     ensureMapInstalled(
                             schaffhausenContourMetadata,
-                            DEBUG_CONTOUR_ASSET,
-                            DEBUG_LOCAL_CONTOUR_FILENAME,
-                            PREF_INSTALLED_DEBUG_CONTOUR_SHA256
+                            SCHAFFHAUSEN_CONTOUR_ASSET,
+                            SCHAFFHAUSEN_LOCAL_CONTOUR_FILENAME,
+                            PREF_INSTALLED_SCHAFFHAUSEN_CONTOUR_SHA256
                     );
 
             MapMetadata worldMapMetadata =
@@ -294,7 +228,10 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                     );
 
             MapMetadata contourMetadata =
-                    readMapMetadata(CONTOUR_METADATA_ASSET);
+                    readMapMetadata(
+                            CONTOUR_METADATA_ASSET
+                    );
+
             File localContours =
                     ensureMapInstalled(
                             contourMetadata,
@@ -303,24 +240,57 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                             PREF_INSTALLED_CONTOUR_SHA256
                     );
 
-            String styleJson = readAssetText(STYLE_ASSET);
-            String pmTilesUrl =
-                    "pmtiles://" + Uri.fromFile(localIberiaMap);
-            String schaffhausenPmTilesUrl =
-                    "pmtiles://" + Uri.fromFile(localSchaffhausenMap);
-            String schaffhausenContoursUrl =
-                    "pmtiles://" + Uri.fromFile(localSchaffhausenContours);
-            String worldPmTilesUrl =
-                    "pmtiles://" + Uri.fromFile(localWorldMap);
-            String contoursUrl =
-                    "pmtiles://" + Uri.fromFile(localContours);
+            String styleJson =
+                    readAssetText(
+                            STYLE_ASSET
+                    );
 
-            if (!styleJson.contains(STYLE_PM_TILES_TOKEN)) {
-                throw new IOException("Offline style is missing PMTiles URL token.");
+            String pmTilesUrl =
+                    "pmtiles://"
+                            + Uri.fromFile(
+                            localIberiaMap
+                    );
+
+            String schaffhausenPmTilesUrl =
+                    "pmtiles://"
+                            + Uri.fromFile(
+                            localSchaffhausenMap
+                    );
+
+            String schaffhausenContoursUrl =
+                    "pmtiles://"
+                            + Uri.fromFile(
+                            localSchaffhausenContours
+                    );
+
+            String worldPmTilesUrl =
+                    "pmtiles://"
+                            + Uri.fromFile(
+                            localWorldMap
+                    );
+
+            String contoursUrl =
+                    "pmtiles://"
+                            + Uri.fromFile(
+                            localContours
+                    );
+
+            if (!styleJson.contains(
+                    STYLE_PM_TILES_TOKEN
+            )) {
+                throw new IOException(
+                        "Offline style is missing PMTiles URL token."
+                );
             }
-            if (!styleJson.contains(STYLE_CONTOURS_TOKEN)) {
-                throw new IOException("Offline style is missing contour URL token.");
+
+            if (!styleJson.contains(
+                    STYLE_CONTOURS_TOKEN
+            )) {
+                throw new IOException(
+                        "Offline style is missing contour URL token."
+                );
             }
+
             if (!styleJson.contains(
                     STYLE_SCHAFFHAUSEN_PM_TILES_TOKEN
             )) {
@@ -328,6 +298,7 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                         "Offline style is missing Schaffhausen PMTiles URL token."
                 );
             }
+
             if (!styleJson.contains(
                     STYLE_SCHAFFHAUSEN_CONTOURS_TOKEN
             )) {
@@ -335,6 +306,7 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                         "Offline style is missing Schaffhausen contour URL token."
                 );
             }
+
             if (!styleJson.contains(
                     STYLE_WORLD_PM_TILES_TOKEN
             )) {
@@ -343,67 +315,91 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                 );
             }
 
-            styleJson = styleJson
-                    .replace(
-                            STYLE_PM_TILES_TOKEN,
-                            pmTilesUrl
-                    )
-                    .replace(
-                            STYLE_SCHAFFHAUSEN_PM_TILES_TOKEN,
-                            schaffhausenPmTilesUrl
-                    )
-                    .replace(
-                            STYLE_SCHAFFHAUSEN_CONTOURS_TOKEN,
-                            schaffhausenContoursUrl
-                    )
-                    .replace(
-                            STYLE_WORLD_PM_TILES_TOKEN,
-                            worldPmTilesUrl
-                    )
-                    .replace(
-                            STYLE_CONTOURS_TOKEN,
-                            contoursUrl
+            styleJson =
+                    styleJson
+                            .replace(
+                                    STYLE_PM_TILES_TOKEN,
+                                    pmTilesUrl
+                            )
+                            .replace(
+                                    STYLE_SCHAFFHAUSEN_PM_TILES_TOKEN,
+                                    schaffhausenPmTilesUrl
+                            )
+                            .replace(
+                                    STYLE_SCHAFFHAUSEN_CONTOURS_TOKEN,
+                                    schaffhausenContoursUrl
+                            )
+                            .replace(
+                                    STYLE_WORLD_PM_TILES_TOKEN,
+                                    worldPmTilesUrl
+                            )
+                            .replace(
+                                    STYLE_CONTOURS_TOKEN,
+                                    contoursUrl
+                            );
+
+            styleJson =
+                    MapStyleConfig.apply(
+                            styleJson
                     );
 
-            /*
-             * Camino geometry is global. Spain/Portugal and Schaffhausen/Tux
-             * are already merged into the single camino-tracks source.
-             */
+            String finalStyleJson =
+                    styleJson;
 
+            runOnUiThread(
+                    () -> {
+                        setupStatus.setText(
+                                R.string.offline_map_loading
+                        );
 
-            String finalStyleJson = styleJson;
-            runOnUiThread(() -> {
-                setupStatus.setText(R.string.offline_map_loading);
-                setupProgress.setIndeterminate(true);
-                map.setStyle(
-                        new Style.Builder().fromJson(finalStyleJson),
-                        style -> {
-                            setupPanel.setVisibility(View.GONE);
+                        setupProgress.setIndeterminate(
+                                true
+                        );
 
-                            if (DEBUG_CAMINO_TAP_ALMERIA) {
-                                caminoTapDebugController.onStyleLoaded(style);
-                            } else {
-                                orientationController.onStyleLoaded(style);
+                        map.setStyle(
+                                new Style.Builder()
+                                        .fromJson(
+                                                finalStyleJson
+                                        ),
+                                style -> {
+                                    setupPanel.setVisibility(
+                                            View.GONE
+                                    );
 
-                                if (useSchaffhausenDebugMap()) {
-                                    caminoTapDebugController.onStyleLoaded(style);
+                                    caminoMapRenderer.onStyleLoaded(
+                                            style
+                                    );
+
+                                    orientationController.onStyleLoaded(
+                                            style
+                                    );
+
+                                    caminoController.onStyleLoaded(
+                                            style
+                                    );
                                 }
-                            }
-                        }
-                );
-            });
+                        );
+                    }
+            );
+
         } catch (Exception error) {
-            runOnUiThread(() -> {
-                setupProgress.setVisibility(View.GONE);
-                setupStatus.setText(
-                        getString(
-                                R.string.offline_map_error,
-                                error.getMessage() == null
-                                        ? error.getClass().getSimpleName()
-                                        : error.getMessage()
-                        )
-                );
-            });
+            runOnUiThread(
+                    () -> {
+                        setupProgress.setVisibility(
+                                View.GONE
+                        );
+
+                        setupStatus.setText(
+                                getString(
+                                        R.string.offline_map_error,
+                                        error.getMessage() == null
+                                                ? error.getClass()
+                                                .getSimpleName()
+                                                : error.getMessage()
+                                )
+                        );
+                    }
+            );
         }
     }
 
@@ -576,22 +572,14 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
     protected void onResume() {
         super.onResume();
         mapView.onResume();
-        if (!DEBUG_CAMINO_TAP_ALMERIA) {
-            orientationController.start();
-            if (useSchaffhausenDebugMap()) {
-                caminoTapDebugController.startLivePosition();
-            }
-        }
+        orientationController.start();
+        caminoController.startLivePosition();
     }
 
     @Override
     protected void onPause() {
-        if (!DEBUG_CAMINO_TAP_ALMERIA) {
-            if (useSchaffhausenDebugMap()) {
-                caminoTapDebugController.stopLivePosition();
-            }
-            orientationController.stop();
-        }
+        caminoController.stopLivePosition();
+        orientationController.stop();
         mapView.onPause();
         super.onPause();
     }
@@ -609,10 +597,9 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
             int[] grantResults
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (!DEBUG_CAMINO_TAP_ALMERIA) {
-            orientationController.onLocationPermissionResult(
-                    requestCode, permissions, grantResults);
-        }
+        orientationController.onLocationPermissionResult(
+                requestCode, permissions, grantResults
+        );
     }
 
     @Override

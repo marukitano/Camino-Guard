@@ -1,0 +1,61 @@
+{
+  "configVersion": 1,
+  "data": {
+    "caminoAsset": "camino/camino-global.json"
+  },
+  "startup": {
+    "latitude": 47.69811,
+    "longitude": 8.63268,
+    "zoom": 13.6,
+    "bearing": 0.0,
+    "tilt": 0.0
+  },
+  "routes": {
+    "defaultColor": "#6a994e",
+    "casingDarken": 0.48,
+    "selection": {
+      "lineWidth": 5.6,
+      "haloWidth": 11.5,
+      "opacity": 1.0,
+      "haloOpacity": 0.96,
+      "connectorWidth": 2.5,
+      "connectorOpacity": 0.9
+    }
+  },
+  "navigation": {
+    "recenterDelayMs": 20000,
+    "verticalWindowMeters": 1500.0,
+    "cameraLeadMeters": 250.0,
+    "recenterAnimationMs": 1650,
+    "cameraBearingTauMs": 2200.0,
+    "cameraBearingDeadbandDegrees": 1.25,
+    "displayDelayMs": 1200
+  },
+  "measurement": {
+    "maxSemanticTransferGapMeters": 5000.0,
+    "heightProfileSampleSpacingMeters": 15.0,
+    "heightProfileRefreshDelayMs": 90,
+    "speedSampleMinMoveMeters": 1.5,
+    "speedSampleMaxJumpMeters": 2000.0
+  },
+  "ui": {
+    "fontFamily": "sans-serif",
+    "titleTextSizeSp": 16.0,
+    "summaryTextSizeSp": 14.2,
+    "statsTextSizeSp": 14.1,
+    "panelBackground": "#E63D332C",
+    "accentText": "#FFF0C8",
+    "panelCornerRadiusDp": 18.0,
+    "panelAnimationMs": 180,
+    "panelTabVisibleHeightDp": 31.0,
+    "movingArrowColor": "#F5C98E",
+    "stationaryArrowColor": "#4A90E2",
+    "outlineColor": "#3D332C"
+  },
+  "debug": {
+    "gpsSplineOverlayVisible": true
+  },
+  "mapStyle": {
+    "layerOverrides": {}
+  }
+}
