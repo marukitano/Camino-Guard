@@ -28,6 +28,7 @@ offline_map_path = JAVA / "OfflineMapRepository.java"
 map_style_path = JAVA / "MapStyleProvider.java"
 navigation_path = JAVA / "NavigationController.java"
 projection_path = JAVA / "CaminoProjectionEngine.java"
+info_presenter_path = JAVA / "CaminoInfoPresenter.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -39,6 +40,7 @@ check(offline_map_path.is_file(), "missing OfflineMapRepository.java")
 check(map_style_path.is_file(), "missing MapStyleProvider.java")
 check(navigation_path.is_file(), "missing NavigationController.java")
 check(projection_path.is_file(), "missing CaminoProjectionEngine.java")
+check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -214,6 +216,32 @@ if controller_path.is_file():
     check("CaminoProjectionEngine" in controller,
           "CaminoController is not wired to CaminoProjectionEngine")
 
+if info_presenter_path.is_file():
+    info_presenter = info_presenter_path.read_text()
+    check("void setInfoTitle(" in info_presenter,
+          "CaminoInfoPresenter does not own info title state")
+    check("void setSummaryTexts(" in info_presenter,
+          "CaminoInfoPresenter does not own summary state")
+    check("void setHeightStats(" in info_presenter,
+          "CaminoInfoPresenter does not own height stats state")
+    check("void setSpeedStats(" in info_presenter,
+          "CaminoInfoPresenter does not own speed stats state")
+    check("infoPanel.setStatsTexts(" in info_presenter,
+          "CaminoInfoPresenter does not render panel stats")
+
+if controller_path.is_file():
+    controller = controller_path.read_text()
+    check("infoTitleText" not in controller,
+          "CaminoController still owns info title state")
+    check("summaryLeftText" not in controller,
+          "CaminoController still owns info summary state")
+    check("heightStatsText" not in controller,
+          "CaminoController still owns height stats presentation state")
+    check("speedStatsText" not in controller,
+          "CaminoController still owns speed stats presentation state")
+    check("CaminoInfoPresenter" in controller,
+          "CaminoController is not wired to CaminoInfoPresenter")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -235,6 +263,7 @@ print("  one offline-map repository")
 print("  one runtime map-style provider")
 print("  one navigation follow / camera controller")
 print("  one Camino projection / nearest-hit engine")
+print("  one Camino info-panel presenter")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")

@@ -124,6 +124,7 @@ public final class CaminoController {
     private final MeasurementEngine measurementEngine;
     private final NavigationController navigationController;
     private final CaminoProjectionEngine projectionEngine;
+    private final CaminoInfoPresenter infoPresenter;
 
     private MapLibreMap map;
 
@@ -137,12 +138,6 @@ public final class CaminoController {
     private TextView distanceView;
     private CaminoHeightProfileView heightProfileView;
     private CaminoInfoPanel infoPanel;
-
-    private String infoTitleText = "";
-    private String summaryLeftText = "";
-    private String summaryRightText = "";
-    private String heightStatsText = "";
-    private String speedStatsText = "";
 
     private long travelSessionStartElapsedMs = -1L;
     private long travelMovingElapsedMs = 0L;
@@ -220,6 +215,9 @@ public final class CaminoController {
                 new CaminoProjectionEngine(
                         caminoNetwork
                 );
+
+        this.infoPresenter =
+                new CaminoInfoPresenter();
 
         this.dummyPosition = initialPosition;
     }
@@ -1042,7 +1040,7 @@ public final class CaminoController {
             refresh();
 
         } catch (Exception error) {
-            setLabel(
+            infoPresenter.setLabel(
                     "Camino Fehler: "
                             + (error.getMessage()
                             == null
@@ -1413,11 +1411,11 @@ public final class CaminoController {
             RouteHit startRouteHit
     ) {
         if (routes.isEmpty()) {
-            setInfoTitle(
+            infoPresenter.setInfoTitle(
                     ""
             );
 
-            setSummaryTexts(
+            infoPresenter.setSummaryTexts(
                     "Lade Caminos …",
                     ""
             );
@@ -1429,11 +1427,11 @@ public final class CaminoController {
                 || selectedHit == null) {
 
             if (startRouteHit == null) {
-                setInfoTitle(
+                infoPresenter.setInfoTitle(
                         ""
                 );
 
-                setSummaryTexts(
+                infoPresenter.setSummaryTexts(
                         "Kein Camino gefunden",
                         ""
                 );
@@ -1441,14 +1439,14 @@ public final class CaminoController {
                 return;
             }
 
-            setInfoTitle(
+            infoPresenter.setInfoTitle(
                     startRouteHit.route.name
             );
 
             double offRouteM =
                     startRouteHit.hit.distanceFromQueryM;
 
-            setSummaryTexts(
+            infoPresenter.setSummaryTexts(
                     offRouteM < 3.0
                             ? "Auf dem Camino"
                             : formatDistance(
@@ -1466,11 +1464,11 @@ public final class CaminoController {
 
         if (secondTapHit != null) {
             if (secondSelectedRoute == null) {
-                setInfoTitle(
+                infoPresenter.setInfoTitle(
                         selectedRoute.name
                 );
 
-                setSummaryTexts(
+                infoPresenter.setSummaryTexts(
                         "Zweiter Camino fehlt",
                         ""
                 );
@@ -1492,11 +1490,11 @@ public final class CaminoController {
 
         } else {
             if (startRouteHit == null) {
-                setInfoTitle(
+                infoPresenter.setInfoTitle(
                         selectedRoute.name
                 );
 
-                setSummaryTexts(
+                infoPresenter.setSummaryTexts(
                         "Startpunkt konnte nicht projiziert werden",
                         ""
                 );
@@ -1514,7 +1512,7 @@ public final class CaminoController {
                     );
         }
 
-        setInfoTitle(
+        infoPresenter.setInfoTitle(
                 measurementRouteLabel(
                         measurementStart,
                         measurementEnd
@@ -1522,7 +1520,7 @@ public final class CaminoController {
         );
 
         if (currentMeasurementPath == null) {
-            setSummaryTexts(
+            infoPresenter.setSummaryTexts(
                     "Keine Camino-Verbindung",
                     ""
             );
@@ -1549,7 +1547,7 @@ public final class CaminoController {
                 )
                         + " Etappenlänge";
 
-        setSummaryTexts(
+        infoPresenter.setSummaryTexts(
                 leftText,
                 rightText
         );
@@ -1700,7 +1698,7 @@ public final class CaminoController {
                 heightProfileView.clearProfile();
             }
 
-            setHeightStats(
+            infoPresenter.setHeightStats(
                     ""
             );
 
@@ -1841,7 +1839,7 @@ public final class CaminoController {
 
             heightProfileView.clearProfile();
 
-            setHeightStats(
+            infoPresenter.setHeightStats(
                     ""
             );
 
@@ -1859,7 +1857,7 @@ public final class CaminoController {
          * Sigma-down is a positive magnitude: total descended vertical metres
          * over the currently visible route fragments.
          */
-        setHeightStats(
+        infoPresenter.setHeightStats(
                 String.format(
                         Locale.GERMANY,
                         "Altₘᵢₙ   %.0f m\n"
@@ -1888,6 +1886,10 @@ public final class CaminoController {
 
         distanceView =
                 infoPanel.getTextView();
+
+        infoPresenter.attach(
+                infoPanel
+        );
 
         infoPanel.setNavigationAction(
                 navigationController::toggleFollow
@@ -1941,7 +1943,7 @@ public final class CaminoController {
 
         infoPanel.bringToFront();
 
-        updateDistancePanelText();
+        infoPresenter.refresh();
     }
 
 
@@ -2091,7 +2093,7 @@ public final class CaminoController {
                             position.getLongitude()
                     );
 
-            setSpeedStats(
+            infoPresenter.setSpeedStats(
                     buildSpeedStatsText()
             );
 
@@ -2108,7 +2110,7 @@ public final class CaminoController {
             lastTravelSampleElapsedMs =
                     now;
 
-            setSpeedStats(
+            infoPresenter.setSpeedStats(
                     buildSpeedStatsText()
             );
 
@@ -2132,7 +2134,7 @@ public final class CaminoController {
             lastTravelSampleElapsedMs =
                     now;
 
-            setSpeedStats(
+            infoPresenter.setSpeedStats(
                     buildSpeedStatsText()
             );
 
@@ -2164,7 +2166,7 @@ public final class CaminoController {
         lastTravelSampleElapsedMs =
                 now;
 
-        setSpeedStats(
+        infoPresenter.setSpeedStats(
                 buildSpeedStatsText()
         );
     }
@@ -2669,84 +2671,12 @@ public final class CaminoController {
         );
     }
 
-    private void setInfoTitle(
-            String text
-    ) {
-        infoTitleText =
-                text == null
-                        ? ""
-                        : text;
 
-        updateDistancePanelText();
-    }
 
-    private void setLabel(
-            String text
-    ) {
-        setSummaryTexts(
-                text,
-                ""
-        );
-    }
 
-    private void setSummaryTexts(
-            String left,
-            String right
-    ) {
-        summaryLeftText =
-                left == null
-                        ? ""
-                        : left;
 
-        summaryRightText =
-                right == null
-                        ? ""
-                        : right;
 
-        updateDistancePanelText();
-    }
 
-    private void setHeightStats(
-            String text
-    ) {
-        heightStatsText =
-                text == null
-                        ? ""
-                        : text;
-
-        updateDistancePanelText();
-    }
-
-    private void setSpeedStats(
-            String text
-    ) {
-        speedStatsText =
-                text == null
-                        ? ""
-                        : text;
-
-        updateDistancePanelText();
-    }
-
-    private void updateDistancePanelText() {
-        if (infoPanel == null) {
-            return;
-        }
-
-        infoPanel.setTitle(
-                infoTitleText
-        );
-
-        infoPanel.setSummaryTexts(
-                summaryLeftText,
-                summaryRightText
-        );
-
-        infoPanel.setStatsTexts(
-                heightStatsText,
-                speedStatsText
-        );
-    }
     private int dp(
             int value
     ) {
