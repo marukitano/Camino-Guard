@@ -39,19 +39,11 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private static final String ARROW_IMG_STATIONARY="camino-user-direction-arrow-stationary";
     private static final String TRACK_SRC="camino-debug-gps-track";
     private static final String TRACK="camino-debug-gps-track-line";
-    private static final String BSPLINE_SRC="camino-debug-active-bspline-src";
-    private static final String BSPLINE="camino-debug-active-bspline";
-    private static final String BSPLINE_CTRL_SRC="camino-debug-bspline-control-src";
-    private static final String BSPLINE_CTRL="camino-debug-bspline-control";
-    private static final String BSPLINE_POINTS_SRC="camino-debug-bspline-points-src";
-    private static final String BSPLINE_POINTS="camino-debug-bspline-points";
-
     private final Activity activity;
     private final Button recenterButton;
     private final Button rotateButton;
     private MapLibreMap map;
     private GeoJsonSource posSource, trackSource;
-    private GeoJsonSource bSplineSource, bSplineControlSource, bSplinePointsSource;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
     private Double navigationZoom;
@@ -127,37 +119,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                 PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND));
         style.addLayer(line);
-
-        // TEMP DEBUG: magenta = actual B-spline, cyan = its GPS controls.
-        bSplineSource=new GeoJsonSource(BSPLINE_SRC);
-        style.addSource(bSplineSource);
-        LineLayer bSplineLine=new LineLayer(BSPLINE,BSPLINE_SRC);
-        bSplineLine.setProperties(
-                PropertyFactory.lineColor(Color.parseColor("#E000FF")),
-                PropertyFactory.lineWidth(6f),
-                PropertyFactory.lineOpacity(.95f));
-        style.addLayer(bSplineLine);
-
-        bSplineControlSource=new GeoJsonSource(BSPLINE_CTRL_SRC);
-        style.addSource(bSplineControlSource);
-        LineLayer bSplineControlLine=
-                new LineLayer(BSPLINE_CTRL,BSPLINE_CTRL_SRC);
-        bSplineControlLine.setProperties(
-                PropertyFactory.lineColor(Color.parseColor("#00C8FF")),
-                PropertyFactory.lineWidth(2f),
-                PropertyFactory.lineOpacity(.80f));
-        style.addLayer(bSplineControlLine);
-
-        bSplinePointsSource=new GeoJsonSource(BSPLINE_POINTS_SRC);
-        style.addSource(bSplinePointsSource);
-        CircleLayer bSplinePoints=
-                new CircleLayer(BSPLINE_POINTS,BSPLINE_POINTS_SRC);
-        bSplinePoints.setProperties(
-                PropertyFactory.circleRadius(6f),
-                PropertyFactory.circleColor(Color.parseColor("#00C8FF")),
-                PropertyFactory.circleStrokeColor(Color.parseColor("#202020")),
-                PropertyFactory.circleStrokeWidth(2f));
-        style.addLayer(bSplinePoints);
 
         CircleLayer dot=new CircleLayer(DOT,POS_SRC);
         dot.setProperties(
@@ -561,12 +522,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                                 Math.round(
                                         fixIntervalMs*0.82)));
 
-        drawCurrentHermiteDebug(
-                start,
-                end,
-                startBearing,
-                endBearing);
-
         if(playbackAnimator!=null)
             playbackAnimator.cancel();
 
@@ -801,68 +756,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                         Math.atan2(
                                 east,
                                 north)));
-    }
-
-    private void drawCurrentHermiteDebug(
-            LatLng a,
-            LatLng b,
-            double startBearing,
-            double endBearing
-    ){
-        if(bSplineSource==null
-                || bSplineControlSource==null
-                || bSplinePointsSource==null)
-            return;
-
-        List<Point> controls=new ArrayList<>();
-
-        for(TimedPoint tp:playbackPoints){
-            controls.add(
-                    Point.fromLngLat(
-                            tp.point.getLongitude(),
-                            tp.point.getLatitude()));
-        }
-
-        if(controls.size()>=2){
-            bSplineControlSource.setGeoJson(
-                    Feature.fromGeometry(
-                            org.maplibre.geojson.LineString
-                                    .fromLngLats(controls)));
-        }
-
-        if(!controls.isEmpty()){
-            bSplinePointsSource.setGeoJson(
-                    Feature.fromGeometry(
-                            org.maplibre.geojson.MultiPoint
-                                    .fromLngLats(controls)));
-        }
-
-        if(a.getLatitude()==b.getLatitude()
-                && a.getLongitude()==b.getLongitude())
-            return;
-
-        List<Point> curve=new ArrayList<>();
-
-        for(int i=0;i<=80;i++){
-            float t=i/80f;
-
-            LatLng p=headingHermite(
-                    a,
-                    b,
-                    startBearing,
-                    endBearing,
-                    t);
-
-            curve.add(
-                    Point.fromLngLat(
-                            p.getLongitude(),
-                            p.getLatitude()));
-        }
-
-        bSplineSource.setGeoJson(
-                Feature.fromGeometry(
-                        org.maplibre.geojson.LineString
-                                .fromLngLats(curve)));
     }
 
     private void renderSplinePose(
