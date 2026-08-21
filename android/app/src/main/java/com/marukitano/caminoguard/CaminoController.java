@@ -76,16 +76,6 @@ public final class CaminoController {
     private static final String ROUTE_GAP_LAYER =
             "camino-route-gap";
 
-    /*
-     * Cross-group semantic place matches may still have offset official
-     * geometry. Keep the same conservative 5 km guard used by the processed
-     * place identity and count the actual straight gap in the measurement.
-     */
-    private static final double MAX_SEMANTIC_TRANSFER_GAP_M =
-            CaminoConfig.get().doubleValue(
-                    "measurement.maxSemanticTransferGapMeters"
-            );
-
     private static final double EARTH_RADIUS_M =
             6371008.8;
 

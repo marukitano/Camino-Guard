@@ -67,22 +67,8 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private static final double EXTERNAL_CAMERA_BEARING_TAU_MS = 2200.0;
     private static final double EXTERNAL_CAMERA_BEARING_DEADBAND_DEG = 1.25;
     private long lastFollowLocationTime = Long.MIN_VALUE;
-    private ValueAnimator navigationAnimator;
     private LatLng displayedPosition;
     private Double displayedBearing;
-
-    /*
-     * One-fix delayed visual path. We keep four known GPS points and animate
-     * the middle segment with a Catmull-Rom spline. Nothing is extrapolated.
-     */
-    private final Deque<LatLng> curvePoints=new ArrayDeque<>();
-
-    /*
-     * Fixed visual delay. We deliberately render a little over one GPS period
-     * behind real time. Unlike the previous elastic buffer, this can NEVER
-     * accumulate into many seconds of lag.
-     */
-    private static final long DISPLAY_DELAY_MS=1200L;
 
     private static final class TimedPoint {
         final LatLng point;

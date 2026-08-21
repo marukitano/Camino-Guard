@@ -117,37 +117,9 @@ public final class CaminoTrackingService extends Service
      */
     private static final float COURSE_BASELINE_M = 10.0f;
 
-    /*
-     * Linear-acceleration state machine.
-     *
-     * Walking gives repeated impulses; standing still gives only sensor noise.
-     * A single phone movement must not immediately count as walking.
-     */
-    private static final float MOTION_ACCEL_THRESHOLD = 0.45f;
-    private static final long MOTION_START_CONFIRM_MS = 350L;
-    private static final long MOTION_PULSE_GAP_MS = 550L;
-    private static final long STATIONARY_AFTER_QUIET_MS = 2500L;
     private static final float STATIONARY_RMS_THRESHOLD = 1.50f;
     private static final float MOVING_RMS_THRESHOLD = 1.80f;
     private static final long MOTION_STATE_CONFIRM_MS = 1500L;
-    private static final long STATIONARY_RMS_CONFIRM_MS = 1500L;
-
-    /*
-     * GPS speed is only a backup movement signal.
-     * 0.55 m/s is about 2 km/h. Require two consecutive good-speed fixes.
-     */
-    private static final float GPS_MOVING_SPEED_MPS = 0.55f;
-    private static final int GPS_MOVING_FIXES_REQUIRED = 1;
-
-    /*
-     * 0.20 m/s = 0.72 km/h.
-     * Three consecutive slow fixes are treated as a real standstill.
-     */
-    private static final float GPS_STATIONARY_SPEED_MPS = 0.20f;
-    private static final int GPS_STATIONARY_FIXES_REQUIRED = 2;
-
-    private static final float GPS_ESCAPE_DISTANCE_M = 25.0f;
-
     private static final CopyOnWriteArrayList<Listener> LISTENERS =
             new CopyOnWriteArrayList<>();
 
@@ -184,22 +156,12 @@ public final class CaminoTrackingService extends Service
     private Float phoneHeadingDeg;
 
     private Float rawCameraYawDeg;
-    private Float stationaryRefYawDeg;
-    private Float stationaryRefHeadingDeg;
-
-    /*
-     * Relative phone rotation is always active. The reference moves toward
-     * the physical phone yaw by 5 degrees per GPS fix, so deliberate pointing
-     * works immediately but long-term gyro drift is pulled back to zero.
-     */
     private Float gyroReferenceYawDeg;
-    private static final double GYRO_DECAY_PER_FIX_DEG = 5.0;
 
     private MotionState motionState = MotionState.UNKNOWN;
 
     private long motionObservationStartedMs;
     private long motionBurstStartedMs = -1L;
-    private long lastStrongMotionMs = -1L;
 
     private int consecutiveGpsMovingFixes;
     private int consecutiveGpsStationaryFixes;
