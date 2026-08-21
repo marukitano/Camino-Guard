@@ -39,6 +39,9 @@ info_navigation_button_path = JAVA / "CaminoNavigationButton.java"
 height_profile_view_path = JAVA / "CaminoHeightProfileView.java"
 height_profile_model_path = JAVA / "CaminoHeightProfileModel.java"
 
+dead_code_audit_path = ROOT / "tools/audit_dead_code.py"
+check(dead_code_audit_path.is_file(), "missing dead-code audit tool")
+
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
 check(controller_path.is_file(), "missing CaminoController.java")
@@ -520,4 +523,5 @@ print("  one immutable config file")
 print("  current Schaffhausen Munot round mask preserved")
 print("  obsolete Schaffhausen transition mask removed")
 print("  P0 Camino pure-JVM domain tests present")
+print("  conservative dead-code audit tool present")
 print("  no regional Camino behavior switch")
