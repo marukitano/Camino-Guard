@@ -29,6 +29,7 @@ map_style_path = JAVA / "MapStyleProvider.java"
 navigation_path = JAVA / "NavigationController.java"
 projection_path = JAVA / "CaminoProjectionEngine.java"
 info_presenter_path = JAVA / "CaminoInfoPresenter.java"
+map_coordinator_path = JAVA / "MapCoordinator.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -41,6 +42,7 @@ check(map_style_path.is_file(), "missing MapStyleProvider.java")
 check(navigation_path.is_file(), "missing NavigationController.java")
 check(projection_path.is_file(), "missing CaminoProjectionEngine.java")
 check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
+check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -74,8 +76,6 @@ if main_path.is_file():
           "Almeria behavior switch remains")
     check("useSchaffhausenDebugMap" not in main,
           "regional behavior method remains")
-    check("CaminoMapRenderer" in main,
-          "CaminoMapRenderer is not wired")
 
 if controller_path.is_file():
     controller = controller_path.read_text()
@@ -163,10 +163,6 @@ if main_activity_path.is_file():
           "MainActivity still owns PMTiles integrity verification")
     check("__PMTILES_URL__" not in main_activity,
           "MainActivity still owns style token replacement")
-    check("OfflineMapRepository" in main_activity,
-          "MainActivity is not wired to OfflineMapRepository")
-    check("MapStyleProvider" in main_activity,
-          "MainActivity is not wired to MapStyleProvider")
 
 if navigation_path.is_file():
     navigation = navigation_path.read_text()
@@ -242,6 +238,33 @@ if controller_path.is_file():
     check("CaminoInfoPresenter" in controller,
           "CaminoController is not wired to CaminoInfoPresenter")
 
+if map_coordinator_path.is_file():
+    coordinator = map_coordinator_path.read_text()
+    check("mapView.getMapAsync(" in coordinator,
+          "MapCoordinator does not own MapLibre startup")
+    check("offlineMapRepository.ensureInstalled()" in coordinator,
+          "MapCoordinator does not own offline-map orchestration")
+    check("mapStyleProvider.buildStyle(" in coordinator,
+          "MapCoordinator does not own style orchestration")
+    check("map.setStyle(" in coordinator,
+          "MapCoordinator does not own runtime style application")
+    check("caminoMapRenderer.onStyleLoaded(" in coordinator,
+          "MapCoordinator does not coordinate Camino renderer style load")
+
+main_path = JAVA / "MainActivity.java"
+if main_path.is_file():
+    main = main_path.read_text()
+    check("MapCoordinator" in main,
+          "MainActivity is not wired to MapCoordinator")
+    check("getMapAsync(" not in main,
+          "MainActivity still owns MapLibre startup")
+    check("OfflineMapRepository" not in main,
+          "MainActivity still owns offline-map repository")
+    check("MapStyleProvider" not in main,
+          "MainActivity still owns map-style provider")
+    check("CaminoMapRenderer" not in main,
+          "MainActivity still owns Camino renderer")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -264,6 +287,7 @@ print("  one runtime map-style provider")
 print("  one navigation follow / camera controller")
 print("  one Camino projection / nearest-hit engine")
 print("  one Camino info-panel presenter")
+print("  one MapLibre startup / style coordinator")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")
