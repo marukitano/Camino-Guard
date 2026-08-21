@@ -111,6 +111,7 @@ public final class CaminoController {
     private final CaminoInfoPresenter infoPresenter;
     private final TravelStatsController travelStatsController;
     private final CaminoDragController dragController;
+    private final CaminoSelectionController selectionController;
 
     private MapLibreMap map;
 
@@ -148,11 +149,6 @@ public final class CaminoController {
 
     private final CaminoTrackingService.Listener livePositionListener =
             this::handleLiveTrackingState;
-
-    private CaminoRoute selectedRoute;
-    private ProjectionHit selectedHit;
-    private CaminoRoute secondSelectedRoute;
-    private ProjectionHit secondTapHit;
 
     private MeasurementPath currentMeasurementPath;
 
@@ -208,6 +204,14 @@ public final class CaminoController {
                         infoPresenter::setSpeedStats
                 );
 
+        this.selectionController =
+                new CaminoSelectionController(
+                        routes,
+                        projectionEngine,
+                        this::isTapCloseEnough,
+                        this::refresh
+                );
+
         this.dragController =
                 new CaminoDragController(
                         activity,
@@ -233,38 +237,40 @@ public final class CaminoController {
 
                             @Override
                             public CaminoRoute selectedRoute() {
-                                return selectedRoute;
+                                return selectionController.selectedRoute();
                             }
 
                             @Override
                             public ProjectionHit selectedHit() {
-                                return selectedHit;
+                                return selectionController.selectedHit();
                             }
 
                             @Override
                             public void setSelectedHit(
                                     ProjectionHit hit
                             ) {
-                                selectedHit =
-                                        hit;
+                                selectionController.setSelectedHit(
+                                        hit
+                                );
                             }
 
                             @Override
                             public CaminoRoute secondSelectedRoute() {
-                                return secondSelectedRoute;
+                                return selectionController.secondSelectedRoute();
                             }
 
                             @Override
                             public ProjectionHit secondTapHit() {
-                                return secondTapHit;
+                                return selectionController.secondTapHit();
                             }
 
                             @Override
                             public void setSecondTapHit(
                                     ProjectionHit hit
                             ) {
-                                secondTapHit =
-                                        hit;
+                                selectionController.setSecondTapHit(
+                                        hit
+                                );
                             }
 
                             @Override
@@ -426,7 +432,10 @@ public final class CaminoController {
         );
 
         map.addOnMapClickListener(
-                this::handleMapTap
+                point -> selectionController.handleMapTap(
+                        point,
+                        dragController.isDragging()
+                )
         );
 
         /*
@@ -454,106 +463,6 @@ public final class CaminoController {
         );
     }
 
-    private boolean handleMapTap(
-            LatLng point
-    ) {
-        if (dragController.isDragging()
-                || routes.isEmpty()) {
-            return false;
-        }
-
-        /*
-         * Tap 1:
-         * select whichever Camino is actually under the finger.
-         */
-        if (selectedHit == null) {
-            RouteHit routeHit =
-                    projectionEngine.findNearestRouteHit(
-                            point
-                    );
-
-            if (routeHit == null
-                    || !isTapCloseEnough(
-                            point,
-                            routeHit.hit.point
-                    )) {
-                clearSelection();
-                return false;
-            }
-
-            selectedRoute =
-                    routeHit.route;
-            selectedHit =
-                    routeHit.hit;
-            secondSelectedRoute =
-                    null;
-            secondTapHit =
-                    null;
-
-            refresh();
-            return true;
-        }
-
-        /*
-         * Tap 2:
-         * may select another Camino. The measurement engine finds the
-         * semantic Camino connection between the two selected tracks.
-         */
-        if (secondTapHit == null) {
-            RouteHit routeHit =
-                    projectionEngine.findNearestRouteHit(
-                            point
-                    );
-
-            if (routeHit == null
-                    || !isTapCloseEnough(
-                            point,
-                            routeHit.hit.point
-                    )) {
-                clearSelection();
-                return false;
-            }
-
-            secondSelectedRoute =
-                    routeHit.route;
-            secondTapHit =
-                    routeHit.hit;
-
-            refresh();
-            return true;
-        }
-
-        /*
-         * Tap 3:
-         * discard the old two-point measurement and immediately start a new
-         * measurement. The third tap may therefore select another Camino.
-         */
-        RouteHit routeHit =
-                projectionEngine.findNearestRouteHit(
-                        point
-                );
-
-        if (routeHit == null
-                || !isTapCloseEnough(
-                        point,
-                        routeHit.hit.point
-                )) {
-            clearSelection();
-            return false;
-        }
-
-        selectedRoute =
-                routeHit.route;
-        selectedHit =
-                routeHit.hit;
-        secondSelectedRoute =
-                null;
-        secondTapHit =
-                null;
-
-        refresh();
-        return true;
-    }
 
     /**
      * Cheap UI-only refresh used while a finger is moving.
@@ -570,7 +479,7 @@ public final class CaminoController {
         updateSelectedSource();
 
         if (!draggingDummy
-                || secondTapHit != null) {
+                || selectionController.secondTapHit() != null) {
             return;
         }
 
@@ -596,7 +505,7 @@ public final class CaminoController {
          * Before a destination point exists the label does not depend on a
          * network path, so it is safe and cheap to keep it live while dragging.
          */
-        if (selectedHit == null) {
+        if (selectionController.selectedHit() == null) {
             updateDistanceLabel(
                     startRouteHit
             );
@@ -940,7 +849,7 @@ public final class CaminoController {
                         ? null
                         : startRouteHit.hit;
 
-        if (secondTapHit
+        if (selectionController.secondTapHit()
                 == null) {
             updateStartProjection(
                     startHit
@@ -1105,7 +1014,7 @@ public final class CaminoController {
             return;
         }
 
-        if (selectedHit == null) {
+        if (selectionController.selectedHit() == null) {
             selectedSource.setGeoJson(
                     emptyFeatures()
             );
@@ -1119,21 +1028,21 @@ public final class CaminoController {
         points.add(
                 Feature.fromGeometry(
                         Point.fromLngLat(
-                                selectedHit.point
+                                selectionController.selectedHit().point
                                         .getLongitude(),
-                                selectedHit.point
+                                selectionController.selectedHit().point
                                         .getLatitude()
                         )
                 )
         );
 
-        if (secondTapHit != null) {
+        if (selectionController.secondTapHit() != null) {
             points.add(
                     Feature.fromGeometry(
                             Point.fromLngLat(
-                                    secondTapHit.point
+                                    selectionController.secondTapHit().point
                                             .getLongitude(),
-                                    secondTapHit.point
+                                    selectionController.secondTapHit().point
                                             .getLatitude()
                             )
                     )
@@ -1158,8 +1067,8 @@ public final class CaminoController {
             return;
         }
 
-        if (selectedRoute == null
-                || selectedHit == null) {
+        if (selectionController.selectedRoute() == null
+                || selectionController.selectedHit() == null) {
 
             selectedRouteSource.setGeoJson(
                     emptyFeatures()
@@ -1175,8 +1084,8 @@ public final class CaminoController {
         RouteHit routeStart;
         RouteHit routeEnd;
 
-        if (secondTapHit != null) {
-            if (secondSelectedRoute == null) {
+        if (selectionController.secondTapHit() != null) {
+            if (selectionController.secondSelectedRoute() == null) {
                 selectedRouteSource.setGeoJson(
                         emptyFeatures()
                 );
@@ -1190,14 +1099,14 @@ public final class CaminoController {
 
             routeStart =
                     new RouteHit(
-                            selectedRoute,
-                            selectedHit
+                            selectionController.selectedRoute(),
+                            selectionController.selectedHit()
                     );
 
             routeEnd =
                     new RouteHit(
-                            secondSelectedRoute,
-                            secondTapHit
+                            selectionController.secondSelectedRoute(),
+                            selectionController.secondTapHit()
                     );
 
         } else {
@@ -1218,8 +1127,8 @@ public final class CaminoController {
 
             routeEnd =
                     new RouteHit(
-                            selectedRoute,
-                            selectedHit
+                            selectionController.selectedRoute(),
+                            selectionController.selectedHit()
                     );
         }
 
@@ -1270,8 +1179,8 @@ public final class CaminoController {
             return;
         }
 
-        if (selectedRoute == null
-                || selectedHit == null) {
+        if (selectionController.selectedRoute() == null
+                || selectionController.selectedHit() == null) {
 
             if (startRouteHit == null) {
                 infoPresenter.setInfoTitle(
@@ -1309,10 +1218,10 @@ public final class CaminoController {
         RouteHit measurementStart;
         RouteHit measurementEnd;
 
-        if (secondTapHit != null) {
-            if (secondSelectedRoute == null) {
+        if (selectionController.secondTapHit() != null) {
+            if (selectionController.secondSelectedRoute() == null) {
                 infoPresenter.setInfoTitle(
-                        selectedRoute.name
+                        selectionController.selectedRoute().name
                 );
 
                 infoPresenter.setSummaryTexts(
@@ -1325,20 +1234,20 @@ public final class CaminoController {
 
             measurementStart =
                     new RouteHit(
-                            selectedRoute,
-                            selectedHit
+                            selectionController.selectedRoute(),
+                            selectionController.selectedHit()
                     );
 
             measurementEnd =
                     new RouteHit(
-                            secondSelectedRoute,
-                            secondTapHit
+                            selectionController.secondSelectedRoute(),
+                            selectionController.secondTapHit()
                     );
 
         } else {
             if (startRouteHit == null) {
                 infoPresenter.setInfoTitle(
-                        selectedRoute.name
+                        selectionController.selectedRoute().name
                 );
 
                 infoPresenter.setSummaryTexts(
@@ -1354,8 +1263,8 @@ public final class CaminoController {
 
             measurementEnd =
                     new RouteHit(
-                            selectedRoute,
-                            selectedHit
+                            selectionController.selectedRoute(),
+                            selectionController.selectedHit()
                     );
         }
 
@@ -1378,7 +1287,7 @@ public final class CaminoController {
         String leftText =
                 "";
 
-        if (secondTapHit == null) {
+        if (selectionController.secondTapHit() == null) {
             leftText =
                     startRouteHit.hit.distanceFromQueryM < 3.0
                             ? "Auf dem Camino"
@@ -1434,21 +1343,6 @@ public final class CaminoController {
         );
     }
 
-    private void clearSelection() {
-        selectedRoute =
-                null;
-
-        selectedHit =
-                null;
-
-        secondSelectedRoute =
-                null;
-
-        secondTapHit =
-                null;
-
-        refresh();
-    }
 
     /*
      * CAMINO_EDGE_PROJECTED_HEIGHT_PROFILE_V2

@@ -32,6 +32,7 @@ info_presenter_path = JAVA / "CaminoInfoPresenter.java"
 map_coordinator_path = JAVA / "MapCoordinator.java"
 travel_stats_path = JAVA / "TravelStatsController.java"
 drag_path = JAVA / "CaminoDragController.java"
+selection_path = JAVA / "CaminoSelectionController.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -47,6 +48,7 @@ check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
 check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
 check(travel_stats_path.is_file(), "missing TravelStatsController.java")
 check(drag_path.is_file(), "missing CaminoDragController.java")
+check(selection_path.is_file(), "missing CaminoSelectionController.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -327,6 +329,32 @@ if controller_path.is_file():
     check("CaminoDragController" in controller,
           "CaminoController is not wired to CaminoDragController")
 
+if selection_path.is_file():
+    selection = selection_path.read_text()
+    check("boolean handleMapTap(" in selection,
+          "CaminoSelectionController does not own tap selection")
+    check("Tap 1:" in selection and "Tap 2:" in selection and "Tap 3:" in selection,
+          "CaminoSelectionController does not own Tap 1/2/3 semantics")
+    check("private CaminoRoute selectedRoute;" in selection,
+          "CaminoSelectionController does not own primary selection state")
+    check("private ProjectionHit secondTapHit;" in selection,
+          "CaminoSelectionController does not own second-point selection state")
+    check("MapLibreMap" not in selection,
+          "CaminoSelectionController incorrectly owns map state")
+    check("MotionEvent" not in selection,
+          "CaminoSelectionController incorrectly owns drag mechanics")
+
+if controller_path.is_file():
+    controller = controller_path.read_text()
+    check("private boolean handleMapTap(" not in controller,
+          "CaminoController still owns tap-selection semantics")
+    check("private CaminoRoute selectedRoute;" not in controller,
+          "CaminoController still owns primary selection state")
+    check("private ProjectionHit secondTapHit;" not in controller,
+          "CaminoController still owns second-point selection state")
+    check("CaminoSelectionController" in controller,
+          "CaminoController is not wired to CaminoSelectionController")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -352,6 +380,7 @@ print("  one Camino info-panel presenter")
 print("  one MapLibre startup / style coordinator")
 print("  one travel statistics / village ETA controller")
 print("  one Camino drag interaction controller")
+print("  one Camino tap-selection controller")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")
