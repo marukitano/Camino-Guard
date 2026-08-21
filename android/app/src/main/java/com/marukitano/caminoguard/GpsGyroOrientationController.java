@@ -1,7 +1,5 @@
 package com.marukitano.caminoguard;
 
-import android.os.SystemClock;
-
 import android.Manifest;
 import android.animation.ValueAnimator;
 import android.app.Activity;
@@ -12,7 +10,6 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 
-import org.maplibre.android.camera.*;
 import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.*;
 import org.maplibre.android.style.layers.*;
@@ -22,12 +19,6 @@ import org.maplibre.geojson.*;
 import java.util.*;
 
 public final class GpsGyroOrientationController implements CaminoTrackingService.Listener {
-    // CAMINO_ORGANIC_SINGLE_RECENTER_V23
-    // CAMINO_CINEMATIC_RECENTER_V22
-    // CAMINO_CENTERING_DENSITY_AND_EASE_RESUME_V21
-    // CAMINO_SMOOTH_GPS_CAMERA_V19
-    // CAMINO_SMOOTH_GPS_CAMERA_V19_COMPILE_FIX_A
-    // CAMINO_PROVEN_GPS_MINIMAL_EXTERNAL_FOLLOW_V18
     public static final int LOCATION_PERMISSION_REQUEST=4207;
 
     private static final String POS_SRC="camino-user-location";
@@ -42,15 +33,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private GeoJsonSource posSource, trackSource;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
-    private boolean externalNavigationFollowEnabled;
-    private boolean externalNavigationSuspended;
-    private boolean externalNavigationReturnAnimating;
-    private ValueAnimator externalNavigationReturnAnimator;
-    private static final int EXTERNAL_NAVIGATION_RETURN_MS = 1650;
-    private Double smoothedExternalCameraBearingDeg;
-    private long smoothedExternalCameraBearingTimeMs;
-    private static final double EXTERNAL_CAMERA_BEARING_TAU_MS = 2200.0;
-    private static final double EXTERNAL_CAMERA_BEARING_DEADBAND_DEG = 1.25;
+    private final LiveNavigationCameraController liveNavigationCameraController;
     private long lastFollowLocationTime = Long.MIN_VALUE;
     private LatLng displayedPosition;
     private Double displayedBearing;
@@ -77,9 +60,14 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
     public GpsGyroOrientationController(Activity a){
         activity=a;
+        liveNavigationCameraController=
+                new LiveNavigationCameraController(
+                        a);
     }
     public void attachMap(MapLibreMap m){
         map=m;
+        liveNavigationCameraController.attachMap(
+                m);
 
         map.addOnCameraMoveListener(this::updateArrow);
     }
@@ -126,51 +114,13 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     }
 
     public void setExternalNavigationFollowEnabled(boolean enabled){
-        externalNavigationFollowEnabled=enabled;
-        externalNavigationSuspended=false;
-        externalNavigationReturnAnimating=false;
-        if(externalNavigationReturnAnimator!=null){
-            externalNavigationReturnAnimator.cancel();
-            externalNavigationReturnAnimator=null;
-        }
-
-        if(enabled && map!=null){
-            smoothedExternalCameraBearingDeg=
-                    norm(map.getCameraPosition().bearing);
-            smoothedExternalCameraBearingTimeMs=
-                    SystemClock.elapsedRealtime();
-        }
-
-        if(!enabled)
-            return;
-
-        renderExternalCameraFromLastPose();
+        liveNavigationCameraController.setFollowEnabled(
+                enabled);
     }
 
     public void setExternalNavigationSuspended(boolean suspended){
-        if(!externalNavigationFollowEnabled)
-            return;
-
-        externalNavigationSuspended=suspended;
-
-        if(suspended
-                && externalNavigationReturnAnimator!=null){
-            externalNavigationReturnAnimator.cancel();
-            externalNavigationReturnAnimator=null;
-            externalNavigationReturnAnimating=false;
-        }
-
-        if(suspended)
-            return;
-
-        if(map!=null){
-            smoothedExternalCameraBearingDeg=
-                    norm(map.getCameraPosition().bearing);
-            smoothedExternalCameraBearingTimeMs=
-                    SystemClock.elapsedRealtime();
-        }
-
-        easeExternalCameraFromLastPose();
+        liveNavigationCameraController.setSuspended(
+                suspended);
     }
 
     public void start(){
@@ -208,6 +158,9 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
     private void render(CaminoTrackingService.Snapshot s){
         if(s==null)return;
+
+        liveNavigationCameraController.setCourseDeg(
+                s.courseDeg);
         if(trackSource!=null && s.track.size()>=2){
             List<Point> pts=new ArrayList<>();
             for(android.location.Location l:s.track)
@@ -341,14 +294,8 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
             updateArrow();
 
-            if(externalNavigationFollowEnabled
-                    && !externalNavigationSuspended){
-                renderExternalCamera(
-                        newest,
-                        displayedBearing!=null
-                                ? displayedBearing
-                                : 0.0);
-            }
+            liveNavigationCameraController.onPose(
+                    newest);
 
             return;
         }
@@ -647,12 +594,8 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                                 pos.getLongitude(),
                                 pos.getLatitude())));
 
-        if(externalNavigationFollowEnabled
-                && !externalNavigationSuspended){
-            renderExternalCamera(
-                    pos,
-                    splineBearing);
-        }
+        liveNavigationCameraController.onPose(
+                pos);
 
         updateArrow();
     }
@@ -662,431 +605,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
 
 
-
-    private void easeExternalCameraFromLastPose(){
-        org.maplibre.android.maps.MapView mv=mapView();
-
-        if(map==null
-                || mv==null
-                || mv.getHeight()<=0
-                || displayedPosition==null
-                || externalNavigationSuspended
-                || !externalNavigationFollowEnabled)
-            return;
-
-        if(externalNavigationReturnAnimator!=null){
-            externalNavigationReturnAnimator.cancel();
-            externalNavigationReturnAnimator=null;
-        }
-
-        final CameraPosition startCamera=
-                map.getCameraPosition();
-
-        final double finalZoom=
-                startCamera.zoom;
-
-        final double bearing=
-                norm(
-                        startCamera.bearing);
-
-        smoothedExternalCameraBearingDeg=
-                bearing;
-
-        smoothedExternalCameraBearingTimeMs=
-                SystemClock.elapsedRealtime();
-
-        double metersPerPixel=
-                map.getProjection()
-                        .getMetersPerPixelAtLatitude(
-                                displayedPosition.getLatitude());
-
-        double pixelRatio=
-                Math.max(
-                        1.0,
-                        activity.getResources()
-                                .getDisplayMetrics()
-                                .density);
-
-        double logicalMapHeightPx=
-                mv.getHeight()
-                        /pixelRatio;
-
-        double leadMeters=
-                Double.isFinite(metersPerPixel)
-                        && metersPerPixel>0.0
-                        ? metersPerPixel
-                                *logicalMapHeightPx
-                                /6.0
-                        : 0.0;
-
-        final LatLng finalTarget=
-                dest(
-                        displayedPosition.getLatitude(),
-                        displayedPosition.getLongitude(),
-                        bearing,
-                        leadMeters);
-
-        final LatLng startTarget=
-                startCamera.target;
-
-        double dLat=
-                Math.toRadians(
-                        finalTarget.getLatitude()
-                                -startTarget.getLatitude());
-
-        double dLon=
-                Math.toRadians(
-                        finalTarget.getLongitude()
-                                -startTarget.getLongitude());
-
-        double lat1=
-                Math.toRadians(
-                        startTarget.getLatitude());
-
-        double lat2=
-                Math.toRadians(
-                        finalTarget.getLatitude());
-
-        double hav=
-                Math.sin(dLat/2.0)
-                        *Math.sin(dLat/2.0)
-                        +Math.cos(lat1)
-                        *Math.cos(lat2)
-                        *Math.sin(dLon/2.0)
-                        *Math.sin(dLon/2.0);
-
-        double distanceMeters=
-                6371000.0
-                        *2.0
-                        *Math.atan2(
-                                Math.sqrt(hav),
-                                Math.sqrt(
-                                        Math.max(
-                                                0.0,
-                                                1.0-hav)));
-
-        double visibleHalfHeightMeters=
-                Math.max(
-                        1.0,
-                        metersPerPixel
-                                *logicalMapHeightPx
-                                /2.0);
-
-        double distanceRatio=
-                distanceMeters
-                        /visibleHalfHeightMeters;
-
-        final double zoomOutLevels=
-                distanceRatio<=0.75
-                        ? 0.50
-                        : Math.min(
-                                2.50,
-                                Math.max(
-                                        0.65,
-                                        Math.log(
-                                                1.0+distanceRatio)
-                                                /Math.log(2.0)
-                                )
-                        );
-
-        final double longitudeDelta=
-                ((finalTarget.getLongitude()
-                        -startTarget.getLongitude()
-                        +540.0)
-                        %360.0)
-                        -180.0;
-
-        externalNavigationReturnAnimating=true;
-
-        ValueAnimator animator=
-                ValueAnimator.ofFloat(
-                        0f,
-                        1f);
-
-        externalNavigationReturnAnimator=
-                animator;
-
-        animator.setDuration(
-                EXTERNAL_NAVIGATION_RETURN_MS);
-
-        animator.setInterpolator(
-                new android.view.animation.LinearInterpolator());
-
-        animator.addUpdateListener(
-                valueAnimator -> {
-                    if(externalNavigationSuspended
-                            || !externalNavigationFollowEnabled)
-                        return;
-
-                    double t=
-                            (float)valueAnimator
-                                    .getAnimatedValue();
-
-                    double s=
-                            t*t
-                                    *(3.0-2.0*t);
-
-                    double lat=
-                            startTarget.getLatitude()
-                                    +(finalTarget.getLatitude()
-                                            -startTarget.getLatitude())
-                                            *s;
-
-                    double lon=
-                            startTarget.getLongitude()
-                                    +longitudeDelta*s;
-
-                    if(lon>180.0)
-                        lon-=360.0;
-
-                    if(lon<-180.0)
-                        lon+=360.0;
-
-                    double zoomPulse=
-                            Math.sin(
-                                    Math.PI*s);
-
-                    double zoom=
-                            finalZoom
-                                    -zoomOutLevels
-                                            *zoomPulse;
-
-                    CameraPosition camera=
-                            new CameraPosition.Builder(
-                                    map.getCameraPosition())
-                                    .target(
-                                            new LatLng(
-                                                    lat,
-                                                    lon))
-                                    .zoom(zoom)
-                                    .bearing(bearing)
-                                    .tilt(0.0)
-                                    .padding(
-                                            0.0,
-                                            0.0,
-                                            0.0,
-                                            0.0)
-                                    .build();
-
-                    map.moveCamera(
-                            CameraUpdateFactory
-                                    .newCameraPosition(
-                                            camera));
-                });
-
-        animator.addListener(
-                new android.animation.AnimatorListenerAdapter(){
-                    private boolean cancelled;
-
-                    @Override
-                    public void onAnimationCancel(
-                            android.animation.Animator animation
-                    ){
-                        cancelled=true;
-                        externalNavigationReturnAnimating=false;
-
-                        if(externalNavigationReturnAnimator
-                                ==animation){
-                            externalNavigationReturnAnimator=null;
-                        }
-                    }
-
-                    @Override
-                    public void onAnimationEnd(
-                            android.animation.Animator animation
-                    ){
-                        externalNavigationReturnAnimating=false;
-
-                        if(externalNavigationReturnAnimator
-                                ==animation){
-                            externalNavigationReturnAnimator=null;
-                        }
-
-                        if(cancelled
-                                || externalNavigationSuspended
-                                || !externalNavigationFollowEnabled)
-                            return;
-
-                        renderExternalCameraFromLastPose();
-                    }
-                });
-
-        animator.start();
-    }
-
-    private void renderExternalCameraFromLastPose(){
-        if(displayedPosition==null)
-            return;
-
-        double bearing=
-                displayedBearing!=null
-                        ? displayedBearing
-                        : state!=null && state.courseDeg!=null
-                                ? state.courseDeg
-                                : map!=null
-                                        ? map.getCameraPosition().bearing
-                                        : 0.0;
-
-        renderExternalCamera(
-                displayedPosition,
-                bearing);
-    }
-
-    private void renderExternalCamera(
-            LatLng pos,
-            double ignoredSplineBearing
-    ){
-        org.maplibre.android.maps.MapView mv=mapView();
-
-        if(map==null
-                || mv==null
-                || mv.getHeight()<=0
-                || externalNavigationSuspended
-                || externalNavigationReturnAnimating
-                || !externalNavigationFollowEnabled)
-            return;
-
-        /*
-         * Follow NEVER owns zoom.
-         */
-        double zoom=
-                map.getCameraPosition().zoom;
-
-        /*
-         * Rotate the whole map ONLY from the GPS walking course.
-         * Phone/gyro orientation may still animate the arrow while stationary,
-         * but it can never bounce the map.
-         */
-        Double desiredCourse=
-                state!=null
-                        && state.courseDeg!=null
-                        ? state.courseDeg.doubleValue()
-                        : null;
-
-        double cameraBearing=
-                desiredCourse!=null
-                        ? smoothExternalCameraBearing(desiredCourse)
-                        : smoothedExternalCameraBearingDeg!=null
-                                ? smoothedExternalCameraBearingDeg
-                                : norm(map.getCameraPosition().bearing);
-
-        double metersPerPixel=
-                map.getProjection()
-                        .getMetersPerPixelAtLatitude(
-                                pos.getLatitude());
-
-        /*
-         * IMPORTANT:
-         * Patch 024 once wrote top-padding H/3 into the MapLibre camera.
-         * Explicit zero padding below prevents that old/saved padding from
-         * combining with this H/6 lead.
-         *
-         * Zero padding + target H/6 ahead => walker at 2H/3:
-         * one third behind, two thirds ahead.
-         */
-        double pixelRatio=
-                Math.max(
-                        1.0,
-                        activity.getResources()
-                                .getDisplayMetrics()
-                                .density);
-
-        double logicalMapHeightPx=
-                mv.getHeight()
-                        /pixelRatio;
-
-        double leadMeters=
-                Double.isFinite(metersPerPixel)
-                        && metersPerPixel>0.0
-                        ? metersPerPixel
-                                *logicalMapHeightPx
-                                /6.0
-                        : 0.0;
-
-        LatLng target=
-                dest(
-                        pos.getLatitude(),
-                        pos.getLongitude(),
-                        cameraBearing,
-                        leadMeters);
-
-        CameraPosition camera=
-                new CameraPosition.Builder(
-                        map.getCameraPosition())
-                        .target(target)
-                        .zoom(zoom)
-                        .bearing(cameraBearing)
-                        .tilt(0.0)
-                        .padding(
-                                0.0,
-                                0.0,
-                                0.0,
-                                0.0)
-                        .build();
-
-        map.moveCamera(
-                CameraUpdateFactory.newCameraPosition(
-                        camera));
-    }
-
-    private double smoothExternalCameraBearing(
-            double targetBearing
-    ){
-        double target=
-                norm(targetBearing);
-
-        long now=
-                SystemClock.elapsedRealtime();
-
-        if(smoothedExternalCameraBearingDeg==null){
-            smoothedExternalCameraBearingDeg=
-                    map!=null
-                            ? norm(map.getCameraPosition().bearing)
-                            : target;
-            smoothedExternalCameraBearingTimeMs=now;
-            return smoothedExternalCameraBearingDeg;
-        }
-
-        long dtMs=
-                Math.max(
-                        0L,
-                        Math.min(
-                                100L,
-                                now-smoothedExternalCameraBearingTimeMs));
-
-        smoothedExternalCameraBearingTimeMs=now;
-
-        double current=
-                smoothedExternalCameraBearingDeg;
-
-        double delta=
-                ((target-current+540.0)%360.0)-180.0;
-
-        /*
-         * Suppress small course noise completely.
-         */
-        if(Math.abs(delta)
-                <= EXTERNAL_CAMERA_BEARING_DEADBAND_DEG){
-            return current;
-        }
-
-        double alpha=
-                1.0-Math.exp(
-                        -dtMs
-                                /EXTERNAL_CAMERA_BEARING_TAU_MS);
-
-        smoothedExternalCameraBearingDeg=
-                norm(
-                        current
-                                +delta*alpha);
-
-        return smoothedExternalCameraBearingDeg;
-    }
-
-    private org.maplibre.android.maps.MapView mapView(){
-        return activity.findViewById(
-                R.id.map_view);
-    }
 
     private static double bearingDegrees(LatLng a,LatLng b){
         double p1=Math.toRadians(a.getLatitude());
@@ -1114,15 +632,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 *Math.sin(dl/2)*Math.sin(dl/2);
 
         return 2*R*Math.asin(Math.min(1.0,Math.sqrt(h)));
-    }
-
-    private static LatLng dest(double lat,double lon,double bearing,double meters){
-        double R=6371008.8, p1=Math.toRadians(lat), l1=Math.toRadians(lon);
-        double b=Math.toRadians(bearing), d=meters/R;
-        double p2=Math.asin(Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(b));
-        double l2=l1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(p1),
-                Math.cos(d)-Math.sin(p1)*Math.sin(p2));
-        return new LatLng(Math.toDegrees(p2),Math.toDegrees(l2));
     }
 
     private Bitmap arrowBitmap(int fillColor){

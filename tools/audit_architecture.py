@@ -27,6 +27,7 @@ measurement_path = JAVA / "MeasurementEngine.java"
 offline_map_path = JAVA / "OfflineMapRepository.java"
 map_style_path = JAVA / "MapStyleProvider.java"
 navigation_path = JAVA / "NavigationController.java"
+live_navigation_camera_path = JAVA / "LiveNavigationCameraController.java"
 projection_path = JAVA / "CaminoProjectionEngine.java"
 info_presenter_path = JAVA / "CaminoInfoPresenter.java"
 map_coordinator_path = JAVA / "MapCoordinator.java"
@@ -52,6 +53,7 @@ check(measurement_path.is_file(), "missing MeasurementEngine.java")
 check(offline_map_path.is_file(), "missing OfflineMapRepository.java")
 check(map_style_path.is_file(), "missing MapStyleProvider.java")
 check(navigation_path.is_file(), "missing NavigationController.java")
+check(live_navigation_camera_path.is_file(), "missing LiveNavigationCameraController.java")
 check(projection_path.is_file(), "missing CaminoProjectionEngine.java")
 check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
 check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
@@ -197,6 +199,31 @@ if navigation_path.is_file():
           "NavigationController does not own camera follow mechanics")
     check("GpsGyroOrientationController" in navigation,
           "NavigationController is not wired to external GPS orientation controller")
+
+if live_navigation_camera_path.is_file():
+    live_navigation_camera = live_navigation_camera_path.read_text()
+    check("RETURN_MS = 1650" in live_navigation_camera,
+          "LiveNavigationCameraController lost proven 1650 ms return timing")
+    check("BEARING_TAU_MS = 2200.0" in live_navigation_camera,
+          "LiveNavigationCameraController lost proven bearing smoothing")
+    check("BEARING_DEADBAND_DEG = 1.25" in live_navigation_camera,
+          "LiveNavigationCameraController lost proven bearing deadband")
+    check("/ 6.0" in live_navigation_camera,
+          "LiveNavigationCameraController lost H/6 camera lead")
+    check("Follow NEVER owns zoom." in live_navigation_camera,
+          "LiveNavigationCameraController no longer preserves zoom ownership")
+    check("GPS walking course" in live_navigation_camera,
+          "LiveNavigationCameraController no longer documents course-only rotation")
+
+gps_orientation_path = JAVA / "GpsGyroOrientationController.java"
+if gps_orientation_path.is_file():
+    gps_orientation = gps_orientation_path.read_text()
+    check("LiveNavigationCameraController" in gps_orientation,
+          "GpsGyroOrientationController is not wired to live camera controller")
+    check("private void renderExternalCamera(" not in gps_orientation,
+          "GpsGyroOrientationController still owns live camera rendering")
+    check("externalNavigationReturnAnimator" not in gps_orientation,
+          "GpsGyroOrientationController still owns live camera return animation")
 
 if controller_path.is_file():
     controller = controller_path.read_text()
@@ -537,7 +564,8 @@ print("  one Camino graph / shortest-path engine")
 print("  one measurement / height-profile engine")
 print("  one offline-map repository")
 print("  one runtime map-style provider")
-print("  one navigation follow / camera controller")
+print("  one navigation follow policy controller")
+print("  one proven live-GPS navigation camera executor")
 print("  one Camino projection / nearest-hit engine")
 print("  one Camino info-panel presenter")
 print("  one MapLibre startup / style coordinator")
