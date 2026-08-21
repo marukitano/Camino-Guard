@@ -24,6 +24,8 @@ controller_path = JAVA / "CaminoController.java"
 repository_path = JAVA / "CaminoRepository.java"
 network_path = JAVA / "CaminoNetwork.java"
 measurement_path = JAVA / "MeasurementEngine.java"
+offline_map_path = JAVA / "OfflineMapRepository.java"
+map_style_path = JAVA / "MapStyleProvider.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -31,6 +33,8 @@ check(controller_path.is_file(), "missing CaminoController.java")
 check(repository_path.is_file(), "missing CaminoRepository.java")
 check(network_path.is_file(), "missing CaminoNetwork.java")
 check(measurement_path.is_file(), "missing MeasurementEngine.java")
+check(offline_map_path.is_file(), "missing OfflineMapRepository.java")
+check(map_style_path.is_file(), "missing MapStyleProvider.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -130,6 +134,34 @@ if controller_path.is_file():
     check("MeasurementEngine" in controller,
           "CaminoController is not wired to MeasurementEngine")
 
+if offline_map_path.is_file():
+    offline_map = offline_map_path.read_text()
+    check("MessageDigest.getInstance(" in offline_map,
+          "OfflineMapRepository does not own PMTiles integrity verification")
+    check("ensureMapInstalled(" in offline_map,
+          "OfflineMapRepository does not own PMTiles installation")
+
+if map_style_path.is_file():
+    map_style = map_style_path.read_text()
+    check("__PMTILES_URL__" in map_style,
+          "MapStyleProvider does not own style token replacement")
+    check("MapStyleConfig.apply(" in map_style,
+          "MapStyleProvider does not apply global map style config")
+
+main_activity_path = JAVA / "MainActivity.java"
+if main_activity_path.is_file():
+    main_activity = main_activity_path.read_text()
+    check("ensureMapInstalled(" not in main_activity,
+          "MainActivity still owns PMTiles installation")
+    check("MessageDigest" not in main_activity,
+          "MainActivity still owns PMTiles integrity verification")
+    check("__PMTILES_URL__" not in main_activity,
+          "MainActivity still owns style token replacement")
+    check("OfflineMapRepository" in main_activity,
+          "MainActivity is not wired to OfflineMapRepository")
+    check("MapStyleProvider" in main_activity,
+          "MainActivity is not wired to MapStyleProvider")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -147,6 +179,8 @@ print("  one global controller")
 print("  one Camino repository / domain owner")
 print("  one Camino graph / shortest-path engine")
 print("  one measurement / height-profile engine")
+print("  one offline-map repository")
+print("  one runtime map-style provider")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")
