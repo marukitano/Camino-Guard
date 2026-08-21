@@ -123,11 +123,7 @@ public final class CaminoController {
     private final CaminoNetwork caminoNetwork;
     private final MeasurementEngine measurementEngine;
     private final NavigationController navigationController;
-    /*
-     * Transitional read-only alias used by Measurement code.
-     * CaminoNetwork owns and rebuilds this list.
-     */
-    private final List<NetworkTrack> networkTracks;
+    private final CaminoProjectionEngine projectionEngine;
 
     private MapLibreMap map;
 
@@ -220,8 +216,10 @@ public final class CaminoController {
                         }
                 );
 
-        this.networkTracks =
-                caminoNetwork.tracks();
+        this.projectionEngine =
+                new CaminoProjectionEngine(
+                        caminoNetwork
+                );
 
         this.dummyPosition = initialPosition;
     }
@@ -387,7 +385,7 @@ public final class CaminoController {
          */
         if (selectedHit == null) {
             RouteHit routeHit =
-                    findNearestRouteHit(
+                    projectionEngine.findNearestRouteHit(
                             point
                     );
 
@@ -420,7 +418,7 @@ public final class CaminoController {
          */
         if (secondTapHit == null) {
             RouteHit routeHit =
-                    findNearestRouteHit(
+                    projectionEngine.findNearestRouteHit(
                             point
                     );
 
@@ -448,7 +446,7 @@ public final class CaminoController {
          * measurement. The third tap may therefore select another Camino.
          */
         RouteHit routeHit =
-                findNearestRouteHit(
+                projectionEngine.findNearestRouteHit(
                         point
                 );
 
@@ -682,11 +680,11 @@ public final class CaminoController {
         }
 
         /*
-         * projectToRoute() is now track-bounds pruned, so snapping a dragged
+         * projectionEngine.projectToRoute() is now track-bounds pruned, so snapping a dragged
          * measurement point no longer scans every segment of the whole Camino.
          */
         ProjectionHit snapped =
-                projectToRoute(
+                projectionEngine.projectToRoute(
                         dragRoute,
                         fingerPosition
                 );
@@ -732,7 +730,7 @@ public final class CaminoController {
         }
 
         RouteHit startRouteHit =
-                findNearestRouteHit(
+                projectionEngine.findNearestRouteHit(
                         dummyPosition
                 );
 
@@ -1088,7 +1086,7 @@ public final class CaminoController {
         RouteHit startRouteHit =
                 routes.isEmpty()
                         ? null
-                        : findNearestRouteHit(
+                        : projectionEngine.findNearestRouteHit(
                                 dummyPosition
                         );
 
@@ -1120,365 +1118,6 @@ public final class CaminoController {
         );
 
         refreshHeightProfile();
-    }
-
-    private RouteHit findNearestRouteHit(
-            LatLng query
-    ) {
-        if (networkTracks.isEmpty()) {
-            return null;
-        }
-
-        /*
-         * First choose the track whose precomputed bounding circle has the
-         * smallest possible distance to the query. Project that one exactly,
-         * then only inspect tracks whose lower bound can still beat the best
-         * exact result. In normal use this turns a scan of all Camino points
-         * into a scan of a few hundred cheap bounds plus one/few local tracks.
-         */
-        NetworkTrack seed =
-                null;
-
-        double seedLowerBoundM =
-                Double.POSITIVE_INFINITY;
-
-        for (NetworkTrack reference
-                : networkTracks) {
-
-            double lowerBoundM =
-                    trackLowerBoundDistanceMeters(
-                            reference.track,
-                            query
-                    );
-
-            if (lowerBoundM
-                    < seedLowerBoundM) {
-                seedLowerBoundM =
-                        lowerBoundM;
-                seed =
-                        reference;
-            }
-        }
-
-        if (seed == null) {
-            return null;
-        }
-
-        ProjectionHit seedHit =
-                projectToTrack(
-                        seed.route,
-                        seed.trackIndex,
-                        query
-                );
-
-        if (seedHit == null) {
-            return null;
-        }
-
-        RouteHit best =
-                new RouteHit(
-                        seed.route,
-                        seedHit
-                );
-
-        for (NetworkTrack reference
-                : networkTracks) {
-
-            if (reference == seed) {
-                continue;
-            }
-
-            double lowerBoundM =
-                    trackLowerBoundDistanceMeters(
-                            reference.track,
-                            query
-                    );
-
-            if (lowerBoundM
-                    > best.hit.distanceFromQueryM) {
-                continue;
-            }
-
-            ProjectionHit hit =
-                    projectToTrack(
-                            reference.route,
-                            reference.trackIndex,
-                            query
-                    );
-
-            if (hit != null
-                    && hit.distanceFromQueryM
-                    < best.hit.distanceFromQueryM) {
-
-                best =
-                        new RouteHit(
-                                reference.route,
-                                hit
-                        );
-            }
-        }
-
-        return best;
-    }
-
-    private ProjectionHit projectToRoute(
-            CaminoRoute route,
-            LatLng query
-    ) {
-        if (route == null) {
-            return null;
-        }
-
-        ProjectionHit best =
-                null;
-
-        for (int trackIndex = 0;
-                trackIndex < route.tracks.size();
-                trackIndex++) {
-
-            RouteTrack track =
-                    route.tracks.get(
-                            trackIndex
-                    );
-
-            double lowerBoundM =
-                    trackLowerBoundDistanceMeters(
-                            track,
-                            query
-                    );
-
-            if (best != null
-                    && lowerBoundM
-                    > best.distanceFromQueryM) {
-                continue;
-            }
-
-            ProjectionHit hit =
-                    projectToTrack(
-                            route,
-                            trackIndex,
-                            query
-                    );
-
-            if (hit != null
-                    && (best == null
-                    || hit.distanceFromQueryM
-                    < best.distanceFromQueryM)) {
-                best =
-                        hit;
-            }
-        }
-
-        return best;
-    }
-
-    private ProjectionHit projectToTrack(
-            CaminoRoute route,
-            int trackIndex,
-            LatLng query
-    ) {
-        if (route == null
-                || trackIndex < 0
-                || trackIndex >= route.tracks.size()) {
-            return null;
-        }
-
-        RouteTrack track =
-                route.tracks.get(
-                        trackIndex
-                );
-
-        ProjectionHit best =
-                null;
-
-        double alongTrackM =
-                0.0;
-
-        for (int segmentIndex = 0;
-                segmentIndex
-                        < track.points.size() - 1;
-                segmentIndex++) {
-
-            LatLng a =
-                    track.points.get(
-                            segmentIndex
-                    );
-
-            LatLng b =
-                    track.points.get(
-                            segmentIndex + 1
-                    );
-
-            ProjectionHit hit =
-                    projectToSegment(
-                            query,
-                            a,
-                            b,
-                            track.baseChainageM
-                                    + alongTrackM,
-                            trackIndex,
-                            segmentIndex
-                    );
-
-            if (best == null
-                    || hit.distanceFromQueryM
-                    < best.distanceFromQueryM) {
-                best =
-                        hit;
-            }
-
-            alongTrackM +=
-                    distanceMeters(
-                            a,
-                            b
-                    );
-        }
-
-        return best;
-    }
-
-    /**
-     * Conservative lower bound based on a precomputed bounding circle.
-     * The small safety padding deliberately makes the bound slightly looser;
-     * false positives cost only a local track projection, while false negatives
-     * could choose the wrong Camino and are therefore avoided.
-     */
-    private double trackLowerBoundDistanceMeters(
-            RouteTrack track,
-            LatLng query
-    ) {
-        double centerDistanceM =
-                distanceMeters(
-                        query,
-                        track.boundsCenter
-                );
-
-        return Math.max(
-                0.0,
-                centerDistanceM
-                        - track.boundsRadiusM
-                        - 250.0
-        );
-    }
-
-    private ProjectionHit projectToSegment(
-            LatLng query,
-            LatLng a,
-            LatLng b,
-            double chainageAtA,
-            int trackIndex,
-            int segmentIndex
-    ) {
-        double refLatRad =
-                Math.toRadians(
-                        (
-                                query.getLatitude()
-                                        + a.getLatitude()
-                                        + b.getLatitude()
-                        ) / 3.0
-                );
-
-        double cosLat =
-                Math.max(
-                        0.20,
-                        Math.cos(
-                                refLatRad
-                        )
-                );
-
-        double ax =
-                Math.toRadians(
-                        a.getLongitude()
-                                - query.getLongitude()
-                )
-                        * EARTH_RADIUS_M
-                        * cosLat;
-
-        double ay =
-                Math.toRadians(
-                        a.getLatitude()
-                                - query.getLatitude()
-                )
-                        * EARTH_RADIUS_M;
-
-        double bx =
-                Math.toRadians(
-                        b.getLongitude()
-                                - query.getLongitude()
-                )
-                        * EARTH_RADIUS_M
-                        * cosLat;
-
-        double by =
-                Math.toRadians(
-                        b.getLatitude()
-                                - query.getLatitude()
-                )
-                        * EARTH_RADIUS_M;
-
-        double vx =
-                bx - ax;
-
-        double vy =
-                by - ay;
-
-        double lengthSq =
-                vx * vx
-                        + vy * vy;
-
-        double t =
-                0.0;
-
-        if (lengthSq
-                > 1e-9) {
-
-            t =
-                    -(ax * vx
-                            + ay * vy)
-                            / lengthSq;
-
-            t =
-                    Math.max(
-                            0.0,
-                            Math.min(
-                                    1.0,
-                                    t
-                            )
-                    );
-        }
-
-        double px =
-                ax + t * vx;
-
-        double py =
-                ay + t * vy;
-
-        LatLng projected =
-                interpolate(
-                        a,
-                        b,
-                        t
-                );
-
-        double segmentLength =
-                distanceMeters(
-                        a,
-                        b
-                );
-
-        return new ProjectionHit(
-                projected,
-                chainageAtA
-                        + t
-                        * segmentLength,
-                Math.hypot(
-                        px,
-                        py
-                ),
-                trackIndex,
-                segmentIndex,
-                t
-        );
     }
 
     private boolean isTapCloseEnough(
@@ -2327,7 +1966,7 @@ public final class CaminoController {
         RouteHit routeHit =
                 routes.isEmpty()
                         ? null
-                        : findNearestRouteHit(
+                        : projectionEngine.findNearestRouteHit(
                                 dummyPosition
                         );
 
@@ -2719,7 +2358,7 @@ public final class CaminoController {
         }
 
         RouteHit start =
-                findNearestRouteHit(
+                projectionEngine.findNearestRouteHit(
                         dummyPosition
                 );
 

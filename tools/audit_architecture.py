@@ -27,6 +27,7 @@ measurement_path = JAVA / "MeasurementEngine.java"
 offline_map_path = JAVA / "OfflineMapRepository.java"
 map_style_path = JAVA / "MapStyleProvider.java"
 navigation_path = JAVA / "NavigationController.java"
+projection_path = JAVA / "CaminoProjectionEngine.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -37,6 +38,7 @@ check(measurement_path.is_file(), "missing MeasurementEngine.java")
 check(offline_map_path.is_file(), "missing OfflineMapRepository.java")
 check(map_style_path.is_file(), "missing MapStyleProvider.java")
 check(navigation_path.is_file(), "missing NavigationController.java")
+check(projection_path.is_file(), "missing CaminoProjectionEngine.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -190,6 +192,28 @@ if controller_path.is_file():
     check("private double navigationBearingAtPosition()" in controller,
           "route-aware navigation bearing left CaminoController unexpectedly")
 
+if projection_path.is_file():
+    projection = projection_path.read_text()
+    check("RouteHit findNearestRouteHit(" in projection,
+          "CaminoProjectionEngine does not own nearest-route lookup")
+    check("ProjectionHit projectToRoute(" in projection,
+          "CaminoProjectionEngine does not own route projection")
+    check("projectToSegment(" in projection,
+          "CaminoProjectionEngine does not own segment projection")
+    check("network.tracks()" in projection,
+          "CaminoProjectionEngine does not use canonical CaminoNetwork track index")
+
+if controller_path.is_file():
+    controller = controller_path.read_text()
+    check("private RouteHit findNearestRouteHit(" not in controller,
+          "CaminoController still owns nearest-route lookup")
+    check("private ProjectionHit projectToRoute(" not in controller,
+          "CaminoController still owns route projection")
+    check("private ProjectionHit projectToSegment(" not in controller,
+          "CaminoController still owns segment projection")
+    check("CaminoProjectionEngine" in controller,
+          "CaminoController is not wired to CaminoProjectionEngine")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -210,6 +234,7 @@ print("  one measurement / height-profile engine")
 print("  one offline-map repository")
 print("  one runtime map-style provider")
 print("  one navigation follow / camera controller")
+print("  one Camino projection / nearest-hit engine")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")
