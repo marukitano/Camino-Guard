@@ -57,19 +57,13 @@ public final class CaminoTrackingService extends Service
         public final Float courseDeg;
         public final Float phoneHeadingDeg;
         public final boolean stationary;
-        public final String motionState;
-        public final float accelRms;
-        public final long stationaryCandidateMs;
 
         Snapshot(
                 Location location,
                 List<Location> track,
                 Float courseDeg,
                 Float phoneHeadingDeg,
-                boolean stationary,
-                String motionState,
-                float accelRms,
-                long stationaryCandidateMs
+                boolean stationary
         ) {
             this.location =
                     location == null
@@ -84,9 +78,6 @@ public final class CaminoTrackingService extends Service
             this.courseDeg = courseDeg;
             this.phoneHeadingDeg = phoneHeadingDeg;
             this.stationary = stationary;
-            this.motionState = motionState;
-            this.accelRms = accelRms;
-            this.stationaryCandidateMs = stationaryCandidateMs;
         }
     }
 
@@ -120,10 +111,7 @@ public final class CaminoTrackingService extends Service
                     new ArrayList<>(),
                     null,
                     null,
-                    false,
-                    "UNKNOWN",
-                    0.0f,
-                    0L
+                    false
             );
 
     private LocationManager locationManager;
@@ -664,25 +652,13 @@ public final class CaminoTrackingService extends Service
     }
 
     private void publish() {
-        long stationaryCandidateMs =
-                stationaryCandidateSinceMs < 0L
-                        ? 0L
-                        : Math.max(
-                                0L,
-                                SystemClock.elapsedRealtime()
-                                        - stationaryCandidateSinceMs
-                        );
-
         Snapshot snapshot =
                 new Snapshot(
                         acceptedLocation,
                         track,
                         gpsCourseDeg,
                         phoneHeadingDeg,
-                        motionState == MotionState.STATIONARY,
-                        motionState.name(),
-                        (float) Math.sqrt(stationaryRmsSq),
-                        stationaryCandidateMs
+                        motionState == MotionState.STATIONARY
                 );
 
         latestSnapshot = snapshot;
