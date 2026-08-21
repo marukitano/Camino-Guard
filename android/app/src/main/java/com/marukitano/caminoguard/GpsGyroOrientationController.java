@@ -46,8 +46,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private GeoJsonSource posSource, trackSource;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
-    private Double navigationZoom;
-    private boolean followMode;
     private boolean externalNavigationManaged;
     private boolean externalNavigationFollowEnabled;
     private boolean externalNavigationSuspended;
@@ -86,17 +84,9 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         activity=a;
         recenterButton=a.findViewById(R.id.map_recenter_button);
         rotateButton=a.findViewById(R.id.map_rotate_button);
-        recenterButton.setOnClickListener(v->recenter());
-        rotateButton.setOnClickListener(v->followAtCurrentZoom());
     }
     public void attachMap(MapLibreMap m){
         map=m;
-
-        map.addOnCameraMoveStartedListener(reason -> {
-            if(reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE){
-                leaveFollowMode();
-            }
-        });
 
         map.addOnCameraMoveListener(this::updateArrow);
     }
@@ -146,8 +136,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         externalNavigationManaged=managed;
 
         if(managed){
-            followMode=false;
-            navigationZoom=null;
             recenterButton.setVisibility(View.GONE);
             rotateButton.setVisibility(View.GONE);
         }
@@ -208,12 +196,8 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     public void start(){
         if(started)return; started=true;
         if(externalNavigationManaged){
-            followMode=false;
-            navigationZoom=null;
             recenterButton.setVisibility(View.GONE);
             rotateButton.setVisibility(View.GONE);
-        } else {
-            enterFollowMode();
         }
         if(activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED){
             if(!asked){
@@ -331,50 +315,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 PropertyFactory.iconImage(image),
                 PropertyFactory.iconRotate(screenAngle),
                 PropertyFactory.iconOpacity(1f));
-    }
-
-    private void enterFollowMode(){
-        followMode=true;
-        navigationZoom=null;
-        lastFollowLocationTime=Long.MIN_VALUE;
-        recenterButton.setVisibility(View.GONE);
-        rotateButton.setVisibility(View.GONE);
-
-        if(state!=null && state.location!=null){
-            follow(state);
-            lastFollowLocationTime=state.location.getTime();
-        }
-    }
-
-    private void leaveFollowMode(){
-        if(!followMode)return;
-        followMode=false;
-        recenterButton.setVisibility(View.VISIBLE);
-        rotateButton.setVisibility(View.VISIBLE);
-    }
-
-    private void recenter(){
-        enterFollowMode();
-    }
-
-    private void followAtCurrentZoom(){
-        if(map==null)return;
-
-        /*
-         * Restore centering + course-up rotation but keep the zoom level
-         * currently chosen by the user.
-         */
-        navigationZoom=map.getCameraPosition().zoom;
-        followMode=true;
-        lastFollowLocationTime=Long.MIN_VALUE;
-
-        recenterButton.setVisibility(View.GONE);
-        rotateButton.setVisibility(View.GONE);
-
-        if(state!=null && state.location!=null){
-            follow(state);
-            lastFollowLocationTime=state.location.getTime();
-        }
     }
 
     private void animateToSnapshot(CaminoTrackingService.Snapshot s){
@@ -738,34 +678,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
             renderExternalCamera(
                     pos,
                     splineBearing);
-        }
-
-        if(followMode){
-            double mapBearing=
-                    state!=null && state.courseDeg!=null
-                            ? state.courseDeg
-                            : splineBearing;
-
-            if(navigationZoom==null)
-                navigationZoom=map.getCameraPosition().zoom;
-
-            LatLng cameraTarget=dest(
-                    pos.getLatitude(),
-                    pos.getLongitude(),
-                    mapBearing,
-                    500.0);
-
-            CameraPosition camera=
-                    new CameraPosition.Builder()
-                            .target(cameraTarget)
-                            .zoom(navigationZoom)
-                            .bearing(mapBearing)
-                            .tilt(0)
-                            .build();
-
-            map.moveCamera(
-                    CameraUpdateFactory.newCameraPosition(
-                            camera));
         }
 
         updateArrow();
@@ -1228,64 +1140,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                 *Math.sin(dl/2)*Math.sin(dl/2);
 
         return 2*R*Math.asin(Math.min(1.0,Math.sqrt(h)));
-    }
-
-    private void follow(CaminoTrackingService.Snapshot s){
-        if(map==null || s.location==null)return;
-
-        if(s.courseDeg==null){
-            if(navigationZoom==null){
-                CameraPosition c=map.getCameraPosition();
-                CameraPosition n=new CameraPosition.Builder(c)
-                        .target(new LatLng(s.location.getLatitude(),s.location.getLongitude()))
-                        .zoom(Math.max(c.zoom,15.0)).build();
-                map.moveCamera(
-                        CameraUpdateFactory.newCameraPosition(n)
-                );
-            }
-            return;
-        }
-
-        double course=s.courseDeg;
-        if(navigationZoom==null){
-            CameraPosition fit=fitNavigation(s.location,course);
-            navigationZoom=fit!=null?fit.zoom:15.0;
-        }
-
-        LatLng target=dest(
-                s.location.getLatitude(),s.location.getLongitude(),course,500.0);
-
-        CameraPosition c=new CameraPosition.Builder()
-                .target(target).zoom(navigationZoom).bearing(course).tilt(0).build();
-        displayedPosition=
-                new LatLng(
-                        s.location.getLatitude(),
-                        s.location.getLongitude()
-                );
-        displayedBearing=course;
-
-        map.moveCamera(
-                CameraUpdateFactory.newCameraPosition(c)
-        );
-    }
-
-    private CameraPosition fitNavigation(android.location.Location o,double course){
-        // 2 km ahead, 1 km behind, +/-1 km sideways.
-        List<Point> ring=new ArrayList<>();
-        LatLng a=offset(o,course,2000,-1000), b=offset(o,course,2000,1000);
-        LatLng c=offset(o,course,-1000,1000), d=offset(o,course,-1000,-1000);
-        for(LatLng p:new LatLng[]{a,b,c,d,a})
-            ring.add(Point.fromLngLat(p.getLongitude(),p.getLatitude()));
-        int pad=Math.round(24*activity.getResources().getDisplayMetrics().density);
-        return map.getCameraForGeometry(LineString.fromLngLats(ring),
-                new int[]{pad,pad,pad,pad},course,0);
-    }
-
-    private static LatLng offset(android.location.Location o,double f,double forward,double right){
-        LatLng p=dest(o.getLatitude(),o.getLongitude(),
-                forward>=0?f:norm(f+180),Math.abs(forward));
-        return dest(p.getLatitude(),p.getLongitude(),
-                right>=0?norm(f+90):norm(f-90),Math.abs(right));
     }
 
     private static LatLng dest(double lat,double lon,double bearing,double meters){
