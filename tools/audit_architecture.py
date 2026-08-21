@@ -36,6 +36,8 @@ selection_path = JAVA / "CaminoSelectionController.java"
 info_panel_path = JAVA / "CaminoInfoPanel.java"
 info_chevron_path = JAVA / "CaminoChevronView.java"
 info_navigation_button_path = JAVA / "CaminoNavigationButton.java"
+height_profile_view_path = JAVA / "CaminoHeightProfileView.java"
+height_profile_model_path = JAVA / "CaminoHeightProfileModel.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -55,6 +57,8 @@ check(selection_path.is_file(), "missing CaminoSelectionController.java")
 check(info_panel_path.is_file(), "missing CaminoInfoPanel.java")
 check(info_chevron_path.is_file(), "missing CaminoChevronView.java")
 check(info_navigation_button_path.is_file(), "missing CaminoNavigationButton.java")
+check(height_profile_view_path.is_file(), "missing CaminoHeightProfileView.java")
+check(height_profile_model_path.is_file(), "missing CaminoHeightProfileModel.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -384,6 +388,33 @@ if info_navigation_button_path.is_file():
     check("protected void onDraw(" in info_navigation_button,
           "CaminoNavigationButton does not own navigation control drawing")
 
+if height_profile_model_path.is_file():
+    height_profile_model = height_profile_model_path.read_text()
+    check("reduceSamples(" in height_profile_model,
+          "CaminoHeightProfileModel does not own sample reduction")
+    check("findNearestSample(" in height_profile_model,
+          "CaminoHeightProfileModel does not own nearest-sample lookup")
+    check("import android.graphics.Canvas" not in height_profile_model
+          and "android.graphics.Canvas" not in height_profile_model,
+          "CaminoHeightProfileModel incorrectly owns Canvas drawing")
+    check("MotionEvent" not in height_profile_model,
+          "CaminoHeightProfileModel incorrectly owns touch events")
+    check("ValueAnimator" not in height_profile_model,
+          "CaminoHeightProfileModel incorrectly owns reveal animation")
+
+if height_profile_view_path.is_file():
+    height_profile_view = height_profile_view_path.read_text()
+    check("CaminoHeightProfileModel" in height_profile_view,
+          "CaminoHeightProfileView is not wired to CaminoHeightProfileModel")
+    check("private List<Sample> reduceSamples(" not in height_profile_view,
+          "CaminoHeightProfileView still owns sample reduction")
+    check("private int findNearestSample(" not in height_profile_view,
+          "CaminoHeightProfileView still owns nearest-sample lookup")
+    check("protected void onDraw(" in height_profile_view,
+          "CaminoHeightProfileView no longer owns Canvas rendering")
+    check("public boolean onTouchEvent(" in height_profile_view,
+          "CaminoHeightProfileView no longer owns UI touch behavior")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -411,6 +442,7 @@ print("  one travel statistics / village ETA controller")
 print("  one Camino drag interaction controller")
 print("  one Camino tap-selection controller")
 print("  separated Camino info-panel drawing controls")
+print("  separated Camino height-profile sample model")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")

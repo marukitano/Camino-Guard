@@ -119,6 +119,11 @@ final class CaminoHeightProfileView extends View {
                     Paint.ANTI_ALIAS_FLAG
             );
 
+    private final CaminoHeightProfileModel model =
+            new CaminoHeightProfileModel(
+                    MAX_DRAW_SAMPLES
+            );
+
     private List<Sample> samples =
             new ArrayList<>();
 
@@ -332,7 +337,7 @@ final class CaminoHeightProfileView extends View {
         }
 
         samples =
-                reduceSamples(
+                model.reduceSamples(
                         input
                 );
 
@@ -357,53 +362,6 @@ final class CaminoHeightProfileView extends View {
         invalidate();
     }
 
-    private List<Sample> reduceSamples(
-            List<Sample> input
-    ) {
-        if (input.size()
-                <= MAX_DRAW_SAMPLES) {
-
-            return new ArrayList<>(
-                    input
-            );
-        }
-
-        int stride =
-                (int)
-                        Math.ceil(
-                                input.size()
-                                        / (double)
-                                        MAX_DRAW_SAMPLES
-                        );
-
-        List<Sample> reduced =
-                new ArrayList<>(
-                        MAX_DRAW_SAMPLES
-                                + 32
-                );
-
-        for (int index = 0;
-                index < input.size();
-                index++) {
-
-            Sample sample =
-                    input.get(
-                            index
-                    );
-
-            if (index == 0
-                    || index == input.size() - 1
-                    || sample.breakBefore
-                    || index % stride == 0) {
-
-                reduced.add(
-                        sample
-                );
-            }
-        }
-
-        return reduced;
-    }
 
     @Override
     public boolean onTouchEvent(
@@ -461,8 +419,10 @@ final class CaminoHeightProfileView extends View {
                         TOUCH_CURSOR;
 
                 cursorIndex =
-                        findNearestSample(
-                                event.getY()
+                        model.findNearestSample(
+                                samples,
+                                event.getY(),
+                                getHeight()
                         );
 
                 getParent()
@@ -479,8 +439,10 @@ final class CaminoHeightProfileView extends View {
                         == TOUCH_CURSOR) {
 
                     cursorIndex =
-                            findNearestSample(
-                                    event.getY()
+                            model.findNearestSample(
+                                    samples,
+                                    event.getY(),
+                                    getHeight()
                             );
 
                     invalidate();
@@ -679,47 +641,6 @@ final class CaminoHeightProfileView extends View {
         );
     }
 
-    private int findNearestSample(
-            float touchY
-    ) {
-        int bestIndex =
-                -1;
-
-        float bestDistance =
-                Float.POSITIVE_INFINITY;
-
-        for (int index = 0;
-                index < samples.size();
-                index++) {
-
-            Sample sample =
-                    samples.get(
-                            index
-                    );
-
-            float sampleY =
-                    sample.screenYFraction
-                            * getHeight();
-
-            float distance =
-                    Math.abs(
-                            sampleY
-                                    - touchY
-                    );
-
-            if (distance
-                    < bestDistance) {
-
-                bestDistance =
-                        distance;
-
-                bestIndex =
-                        index;
-            }
-        }
-
-        return bestIndex;
-    }
 
     @Override
     protected void onDraw(
