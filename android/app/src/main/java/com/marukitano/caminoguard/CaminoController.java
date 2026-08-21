@@ -7,7 +7,6 @@ import android.text.format.DateFormat;
 import android.graphics.PointF;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -100,11 +99,6 @@ public final class CaminoController {
             CaminoConfig.get().longValue(
                     "measurement.heightProfileRefreshDelayMs"
             );
-    private static final int DRAG_NONE = 0;
-    private static final int DRAG_DUMMY = 1;
-    private static final int DRAG_POINT_1 = 2;
-    private static final int DRAG_POINT_2 = 3;
-
     private final Activity activity;
     private final MapView mapView;
     private final CaminoRepository caminoRepository;
@@ -116,6 +110,7 @@ public final class CaminoController {
     private final CaminoProjectionEngine projectionEngine;
     private final CaminoInfoPresenter infoPresenter;
     private final TravelStatsController travelStatsController;
+    private final CaminoDragController dragController;
 
     private MapLibreMap map;
 
@@ -160,8 +155,6 @@ public final class CaminoController {
     private ProjectionHit secondTapHit;
 
     private MeasurementPath currentMeasurementPath;
-
-    private int dragTarget = DRAG_NONE;
 
     public CaminoController(
             Activity activity,
@@ -213,6 +206,97 @@ public final class CaminoController {
                         () -> dummyPosition,
                         () -> currentMeasurementPath,
                         infoPresenter::setSpeedStats
+                );
+
+        this.dragController =
+                new CaminoDragController(
+                        activity,
+                        projectionEngine,
+                        new CaminoDragController.Host() {
+                            @Override
+                            public boolean isLivePositionMode() {
+                                return livePositionMode;
+                            }
+
+                            @Override
+                            public LatLng dummyPosition() {
+                                return dummyPosition;
+                            }
+
+                            @Override
+                            public void setDummyPosition(
+                                    LatLng position
+                            ) {
+                                dummyPosition =
+                                        position;
+                            }
+
+                            @Override
+                            public CaminoRoute selectedRoute() {
+                                return selectedRoute;
+                            }
+
+                            @Override
+                            public ProjectionHit selectedHit() {
+                                return selectedHit;
+                            }
+
+                            @Override
+                            public void setSelectedHit(
+                                    ProjectionHit hit
+                            ) {
+                                selectedHit =
+                                        hit;
+                            }
+
+                            @Override
+                            public CaminoRoute secondSelectedRoute() {
+                                return secondSelectedRoute;
+                            }
+
+                            @Override
+                            public ProjectionHit secondTapHit() {
+                                return secondTapHit;
+                            }
+
+                            @Override
+                            public void setSecondTapHit(
+                                    ProjectionHit hit
+                            ) {
+                                secondTapHit =
+                                        hit;
+                            }
+
+                            @Override
+                            public void refresh() {
+                                CaminoController.this.refresh();
+                            }
+
+                            @Override
+                            public void refreshDragPreview(
+                                    boolean draggingDummy
+                            ) {
+                                CaminoController.this.refreshDragPreview(
+                                        draggingDummy
+                                );
+                            }
+
+                            @Override
+                            public void noteTravelSample(
+                                    LatLng position
+                            ) {
+                                travelStatsController.noteSample(
+                                        position
+                                );
+                            }
+
+                            @Override
+                            public void followIfActive() {
+                                navigationController.followIfActive(
+                                        true
+                                );
+                            }
+                        }
                 );
 
         this.dummyPosition = initialPosition;
@@ -337,6 +421,9 @@ public final class CaminoController {
         navigationController.attachMap(
                 map
         );
+        dragController.attachMap(
+                map
+        );
 
         map.addOnMapClickListener(
                 this::handleMapTap
@@ -361,14 +448,16 @@ public final class CaminoController {
 
         mapView.setOnTouchListener(
                 (view, event) ->
-                        handleTouch(event)
+                        dragController.handleTouch(
+                                event
+                        )
         );
     }
 
     private boolean handleMapTap(
             LatLng point
     ) {
-        if (dragTarget != DRAG_NONE
+        if (dragController.isDragging()
                 || routes.isEmpty()) {
             return false;
         }
@@ -466,245 +555,6 @@ public final class CaminoController {
         return true;
     }
 
-    private boolean handleTouch(
-            MotionEvent event
-    ) {
-        if (map == null) {
-            return false;
-        }
-
-        switch (event.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
-                dragTarget =
-                        findDragTarget(
-                                event.getX(),
-                                event.getY()
-                        );
-
-                return dragTarget
-                        != DRAG_NONE;
-
-            case MotionEvent.ACTION_MOVE:
-                if (dragTarget
-                        == DRAG_NONE) {
-                    return false;
-                }
-
-                /*
-                 * CAMINO_DRAG_PERFORMANCE_V3
-                 *
-                 * Dragging must stay cheap. Move only the interactive marker
-                 * (and the start connector for the fake GPS position). The
-                 * complete network route / GeoJSON overlay is rebuilt once on
-                 * ACTION_UP instead of once for every touch event.
-                 */
-                moveDragTarget(
-                        event.getX(),
-                        event.getY(),
-                        true
-                );
-
-                return true;
-
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
-                if (dragTarget
-                        == DRAG_NONE) {
-                    return false;
-                }
-
-                moveDragTarget(
-                        event.getX(),
-                        event.getY(),
-                        false
-                );
-
-                dragTarget =
-                        DRAG_NONE;
-
-                return true;
-
-            default:
-                return dragTarget
-                        != DRAG_NONE;
-        }
-    }
-
-    private int findDragTarget(
-            float x,
-            float y
-    ) {
-        final float grabRadius =
-                dp(34);
-
-        final float maxDistanceSq =
-                grabRadius
-                        * grabRadius;
-
-        int bestTarget =
-                DRAG_NONE;
-
-        float bestDistanceSq =
-                Float.MAX_VALUE;
-
-        if (secondTapHit != null) {
-            float distanceSq =
-                    screenDistanceSq(
-                            x,
-                            y,
-                            secondTapHit.point
-                    );
-
-            if (distanceSq
-                    <= maxDistanceSq
-                    && distanceSq
-                    < bestDistanceSq) {
-                bestTarget =
-                        DRAG_POINT_2;
-
-                bestDistanceSq =
-                        distanceSq;
-            }
-        }
-
-        if (selectedHit != null) {
-            float distanceSq =
-                    screenDistanceSq(
-                            x,
-                            y,
-                            selectedHit.point
-                    );
-
-            if (distanceSq
-                    <= maxDistanceSq
-                    && distanceSq
-                    < bestDistanceSq) {
-                bestTarget =
-                        DRAG_POINT_1;
-
-                bestDistanceSq =
-                        distanceSq;
-            }
-        }
-
-        if (!livePositionMode) {
-            float dummyDistanceSq =
-                    screenDistanceSq(
-                            x,
-                            y,
-                            dummyPosition
-                    );
-
-            if (dummyDistanceSq
-                    <= maxDistanceSq
-                    && dummyDistanceSq
-                    < bestDistanceSq) {
-                bestTarget =
-                        DRAG_DUMMY;
-            }
-
-        }
-
-        return bestTarget;
-    }
-
-    private float screenDistanceSq(
-            float x,
-            float y,
-            LatLng point
-    ) {
-        PointF screen =
-                map.getProjection()
-                        .toScreenLocation(
-                                point
-                        );
-
-        float dx =
-                x - screen.x;
-
-        float dy =
-                y - screen.y;
-
-        return dx * dx
-                + dy * dy;
-    }
-
-    private void moveDragTarget(
-            float x,
-            float y,
-            boolean previewOnly
-    ) {
-        LatLng fingerPosition =
-                map.getProjection()
-                        .fromScreenLocation(
-                                new PointF(
-                                        x,
-                                        y
-                                )
-                        );
-
-        if (dragTarget
-                == DRAG_DUMMY) {
-            dummyPosition =
-                    fingerPosition;
-
-            if (previewOnly) {
-                refreshDragPreview();
-            } else {
-                refresh();
-
-                travelStatsController.noteSample(
-                        dummyPosition
-                );
-
-                navigationController.followIfActive(
-                        true
-                );
-            }
-            return;
-        }
-
-        CaminoRoute dragRoute =
-                dragTarget == DRAG_POINT_2
-                        ? secondSelectedRoute
-                        : selectedRoute;
-
-        if (dragRoute == null) {
-            return;
-        }
-
-        /*
-         * projectionEngine.projectToRoute() is now track-bounds pruned, so snapping a dragged
-         * measurement point no longer scans every segment of the whole Camino.
-         */
-        ProjectionHit snapped =
-                projectionEngine.projectToRoute(
-                        dragRoute,
-                        fingerPosition
-                );
-
-        if (snapped == null) {
-            return;
-        }
-
-        if (dragTarget
-                == DRAG_POINT_1) {
-            selectedHit =
-                    snapped;
-
-        } else if (dragTarget
-                == DRAG_POINT_2) {
-            secondTapHit =
-                    snapped;
-        }
-
-        if (previewOnly) {
-            refreshDragPreview();
-        } else {
-            refresh();
-        }
-    }
-
     /**
      * Cheap UI-only refresh used while a finger is moving.
      *
@@ -713,12 +563,13 @@ public final class CaminoController {
      * marker attached to the finger instead of blocking the Android UI thread
      * for seconds while serialising a country-scale GeoJSON overlay.
      */
-    private void refreshDragPreview() {
+    private void refreshDragPreview(
+            boolean draggingDummy
+    ) {
         updateDummySource();
         updateSelectedSource();
 
-        if (dragTarget
-                != DRAG_DUMMY
+        if (!draggingDummy
                 || secondTapHit != null) {
             return;
         }

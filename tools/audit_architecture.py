@@ -31,6 +31,7 @@ projection_path = JAVA / "CaminoProjectionEngine.java"
 info_presenter_path = JAVA / "CaminoInfoPresenter.java"
 map_coordinator_path = JAVA / "MapCoordinator.java"
 travel_stats_path = JAVA / "TravelStatsController.java"
+drag_path = JAVA / "CaminoDragController.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -45,6 +46,7 @@ check(projection_path.is_file(), "missing CaminoProjectionEngine.java")
 check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
 check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
 check(travel_stats_path.is_file(), "missing TravelStatsController.java")
+check(drag_path.is_file(), "missing CaminoDragController.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -297,6 +299,34 @@ if controller_path.is_file():
     check("TravelStatsController" in controller,
           "CaminoController is not wired to TravelStatsController")
 
+if drag_path.is_file():
+    drag = drag_path.read_text()
+    check("boolean handleTouch(" in drag,
+          "CaminoDragController does not own touch drag handling")
+    check("findDragTarget(" in drag,
+          "CaminoDragController does not own drag-target selection")
+    check("screenDistanceSq(" in drag,
+          "CaminoDragController does not own screen hit-distance")
+    check("projectionEngine.projectToRoute(" in drag,
+          "CaminoDragController does not own drag snapping")
+    check("CaminoTrackingService" not in drag,
+          "CaminoDragController incorrectly owns GPS tracking")
+    check("NavigationController" not in drag,
+          "CaminoDragController directly owns navigation controller")
+
+if controller_path.is_file():
+    controller = controller_path.read_text()
+    check("private boolean handleTouch(" not in controller,
+          "CaminoController still owns touch drag handling")
+    check("private int findDragTarget(" not in controller,
+          "CaminoController still owns drag-target selection")
+    check("private void moveDragTarget(" not in controller,
+          "CaminoController still owns drag movement")
+    check("dragTarget" not in controller,
+          "CaminoController still owns drag state")
+    check("CaminoDragController" in controller,
+          "CaminoController is not wired to CaminoDragController")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -321,6 +351,7 @@ print("  one Camino projection / nearest-hit engine")
 print("  one Camino info-panel presenter")
 print("  one MapLibre startup / style coordinator")
 print("  one travel statistics / village ETA controller")
+print("  one Camino drag interaction controller")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")
