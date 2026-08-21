@@ -38,7 +38,6 @@ public final class MainActivity extends Activity {
                         startupPosition
                 );
 
-        orientationController.setExternalNavigationManaged(true);
         caminoController.configureLivePositionMode(startupPosition);
         caminoController.setLiveNavigationController(orientationController);
 

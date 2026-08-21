@@ -11,8 +11,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.view.View;
-import android.widget.Button;
 
 import org.maplibre.android.camera.*;
 import org.maplibre.android.geometry.LatLng;
@@ -40,13 +38,10 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private static final String TRACK_SRC="camino-debug-gps-track";
     private static final String TRACK="camino-debug-gps-track-line";
     private final Activity activity;
-    private final Button recenterButton;
-    private final Button rotateButton;
     private MapLibreMap map;
     private GeoJsonSource posSource, trackSource;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
-    private boolean externalNavigationManaged;
     private boolean externalNavigationFollowEnabled;
     private boolean externalNavigationSuspended;
     private boolean externalNavigationReturnAnimating;
@@ -82,8 +77,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
     public GpsGyroOrientationController(Activity a){
         activity=a;
-        recenterButton=a.findViewById(R.id.map_recenter_button);
-        rotateButton=a.findViewById(R.id.map_rotate_button);
     }
     public void attachMap(MapLibreMap m){
         map=m;
@@ -132,19 +125,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         render(state!=null?state:CaminoTrackingService.snapshot());
     }
 
-    public void setExternalNavigationManaged(boolean managed){
-        externalNavigationManaged=managed;
-
-        if(managed){
-            recenterButton.setVisibility(View.GONE);
-            rotateButton.setVisibility(View.GONE);
-        }
-    }
-
     public void setExternalNavigationFollowEnabled(boolean enabled){
-        if(!externalNavigationManaged)
-            return;
-
         externalNavigationFollowEnabled=enabled;
         externalNavigationSuspended=false;
         externalNavigationReturnAnimating=false;
@@ -167,8 +148,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     }
 
     public void setExternalNavigationSuspended(boolean suspended){
-        if(!externalNavigationManaged
-                || !externalNavigationFollowEnabled)
+        if(!externalNavigationFollowEnabled)
             return;
 
         externalNavigationSuspended=suspended;
@@ -195,10 +175,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
     public void start(){
         if(started)return; started=true;
-        if(externalNavigationManaged){
-            recenterButton.setVisibility(View.GONE);
-            rotateButton.setVisibility(View.GONE);
-        }
         if(activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED){
             if(!asked){
                 asked=true;
@@ -365,8 +341,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
             updateArrow();
 
-            if(externalNavigationManaged
-                    && externalNavigationFollowEnabled
+            if(externalNavigationFollowEnabled
                     && !externalNavigationSuspended){
                 renderExternalCamera(
                         newest,
@@ -672,8 +647,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                                 pos.getLongitude(),
                                 pos.getLatitude())));
 
-        if(externalNavigationManaged
-                && externalNavigationFollowEnabled
+        if(externalNavigationFollowEnabled
                 && !externalNavigationSuspended){
             renderExternalCamera(
                     pos,
