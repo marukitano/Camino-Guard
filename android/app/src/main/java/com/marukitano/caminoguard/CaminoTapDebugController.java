@@ -61,7 +61,7 @@ public final class CaminoTapDebugController {
     // CAMINO_LIVE_POSITION_SOURCE_V14
 
     private static final String ROUTE_ASSET =
-            "camino/debug-all-primary-caminos.json";
+            "camino/camino-global.json";
 
     private static final String SELECTED_ROUTE_SOURCE =
             "camino-debug-selected-route-source";
@@ -190,7 +190,6 @@ public final class CaminoTapDebugController {
      *   true  -> accepted real GPS position from CaminoTrackingService
      */
     private boolean livePositionMode;
-    private String routeAsset = ROUTE_ASSET;
     private Float liveCourseDeg;
     private long lastLiveFixStamp = Long.MIN_VALUE;
     private boolean livePositionListenerRegistered;
@@ -220,19 +219,22 @@ public final class CaminoTapDebugController {
 
 
     public void configureLivePositionMode(
-            String routeAsset,
             LatLng initialPosition
     ) {
-        if (routeAsset == null
-                || routeAsset.trim().isEmpty()
-                || initialPosition == null) {
+        if (initialPosition == null) {
             throw new IllegalArgumentException(
-                    "Live-position debug mode requires route asset + initial position"
+                    "Live-position mode requires an initial position"
             );
         }
 
+        /*
+         * Live GPS changes ONLY the position source.
+         * It does NOT switch Camino datasets.
+         *
+         * Spain/Portugal and Schaffhausen are already inside ROUTE_ASSET and
+         * therefore run through this exact same controller instance/code path.
+         */
         this.livePositionMode = true;
-        this.routeAsset = routeAsset;
         this.dummyPosition = initialPosition;
         this.navigationFollowEnabled = true;
         this.navigationFollowSuspended = false;
@@ -1055,7 +1057,7 @@ public final class CaminoTapDebugController {
             throws Exception {
         JSONObject root =
                 new JSONObject(
-                        readAssetText(routeAsset)
+                        readAssetText(ROUTE_ASSET)
                 );
 
         JSONArray routesJson =

@@ -53,8 +53,6 @@ public final class MainActivity extends Activity {
             new LatLng(36.83838096, -2.46707205);
     private static final LatLng DEBUG_SCHAFFHAUSEN_POSITION =
             new LatLng(47.69811, 8.63268);
-    private static final String DEBUG_SCHAFFHAUSEN_CAMINO_ASSET =
-            "camino/debug-schaffhausen-camino.json";
     private static final String DEBUG_SCHAFFHAUSEN_TRACKS_ASSET_URL =
             "asset://camino/debug-schaffhausen-tracks.geojson";
     private static final String DEBUG_MAP_ASSET = "maps/debug-schaffhausen.pmtiles";
@@ -152,7 +150,6 @@ public final class MainActivity extends Activity {
             );
 
             caminoTapDebugController.configureLivePositionMode(
-                    DEBUG_SCHAFFHAUSEN_CAMINO_ASSET,
                     DEBUG_SCHAFFHAUSEN_POSITION
             );
 
@@ -369,8 +366,8 @@ if (DEBUG_CAMINO_TAP_ALMERIA) {
                     );
 
             /*
-             * Official ES/PT Camino GeoJSON stays loaded.
-             * Schaffhausen/Tux is a separate style source.
+             * Camino geometry is global. Spain/Portugal and Schaffhausen/Tux
+             * are already merged into the single camino-tracks source.
              */
 
 

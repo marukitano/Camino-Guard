@@ -14,7 +14,7 @@
     },
     "camino-tracks": {
       "type": "geojson",
-      "data": "asset://camino/tracks-global-debug.geojson"
+      "data": "asset://camino/tracks-global.geojson"
     },
     "terrain-dem": {
       "type": "raster-dem",
@@ -12623,7 +12623,10 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#3d332c",
+        "line-color": [
+          "get",
+          "casingColor"
+        ],
         "line-opacity": 0.7,
         "line-width": [
           "interpolate",
@@ -12655,7 +12658,7 @@
       "paint": {
         "line-color": [
           "get",
-          "color"
+          "routeColor"
         ],
         "line-opacity": 0.96,
         "line-width": [
