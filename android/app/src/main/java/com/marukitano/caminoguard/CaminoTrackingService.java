@@ -81,12 +81,6 @@ public final class CaminoTrackingService extends Service
         }
     }
 
-    private enum MotionState {
-        UNKNOWN,
-        MOVING,
-        STATIONARY
-    }
-
     private static final String CHANNEL = "camino_tracking";
     private static final int NOTIFICATION = 3601;
 
@@ -99,9 +93,6 @@ public final class CaminoTrackingService extends Service
      */
     private static final float COURSE_BASELINE_M = 10.0f;
 
-    private static final float STATIONARY_RMS_THRESHOLD = 1.50f;
-    private static final float MOVING_RMS_THRESHOLD = 1.80f;
-    private static final long MOTION_STATE_CONFIRM_MS = 1500L;
     private static final CopyOnWriteArrayList<Listener> LISTENERS =
             new CopyOnWriteArrayList<>();
 
@@ -131,12 +122,10 @@ public final class CaminoTrackingService extends Service
     private Float rawCameraYawDeg;
     private Float gyroReferenceYawDeg;
 
-    private MotionState motionState = MotionState.UNKNOWN;
+    private final MotionStateDetector motionStateDetector =
+            new MotionStateDetector();
 
     private long lastSensorPublishMs;
-    private float stationaryRmsSq;
-    private long stationaryCandidateSinceMs = -1L;
-    private long movingCandidateSinceMs = -1L;
 
     public static void addListener(Listener listener) {
         if (listener == null) {
@@ -328,7 +317,7 @@ public final class CaminoTrackingService extends Service
          * GPS speed/distance no longer participates in motion-state
          * classification.
          */
-        if (motionState != MotionState.MOVING) {
+        if (motionStateDetector.state() != MotionStateDetector.State.MOVING) {
             return;
         }
 
@@ -454,7 +443,7 @@ public final class CaminoTrackingService extends Service
 
         updateRawCameraYaw(event);
 
-        if (motionState == MotionState.STATIONARY) {
+        if (motionStateDetector.state() == MotionStateDetector.State.STATIONARY) {
             updateGyroAugmentedHeading();
 
             long now = SystemClock.elapsedRealtime();
@@ -475,78 +464,30 @@ public final class CaminoTrackingService extends Service
 
         float magnitudeSq = x * x + y * y + z * z;
 
-        /*
-         * Thresholds measured during real use on this phone:
-         *
-         *   RMS < 1.50  -> standing / only moving phone in hand
-         *   RMS > 1.80  -> walking
-         *
-         * The 1.50..1.80 gap is deliberate hysteresis.
-         * Both transitions require 1.5 seconds beyond the threshold.
-         */
-        final float alpha = 0.04f;
+        MotionStateDetector.State previous =
+                motionStateDetector.state();
 
-        stationaryRmsSq =
-                stationaryRmsSq == 0.0f
-                        ? magnitudeSq
-                        : (1.0f - alpha) * stationaryRmsSq
-                                + alpha * magnitudeSq;
+        MotionStateDetector.State current =
+                motionStateDetector.updateMagnitudeSquared(
+                        magnitudeSq,
+                        SystemClock.elapsedRealtime()
+                );
 
-        float rms =
-                (float) Math.sqrt(stationaryRmsSq);
-
-        long now =
-                SystemClock.elapsedRealtime();
-
-        if (rms < STATIONARY_RMS_THRESHOLD) {
-            movingCandidateSinceMs = -1L;
-
-            if (stationaryCandidateSinceMs < 0L) {
-                stationaryCandidateSinceMs = now;
-            }
-
-            if (motionState != MotionState.STATIONARY
-                    && now - stationaryCandidateSinceMs
-                            >= MOTION_STATE_CONFIRM_MS) {
-                enterStationary();
-            }
-
+        if (current == previous) {
             return;
         }
 
-        if (rms > MOVING_RMS_THRESHOLD) {
-            stationaryCandidateSinceMs = -1L;
-
-            if (movingCandidateSinceMs < 0L) {
-                movingCandidateSinceMs = now;
-            }
-
-            if (motionState != MotionState.MOVING
-                    && now - movingCandidateSinceMs
-                            >= MOTION_STATE_CONFIRM_MS) {
-                enterMoving();
-            }
-
+        if (current == MotionStateDetector.State.STATIONARY) {
+            enterStationary();
             return;
         }
 
-        /*
-         * Dead band 1.50..1.80:
-         * keep the current state, but require a fresh confirmation once a
-         * threshold is crossed again.
-         */
-        stationaryCandidateSinceMs = -1L;
-        movingCandidateSinceMs = -1L;
+        if (current == MotionStateDetector.State.MOVING) {
+            enterMoving();
+        }
     }
 
     private void enterMoving() {
-        if (motionState == MotionState.MOVING) {
-            return;
-        }
-
-        motionState = MotionState.MOVING;
-
-        stationaryCandidateSinceMs = -1L;
         courseHistory.clear();
 
         if (acceptedLocation != null) {
@@ -559,12 +500,6 @@ public final class CaminoTrackingService extends Service
     }
 
     private void enterStationary() {
-        if (motionState == MotionState.STATIONARY) {
-            return;
-        }
-
-        motionState = MotionState.STATIONARY;
-
         gyroReferenceYawDeg = rawCameraYawDeg;
 
         if (gpsCourseDeg != null) {
@@ -658,7 +593,8 @@ public final class CaminoTrackingService extends Service
                         track,
                         gpsCourseDeg,
                         phoneHeadingDeg,
-                        motionState == MotionState.STATIONARY
+                        motionStateDetector.state()
+                                == MotionStateDetector.State.STATIONARY
                 );
 
         latestSnapshot = snapshot;
