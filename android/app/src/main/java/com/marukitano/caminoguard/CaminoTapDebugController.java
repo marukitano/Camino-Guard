@@ -1176,6 +1176,30 @@ public final class CaminoTapDebugController {
 
                 if (points.size()
                         >= 2) {
+                    /*
+                     * ONE global Camino colour contract:
+                     *
+                     * A track may optionally carry its own colour. If it does
+                     * not, it inherits the Camino route colour exactly as
+                     * Spain/Portugal always did.
+                     *
+                     * This is not a Schaffhausen special case. Every Camino
+                     * track in the single global dataset uses this same loader.
+                     */
+                    String trackColor =
+                            normaliseColor(
+                                    trackJson.optString(
+                                            "color",
+                                            route.color
+                                    )
+                            );
+
+                    String trackHighlightColor =
+                            darkenColor(
+                                    trackColor,
+                                    0.48f
+                            );
+
                     route.tracks.add(
                             new RouteTrack(
                                     sectionId,
@@ -1184,8 +1208,8 @@ public final class CaminoTapDebugController {
                                     ),
                                     points,
                                     elevations,
-                                    route.color,
-                                    route.highlightColor,
+                                    trackColor,
+                                    trackHighlightColor,
                                     fromKey,
                                     toKey,
                                     pseudoFrom,
