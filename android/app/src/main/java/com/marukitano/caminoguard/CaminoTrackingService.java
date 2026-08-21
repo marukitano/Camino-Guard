@@ -410,42 +410,6 @@ public final class CaminoTrackingService extends Service
         publish();
     }
 
-    private void updateGpsMovementEvidence(
-            Location location
-    ) {
-        if (location.hasSpeed()) {
-            float speedMps = location.getSpeed();
-
-            if (speedMps >= GPS_MOVING_SPEED_MPS) {
-                consecutiveGpsMovingFixes++;
-                consecutiveGpsStationaryFixes = 0;
-            } else if (speedMps <= GPS_STATIONARY_SPEED_MPS) {
-                consecutiveGpsStationaryFixes++;
-                consecutiveGpsMovingFixes = 0;
-            } else {
-                consecutiveGpsMovingFixes = 0;
-                consecutiveGpsStationaryFixes = 0;
-            }
-
-            if (consecutiveGpsStationaryFixes
-                    >= GPS_STATIONARY_FIXES_REQUIRED) {
-                enterStationary();
-                return;
-            }
-
-            if (consecutiveGpsMovingFixes
-                    >= GPS_MOVING_FIXES_REQUIRED) {
-                enterMoving();
-                return;
-            }
-        }
-
-        if (motionState != MotionState.MOVING
-                && acceptedLocation.distanceTo(location)
-                        >= GPS_ESCAPE_DISTANCE_M) {
-            enterMoving();
-        }
-    }
 
     private void acceptMovingLocation(
             Location location
@@ -758,68 +722,7 @@ public final class CaminoTrackingService extends Service
                 );
     }
 
-    private void decayGyroOffsetTowardZero() {
-        if (gyroReferenceYawDeg == null
-                || rawCameraYawDeg == null) {
-            return;
-        }
 
-        float offset =
-                shortestAngleDegrees(
-                        gyroReferenceYawDeg,
-                        rawCameraYawDeg
-                );
-
-        float step =
-                (float) Math.min(
-                        Math.abs(offset),
-                        GYRO_DECAY_PER_FIX_DEG
-                );
-
-        if (offset < 0.0f) {
-            step = -step;
-        }
-
-        gyroReferenceYawDeg =
-                normalizeDegrees(
-                        gyroReferenceYawDeg + step
-                );
-
-        updateGyroAugmentedHeading();
-    }
-
-    private void updateStationaryArrow() {
-        if (rawCameraYawDeg == null) {
-            return;
-        }
-
-        if (stationaryRefYawDeg == null) {
-            stationaryRefYawDeg =
-                    rawCameraYawDeg;
-
-            if (gpsCourseDeg != null) {
-                stationaryRefHeadingDeg =
-                        gpsCourseDeg;
-            } else {
-                stationaryRefHeadingDeg =
-                        phoneHeadingDeg;
-            }
-        }
-
-        if (stationaryRefHeadingDeg
-                == null) {
-            return;
-        }
-
-        phoneHeadingDeg =
-                normalizeDegrees(
-                        stationaryRefHeadingDeg
-                                + shortestAngleDegrees(
-                                        stationaryRefYawDeg,
-                                        rawCameraYawDeg
-                                )
-                );
-    }
 
     private boolean isGoodGpsFix(
             Location location
