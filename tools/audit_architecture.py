@@ -38,6 +38,7 @@ info_chevron_path = JAVA / "CaminoChevronView.java"
 info_navigation_button_path = JAVA / "CaminoNavigationButton.java"
 height_profile_view_path = JAVA / "CaminoHeightProfileView.java"
 height_profile_model_path = JAVA / "CaminoHeightProfileModel.java"
+height_profile_controller_path = JAVA / "CaminoHeightProfileController.java"
 
 dead_code_audit_path = ROOT / "tools/audit_dead_code.py"
 check(dead_code_audit_path.is_file(), "missing dead-code audit tool")
@@ -62,6 +63,7 @@ check(info_chevron_path.is_file(), "missing CaminoChevronView.java")
 check(info_navigation_button_path.is_file(), "missing CaminoNavigationButton.java")
 check(height_profile_view_path.is_file(), "missing CaminoHeightProfileView.java")
 check(height_profile_model_path.is_file(), "missing CaminoHeightProfileModel.java")
+check(height_profile_controller_path.is_file(), "missing CaminoHeightProfileController.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -418,6 +420,32 @@ if height_profile_view_path.is_file():
     check("public boolean onTouchEvent(" in height_profile_view,
           "CaminoHeightProfileView no longer owns UI touch behavior")
 
+if height_profile_controller_path.is_file():
+    height_profile_controller = height_profile_controller_path.read_text()
+    check("CaminoHeightProfileView" in height_profile_controller,
+          "CaminoHeightProfileController does not own height-profile view lifecycle")
+    check("void scheduleRefresh()" in height_profile_controller,
+          "CaminoHeightProfileController does not own throttled refresh scheduling")
+    check("void handleCameraIdle()" in height_profile_controller,
+          "CaminoHeightProfileController does not own final camera-idle refresh")
+    check("void refresh()" in height_profile_controller,
+          "CaminoHeightProfileController does not own projected profile refresh")
+    check("new MeasurementEngine(" not in height_profile_controller,
+          "CaminoHeightProfileController incorrectly constructs measurement engine")
+    check("NavigationController" not in height_profile_controller,
+          "CaminoHeightProfileController incorrectly owns navigation policy")
+
+if controller_path.is_file():
+    controller = controller_path.read_text()
+    check("CaminoHeightProfileController" in controller,
+          "CaminoController is not wired to CaminoHeightProfileController")
+    check("private void refreshHeightProfile()" not in controller,
+          "CaminoController still owns height-profile refresh implementation")
+    check("private void ensureHeightProfileView()" not in controller,
+          "CaminoController still owns height-profile view lifecycle")
+    check("heightProfileRefreshScheduled" not in controller,
+          "CaminoController still owns height-profile scheduling state")
+
 overlay_dir = ASSETS / "map-overlays"
 style_path = ASSETS / "styles/camino-basic.json"
 
@@ -518,6 +546,7 @@ print("  one Camino drag interaction controller")
 print("  one Camino tap-selection controller")
 print("  separated Camino info-panel drawing controls")
 print("  separated Camino height-profile sample model")
+print("  one Camino height-profile projection / refresh controller")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  current Schaffhausen Munot round mask preserved")

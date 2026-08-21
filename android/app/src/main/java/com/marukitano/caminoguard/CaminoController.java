@@ -79,16 +79,6 @@ public final class CaminoController {
     private static final double EARTH_RADIUS_M =
             6371008.8;
 
-    /*
-     * CAMINO_HEIGHT_PROFILE_V1
-     *
-     * Height samples are retained much more sparsely than the raw CNIG survey
-     * geometry. The source geometry still drives route distance exactly.
-     */
-    private static final long HEIGHT_PROFILE_REFRESH_DELAY_MS =
-            CaminoConfig.get().longValue(
-                    "measurement.heightProfileRefreshDelayMs"
-            );
     private final Activity activity;
     private final MapView mapView;
     private final CaminoRepository caminoRepository;
@@ -99,6 +89,7 @@ public final class CaminoController {
     private final NavigationController navigationController;
     private final CaminoProjectionEngine projectionEngine;
     private final CaminoInfoPresenter infoPresenter;
+    private final CaminoHeightProfileController heightProfileController;
     private final TravelStatsController travelStatsController;
     private final CaminoDragController dragController;
     private final CaminoSelectionController selectionController;
@@ -113,17 +104,7 @@ public final class CaminoController {
     private GeoJsonSource routeGapSource;
 
     private TextView distanceView;
-    private CaminoHeightProfileView heightProfileView;
     private CaminoInfoPanel infoPanel;
-
-    private boolean heightProfileRefreshScheduled;
-
-    private final Runnable heightProfileRefreshRunnable =
-            () -> {
-                heightProfileRefreshScheduled =
-                        false;
-                refreshHeightProfile();
-            };
 
     private LatLng dummyPosition;
 
@@ -183,6 +164,14 @@ public final class CaminoController {
 
         this.infoPresenter =
                 new CaminoInfoPresenter();
+
+        this.heightProfileController =
+                new CaminoHeightProfileController(
+                        activity,
+                        mapView,
+                        infoPresenter,
+                        () -> currentMeasurementPath
+                );
 
         this.travelStatsController =
                 new TravelStatsController(
@@ -414,6 +403,9 @@ public final class CaminoController {
             MapLibreMap map
     ) {
         this.map = map;
+        heightProfileController.attachMap(
+                map
+        );
         navigationController.attachMap(
                 map
         );
@@ -434,11 +426,18 @@ public final class CaminoController {
          * one exact final refresh.
          */
         map.addOnCameraMoveListener(
-                this::scheduleHeightProfileRefresh
+                () -> {
+                    updateInfoCompass();
+                    heightProfileController.scheduleRefresh();
+                }
         );
 
         map.addOnCameraIdleListener(
-                this::handleHeightProfileCameraIdle
+                () -> {
+                    updateInfoCompass();
+                    heightProfileController.handleCameraIdle();
+                    navigationController.handleCameraIdle();
+                }
         );
 
         map.addOnCameraMoveStartedListener(
@@ -506,7 +505,7 @@ public final class CaminoController {
             Style style
     ) {
         ensureDistanceView();
-        ensureHeightProfileView();
+        heightProfileController.ensureView();
 
         selectedRouteSource =
                 new GeoJsonSource(
@@ -861,7 +860,7 @@ public final class CaminoController {
                 startRouteHit
         );
 
-        refreshHeightProfile();
+        heightProfileController.refresh();
     }
 
     private boolean isTapCloseEnough(
@@ -1333,277 +1332,6 @@ public final class CaminoController {
         );
     }
 
-
-    /*
-     * CAMINO_EDGE_PROJECTED_HEIGHT_PROFILE_V2
-     *
-     * Full-height narrow overlay glued to the right map edge. It has no
-     * independent chart Y-axis: route points keep their current screen-Y
-     * position; only elevation becomes horizontal displacement.
-     */
-    private void ensureHeightProfileView() {
-        if (heightProfileView != null) {
-            return;
-        }
-
-        heightProfileView =
-                new CaminoHeightProfileView(
-                        activity
-                );
-
-        heightProfileView.setVisibility(
-                android.view.View.GONE
-        );
-
-        ViewGroup parent =
-                (ViewGroup)
-                        mapView.getParent();
-
-        /*
-         * Full-screen transparent overlay: the profile still occupies only the
-         * rightmost 126 dp when drawn, but the cursor guide can now extend all
-         * the way back to the corresponding Camino point.
-         *
-         * onTouchEvent() returns false outside the profile strip, so normal map
-         * gestures keep working everywhere else.
-         */
-        FrameLayout.LayoutParams params =
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        Gravity.TOP
-                                | Gravity.START
-                );
-
-        parent.addView(
-                heightProfileView,
-                params
-        );
-
-        heightProfileView.setElevation(
-                dp(2)
-        );
-    }
-
-    private void scheduleHeightProfileRefresh() {
-        updateInfoCompass();
-
-        if (heightProfileRefreshScheduled) {
-            return;
-        }
-
-        heightProfileRefreshScheduled =
-                true;
-
-        mapView.postDelayed(
-                heightProfileRefreshRunnable,
-                HEIGHT_PROFILE_REFRESH_DELAY_MS
-        );
-    }
-
-    private void handleHeightProfileCameraIdle() {
-        updateInfoCompass();
-
-        mapView.removeCallbacks(
-                heightProfileRefreshRunnable
-        );
-
-        heightProfileRefreshScheduled =
-                false;
-
-        refreshHeightProfile();
-
-        navigationController.handleCameraIdle();
-    }
-
-    private void refreshHeightProfile() {
-        if (heightProfileView == null
-                || map == null
-                || currentMeasurementPath == null
-                || currentMeasurementPath.profilePoints.size()
-                < 2
-                || mapView.getWidth() <= 0
-                || mapView.getHeight() <= 0) {
-
-            if (heightProfileView != null) {
-                heightProfileView.clearProfile();
-            }
-
-            infoPresenter.setHeightStats(
-                    ""
-            );
-
-            return;
-        }
-
-        float width =
-                mapView.getWidth();
-
-        float height =
-                mapView.getHeight();
-
-        List<CaminoHeightProfileView.Sample> visible =
-                new ArrayList<>();
-
-        int previousVisibleIndex =
-                -2;
-
-        double previousElevation =
-                Double.NaN;
-
-        double minElevation =
-                Double.POSITIVE_INFINITY;
-
-        double maxElevation =
-                Double.NEGATIVE_INFINITY;
-
-        double netElevationChange =
-                0.0;
-
-        double accumulatedAscent =
-                0.0;
-
-        double accumulatedDescent =
-                0.0;
-
-        for (int index = 0;
-                index
-                        < currentMeasurementPath.profilePoints.size();
-                index++) {
-
-            ProfilePoint point =
-                    currentMeasurementPath.profilePoints.get(
-                            index
-                    );
-
-            if (!Double.isFinite(
-                    point.elevationM
-            )) {
-                continue;
-            }
-
-            PointF screen =
-                    map.getProjection()
-                            .toScreenLocation(
-                                    point.point
-                            );
-
-            if (!Float.isFinite(
-                    screen.x
-            ) || !Float.isFinite(
-                    screen.y
-            ) || screen.x < 0.0f
-                    || screen.x > width
-                    || screen.y < 0.0f
-                    || screen.y > height) {
-
-                continue;
-            }
-
-            boolean breakBefore =
-                    point.breakBefore
-                            || previousVisibleIndex
-                            != index - 1;
-
-            visible.add(
-                    new CaminoHeightProfileView.Sample(
-                            screen.x / width,
-                            screen.y / height,
-                            point.elevationM,
-                            breakBefore
-                    )
-            );
-
-            minElevation =
-                    Math.min(
-                            minElevation,
-                            point.elevationM
-                    );
-
-            maxElevation =
-                    Math.max(
-                            maxElevation,
-                            point.elevationM
-                    );
-
-            if (!breakBefore
-                    && Double.isFinite(
-                    previousElevation
-            )) {
-
-                double delta =
-                        point.elevationM
-                                - previousElevation;
-
-                netElevationChange +=
-                        delta;
-
-                if (delta
-                        > 0.0) {
-
-                    accumulatedAscent +=
-                            delta;
-
-                } else if (delta
-                        < 0.0) {
-
-                    accumulatedDescent +=
-                            -delta;
-                }
-            }
-
-            previousElevation =
-                    point.elevationM;
-
-            previousVisibleIndex =
-                    index;
-        }
-
-        if (visible.size()
-                < 2
-                || !Double.isFinite(
-                minElevation
-        )
-                || !Double.isFinite(
-                maxElevation
-        )) {
-
-            heightProfileView.clearProfile();
-
-            infoPresenter.setHeightStats(
-                    ""
-            );
-
-            return;
-        }
-
-        heightProfileView.setSamples(
-                visible
-        );
-
-        /*
-         * CAMINO_PROFILE_LABELS_STATS_V4
-         *
-         * One metric per line keeps the bottom information panel readable.
-         * Sigma-down is a positive magnitude: total descended vertical metres
-         * over the currently visible route fragments.
-         */
-        infoPresenter.setHeightStats(
-                String.format(
-                        Locale.GERMANY,
-                        "Altₘᵢₙ   %.0f m\n"
-                                + "Altₘₐₓ   %.0f m\n"
-                                + "AltΔ     %+.0f m\n"
-                                + "AltΣ↑    %.0f m\n"
-                                + "AltΣ↓    %.0f m",
-                        minElevation,
-                        maxElevation,
-                        netElevationChange,
-                        accumulatedAscent,
-                        accumulatedDescent
-                )
-        );
-    }
 
     private void ensureDistanceView() {
         if (distanceView != null) {
