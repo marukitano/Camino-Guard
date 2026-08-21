@@ -26,6 +26,7 @@ network_path = JAVA / "CaminoNetwork.java"
 measurement_path = JAVA / "MeasurementEngine.java"
 offline_map_path = JAVA / "OfflineMapRepository.java"
 map_style_path = JAVA / "MapStyleProvider.java"
+navigation_path = JAVA / "NavigationController.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -35,6 +36,7 @@ check(network_path.is_file(), "missing CaminoNetwork.java")
 check(measurement_path.is_file(), "missing MeasurementEngine.java")
 check(offline_map_path.is_file(), "missing OfflineMapRepository.java")
 check(map_style_path.is_file(), "missing MapStyleProvider.java")
+check(navigation_path.is_file(), "missing NavigationController.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -162,6 +164,32 @@ if main_activity_path.is_file():
     check("MapStyleProvider" in main_activity,
           "MainActivity is not wired to MapStyleProvider")
 
+if navigation_path.is_file():
+    navigation = navigation_path.read_text()
+    check("void toggleFollow()" in navigation,
+          "NavigationController does not own follow state")
+    check("void handleCameraMoveStarted(" in navigation,
+          "NavigationController does not own gesture suspension")
+    check("void handleCameraIdle()" in navigation,
+          "NavigationController does not own delayed resume")
+    check("CameraUpdateFactory.newCameraPosition(" in navigation,
+          "NavigationController does not own camera follow mechanics")
+    check("GpsGyroOrientationController" in navigation,
+          "NavigationController is not wired to external GPS orientation controller")
+
+if controller_path.is_file():
+    controller = controller_path.read_text()
+    check("navigationFollowEnabled" not in controller,
+          "CaminoController still owns navigation follow state")
+    check("private void applyNavigationFollow(" not in controller,
+          "CaminoController still owns navigation camera mechanics")
+    check("private void handleNavigationCameraMoveStarted(" not in controller,
+          "CaminoController still owns navigation gesture suspension")
+    check("NavigationController" in controller,
+          "CaminoController is not wired to NavigationController")
+    check("private double navigationBearingAtPosition()" in controller,
+          "route-aware navigation bearing left CaminoController unexpectedly")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -181,6 +209,7 @@ print("  one Camino graph / shortest-path engine")
 print("  one measurement / height-profile engine")
 print("  one offline-map repository")
 print("  one runtime map-style provider")
+print("  one navigation follow / camera controller")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")

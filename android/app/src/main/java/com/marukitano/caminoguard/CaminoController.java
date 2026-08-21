@@ -14,8 +14,6 @@ import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.maplibre.android.camera.CameraPosition;
-import org.maplibre.android.camera.CameraUpdateFactory;
 import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
@@ -89,7 +87,8 @@ public final class CaminoController {
                     "measurement.maxSemanticTransferGapMeters"
             );
 
-    private static final double EARTH_RADIUS_M = 6371008.8;
+    private static final double EARTH_RADIUS_M =
+            6371008.8;
 
     /*
      * CAMINO_HEIGHT_PROFILE_V1
@@ -110,18 +109,6 @@ public final class CaminoController {
                     "measurement.speedSampleMaxJumpMeters"
             );
 
-    private static final long NAVIGATION_RECENTER_DELAY_MS =
-            CaminoConfig.get().longValue(
-                    "navigation.recenterDelayMs"
-            );
-    private static final double NAVIGATION_VERTICAL_WINDOW_M =
-            CaminoConfig.get().doubleValue(
-                    "navigation.verticalWindowMeters"
-            );
-    private static final double NAVIGATION_CAMERA_LEAD_M =
-            CaminoConfig.get().doubleValue(
-                    "navigation.cameraLeadMeters"
-            );
 
     private static final int DRAG_NONE = 0;
     private static final int DRAG_DUMMY = 1;
@@ -135,6 +122,7 @@ public final class CaminoController {
             new ArrayList<>();
     private final CaminoNetwork caminoNetwork;
     private final MeasurementEngine measurementEngine;
+    private final NavigationController navigationController;
     /*
      * Transitional read-only alias used by Measurement code.
      * CaminoNetwork owns and rebuilds this list.
@@ -153,11 +141,6 @@ public final class CaminoController {
     private TextView distanceView;
     private CaminoHeightProfileView heightProfileView;
     private CaminoInfoPanel infoPanel;
-
-    private boolean navigationFollowEnabled;
-    private boolean navigationFollowSuspended;
-    private int navigationResumeGeneration;
-
 
     private String infoTitleText = "";
     private String summaryLeftText = "";
@@ -190,7 +173,6 @@ public final class CaminoController {
     private Float liveCourseDeg;
     private long lastLiveFixStamp = Long.MIN_VALUE;
     private boolean livePositionListenerRegistered;
-    private GpsGyroOrientationController liveNavigationController;
 
     private final CaminoTrackingService.Listener livePositionListener =
             this::handleLiveTrackingState;
@@ -224,6 +206,20 @@ public final class CaminoController {
                         caminoNetwork
                 );
 
+        this.navigationController =
+                new NavigationController(
+                        mapView,
+                        () -> dummyPosition,
+                        this::navigationBearingAtPosition,
+                        enabled -> {
+                            if (infoPanel != null) {
+                                infoPanel.setNavigationFollowEnabled(
+                                        enabled
+                                );
+                            }
+                        }
+                );
+
         this.networkTracks =
                 caminoNetwork.tracks();
 
@@ -249,8 +245,9 @@ public final class CaminoController {
          */
         this.livePositionMode = true;
         this.dummyPosition = initialPosition;
-        this.navigationFollowEnabled = true;
-        this.navigationFollowSuspended = false;
+        navigationController.configureLiveMode(
+                true
+        );
     }
 
     public void startLivePosition() {
@@ -264,12 +261,7 @@ public final class CaminoController {
                 livePositionListener
         );
 
-        if (liveNavigationController != null) {
-            liveNavigationController
-                    .setExternalNavigationFollowEnabled(
-                            navigationFollowEnabled
-                    );
-        }
+        navigationController.syncExternalFollow();
     }
 
     public void stopLivePosition() {
@@ -341,22 +333,18 @@ public final class CaminoController {
     public void setLiveNavigationController(
             GpsGyroOrientationController controller
     ) {
-        liveNavigationController =
-                controller;
-
-        if (livePositionMode
-                && liveNavigationController != null) {
-            liveNavigationController
-                    .setExternalNavigationFollowEnabled(
-                            navigationFollowEnabled
-                    );
-        }
+        navigationController.setExternalController(
+                controller
+        );
     }
 
     public void attachMap(
             MapLibreMap map
     ) {
         this.map = map;
+        navigationController.attachMap(
+                map
+        );
 
         map.addOnMapClickListener(
                 this::handleMapTap
@@ -376,7 +364,7 @@ public final class CaminoController {
         );
 
         map.addOnCameraMoveStartedListener(
-                this::handleNavigationCameraMoveStarted
+                navigationController::handleCameraMoveStarted
         );
 
         mapView.setOnTouchListener(
@@ -677,12 +665,9 @@ public final class CaminoController {
                         dummyPosition
                 );
 
-                if (navigationFollowEnabled
-                        && !navigationFollowSuspended) {
-                    applyNavigationFollow(
-                            true
-                    );
-                }
+                navigationController.followIfActive(
+                        true
+                );
             }
             return;
         }
@@ -2060,42 +2045,7 @@ public final class CaminoController {
 
         refreshHeightProfile();
 
-        if (!livePositionMode
-                || !navigationFollowEnabled
-                || !navigationFollowSuspended
-                || liveNavigationController == null) {
-
-            return;
-        }
-
-        /*
-         * Gesture is finished. Only NOW start the 20-second no-input timer.
-         */
-        final int generation =
-                ++navigationResumeGeneration;
-
-        mapView.postDelayed(
-                () -> {
-                    if (!livePositionMode
-                            || !navigationFollowEnabled
-                            || !navigationFollowSuspended
-                            || generation
-                            != navigationResumeGeneration
-                            || liveNavigationController == null) {
-
-                        return;
-                    }
-
-                    navigationFollowSuspended =
-                            false;
-
-                    liveNavigationController
-                            .setExternalNavigationSuspended(
-                                    false
-                            );
-                },
-                NAVIGATION_RECENTER_DELAY_MS
-        );
+        navigationController.handleCameraIdle();
     }
 
     private void refreshHeightProfile() {
@@ -2301,11 +2251,11 @@ public final class CaminoController {
                 infoPanel.getTextView();
 
         infoPanel.setNavigationAction(
-                this::toggleNavigationFollow
+                navigationController::toggleFollow
         );
 
         infoPanel.setNavigationFollowEnabled(
-                navigationFollowEnabled
+                navigationController.isFollowEnabled()
         );
 
         if (map != null) {
@@ -2355,213 +2305,9 @@ public final class CaminoController {
         updateDistancePanelText();
     }
 
-    private void toggleNavigationFollow() {
-        navigationResumeGeneration++;
 
-        navigationFollowEnabled =
-                !navigationFollowEnabled;
 
-        navigationFollowSuspended =
-                false;
 
-        if (infoPanel != null) {
-            infoPanel.setNavigationFollowEnabled(
-                    navigationFollowEnabled
-            );
-        }
-
-        if (livePositionMode
-                && liveNavigationController != null) {
-
-            liveNavigationController
-                    .setExternalNavigationFollowEnabled(
-                            navigationFollowEnabled
-                    );
-
-            return;
-        }
-
-        if (navigationFollowEnabled) {
-            applyNavigationFollow(
-                    true
-            );
-        }
-    }
-
-    private void handleNavigationCameraMoveStarted(
-            int reason
-    ) {
-        if (!navigationFollowEnabled
-                || reason
-                != MapLibreMap.OnCameraMoveStartedListener
-                .REASON_API_GESTURE) {
-
-            return;
-        }
-
-        navigationFollowSuspended =
-                true;
-
-        /*
-         * Kill any older pending resume as soon as a new user gesture begins.
-         */
-        navigationResumeGeneration++;
-
-        if (livePositionMode
-                && liveNavigationController != null) {
-
-            /*
-             * From this instant the GPS controller is forbidden to touch the
-             * camera. Pan/zoom/rotate is pure MapLibre manual interaction.
-             */
-            liveNavigationController
-                    .setExternalNavigationSuspended(
-                            true
-                    );
-
-            /*
-             * No timer here. The 20 seconds begin only after CameraIdle,
-             * i.e. after the user has actually stopped interacting.
-             */
-            return;
-        }
-
-        /*
-         * Preserve historical planning/debug behavior outside live GPS mode.
-         */
-        final int generation =
-                navigationResumeGeneration;
-
-        mapView.postDelayed(
-                () -> {
-                    if (!navigationFollowEnabled
-                            || generation
-                            != navigationResumeGeneration) {
-
-                        return;
-                    }
-
-                    navigationFollowSuspended =
-                            false;
-
-                    applyNavigationFollow(
-                            true
-                    );
-                },
-                NAVIGATION_RECENTER_DELAY_MS
-        );
-    }
-
-    private void applyNavigationFollow(
-            boolean animated
-    ) {
-        if (map == null
-                || dummyPosition == null
-                || mapView.getHeight() <= 0) {
-
-            return;
-        }
-
-        double bearing =
-                navigationBearingAtPosition();
-
-        /*
-         * 1.0 km ahead + 0.5 km behind = 1.5 km vertical ground window.
-         * A camera centre 250 m ahead of the user places the user at roughly
-         * two thirds of the screen height:
-         *
-         *   top ----- 1000 m ----- user ----- 500 m ----- bottom
-         */
-        LatLng cameraTarget =
-                navigationDestination(
-                        dummyPosition,
-                        bearing,
-                        NAVIGATION_CAMERA_LEAD_M
-                );
-
-        double zoom =
-                navigationZoomForVerticalMeters(
-                        dummyPosition.getLatitude(),
-                        NAVIGATION_VERTICAL_WINDOW_M
-                );
-
-        CameraPosition position =
-                new CameraPosition.Builder(
-                        map.getCameraPosition()
-                )
-                        .target(
-                                cameraTarget
-                        )
-                        .zoom(
-                                zoom
-                        )
-                        .bearing(
-                                bearing
-                        )
-                        .tilt(
-                                0.0
-                        )
-                        .build();
-
-        if (animated) {
-            map.easeCamera(
-                    CameraUpdateFactory.newCameraPosition(
-                            position
-                    ),
-                    550
-            );
-
-        } else {
-            map.setCameraPosition(
-                    position
-            );
-        }
-    }
-
-    private double navigationZoomForVerticalMeters(
-            double latitude,
-            double verticalMeters
-    ) {
-        double currentZoom =
-                map.getCameraPosition()
-                        .zoom;
-
-        double currentMetersPerPixel =
-                map.getProjection()
-                        .getMetersPerPixelAtLatitude(
-                                latitude
-                        );
-
-        double desiredMetersPerPixel =
-                verticalMeters
-                        / Math.max(
-                        1.0,
-                        mapView.getHeight()
-                );
-
-        if (!Double.isFinite(
-                currentMetersPerPixel
-        )
-                || currentMetersPerPixel <= 0.0
-                || !Double.isFinite(
-                desiredMetersPerPixel
-        )
-                || desiredMetersPerPixel <= 0.0) {
-
-            return currentZoom;
-        }
-
-        double zoomDelta =
-                Math.log(
-                        currentMetersPerPixel
-                                / desiredMetersPerPixel
-                ) / Math.log(
-                        2.0
-                );
-
-        return currentZoom
-                + zoomDelta;
-    }
 
     private double navigationBearingAtPosition() {
         if (livePositionMode
@@ -2682,75 +2428,6 @@ public final class CaminoController {
                 : bearing;
     }
 
-    private static LatLng navigationDestination(
-            LatLng from,
-            double bearingDegrees,
-            double meters
-    ) {
-        double angularDistance =
-                meters
-                        / EARTH_RADIUS_M;
-
-        double bearing =
-                Math.toRadians(
-                        bearingDegrees
-                );
-
-        double lat1 =
-                Math.toRadians(
-                        from.getLatitude()
-                );
-
-        double lon1 =
-                Math.toRadians(
-                        from.getLongitude()
-                );
-
-        double lat2 =
-                Math.asin(
-                        Math.sin(
-                                lat1
-                        ) * Math.cos(
-                                angularDistance
-                        )
-                                + Math.cos(
-                                lat1
-                        ) * Math.sin(
-                                angularDistance
-                        ) * Math.cos(
-                                bearing
-                        )
-                );
-
-        double lon2 =
-                lon1
-                        + Math.atan2(
-                        Math.sin(
-                                bearing
-                        ) * Math.sin(
-                                angularDistance
-                        ) * Math.cos(
-                                lat1
-                        ),
-                        Math.cos(
-                                angularDistance
-                        )
-                                - Math.sin(
-                                lat1
-                        ) * Math.sin(
-                                lat2
-                        )
-                );
-
-        return new LatLng(
-                Math.toDegrees(
-                        lat2
-                ),
-                Math.toDegrees(
-                        lon2
-                )
-        );
-    }
 
     private void noteTravelSample(
             LatLng position
