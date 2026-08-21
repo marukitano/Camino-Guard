@@ -30,6 +30,7 @@ navigation_path = JAVA / "NavigationController.java"
 projection_path = JAVA / "CaminoProjectionEngine.java"
 info_presenter_path = JAVA / "CaminoInfoPresenter.java"
 map_coordinator_path = JAVA / "MapCoordinator.java"
+travel_stats_path = JAVA / "TravelStatsController.java"
 
 check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
@@ -43,6 +44,7 @@ check(navigation_path.is_file(), "missing NavigationController.java")
 check(projection_path.is_file(), "missing CaminoProjectionEngine.java")
 check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
 check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
+check(travel_stats_path.is_file(), "missing TravelStatsController.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -265,6 +267,36 @@ if main_path.is_file():
     check("CaminoMapRenderer" not in main,
           "MainActivity still owns Camino renderer")
 
+if travel_stats_path.is_file():
+    travel_stats = travel_stats_path.read_text()
+    check("void noteSample(" in travel_stats,
+          "TravelStatsController does not own travel sampling")
+    check("buildSpeedStatsText()" in travel_stats,
+          "TravelStatsController does not own speed/ETA formatting")
+    check("nextVillageMetrics()" in travel_stats,
+          "TravelStatsController does not own next-village metrics")
+    check("positiveAscentFromHitToTrackEnd(" in travel_stats,
+          "TravelStatsController does not own village ascent calculation")
+    check("CaminoTrackingService" not in travel_stats,
+          "TravelStatsController incorrectly owns GPS tracking")
+    check("MapLibreMap" not in travel_stats,
+          "TravelStatsController incorrectly owns map state")
+
+if controller_path.is_file():
+    controller = controller_path.read_text()
+    check("travelSessionStartElapsedMs" not in controller,
+          "CaminoController still owns travel session timing")
+    check("travelMovingElapsedMs" not in controller,
+          "CaminoController still owns moving-time statistics")
+    check("private void noteTravelSample(" not in controller,
+          "CaminoController still owns travel sampling")
+    check("private String buildSpeedStatsText()" not in controller,
+          "CaminoController still owns travel stats formatting")
+    check("private double[] nextVillageMetrics()" not in controller,
+          "CaminoController still owns next-village metrics")
+    check("TravelStatsController" in controller,
+          "CaminoController is not wired to TravelStatsController")
+
 if canonical.is_file():
     root = json.loads(canonical.read_text())
     check(isinstance(root.get("routes"), list) and root["routes"],
@@ -288,6 +320,7 @@ print("  one navigation follow / camera controller")
 print("  one Camino projection / nearest-hit engine")
 print("  one Camino info-panel presenter")
 print("  one MapLibre startup / style coordinator")
+print("  one travel statistics / village ETA controller")
 print("  one runtime Camino map renderer")
 print("  one immutable config file")
 print("  no regional Camino behavior switch")
