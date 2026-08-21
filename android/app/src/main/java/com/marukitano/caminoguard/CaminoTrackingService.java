@@ -160,12 +160,6 @@ public final class CaminoTrackingService extends Service
 
     private MotionState motionState = MotionState.UNKNOWN;
 
-    private long motionObservationStartedMs;
-    private long motionBurstStartedMs = -1L;
-
-    private int consecutiveGpsMovingFixes;
-    private int consecutiveGpsStationaryFixes;
-
     private long lastSensorPublishMs;
     private float stationaryRmsSq;
     private long stationaryCandidateSinceMs = -1L;
@@ -212,9 +206,6 @@ public final class CaminoTrackingService extends Service
     @Override
     public void onCreate() {
         super.onCreate();
-
-        motionObservationStartedMs =
-                SystemClock.elapsedRealtime();
 
         createNotificationChannel();
 
@@ -583,9 +574,6 @@ public final class CaminoTrackingService extends Service
         motionState = MotionState.MOVING;
 
         stationaryCandidateSinceMs = -1L;
-        consecutiveGpsMovingFixes = 0;
-        consecutiveGpsStationaryFixes = 0;
-
         courseHistory.clear();
 
         if (acceptedLocation != null) {
@@ -603,10 +591,6 @@ public final class CaminoTrackingService extends Service
         }
 
         motionState = MotionState.STATIONARY;
-
-        consecutiveGpsMovingFixes = 0;
-        consecutiveGpsStationaryFixes = 0;
-        motionBurstStartedMs = -1L;
 
         gyroReferenceYawDeg = rawCameraYawDeg;
 
