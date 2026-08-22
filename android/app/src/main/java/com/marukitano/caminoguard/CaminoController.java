@@ -1,7 +1,6 @@
 package com.marukitano.caminoguard;
 
 import android.app.Activity;
-import android.graphics.Color;
 import android.os.SystemClock;
 import android.text.format.DateFormat;
 import android.graphics.PointF;
@@ -13,16 +12,8 @@ import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
 import org.maplibre.android.maps.Style;
-import org.maplibre.android.style.layers.CircleLayer;
-import org.maplibre.android.style.layers.LineLayer;
-import org.maplibre.android.style.layers.Property;
-import org.maplibre.android.style.layers.PropertyFactory;
-import org.maplibre.android.style.expressions.Expression;
-import org.maplibre.android.style.sources.GeoJsonSource;
 import org.maplibre.geojson.Feature;
 import org.maplibre.geojson.FeatureCollection;
-import org.maplibre.geojson.LineString;
-import org.maplibre.geojson.Point;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -39,38 +30,6 @@ import java.util.List;
  */
 public final class CaminoController {
 
-    private static final String SELECTED_ROUTE_SOURCE =
-            "camino-selected-route-source";
-    private static final String SELECTED_ROUTE_LAYER =
-            "camino-selected-route";
-    private static final String SELECTED_ROUTE_HALO_LAYER =
-            "camino-selected-route-halo";
-
-    private static final String CONNECTOR_SOURCE =
-            "camino-start-connector-source";
-    private static final String CONNECTOR_LAYER =
-            "camino-start-connector";
-
-    private static final String DUMMY_SOURCE =
-            "camino-dummy-position-source";
-    private static final String DUMMY_LAYER =
-            "camino-dummy-position";
-
-    private static final String START_SNAP_SOURCE =
-            "camino-start-snap-source";
-    private static final String START_SNAP_LAYER =
-            "camino-start-snap";
-
-    private static final String SELECTED_SOURCE =
-            "camino-selected-position-source";
-    private static final String SELECTED_LAYER =
-            "camino-selected-position";
-
-    private static final String ROUTE_GAP_SOURCE =
-            "camino-route-gap-source";
-    private static final String ROUTE_GAP_LAYER =
-            "camino-route-gap";
-
     private static final double EARTH_RADIUS_M =
             6371008.8;
 
@@ -85,19 +44,13 @@ public final class CaminoController {
     private final CaminoProjectionEngine projectionEngine;
     private final CaminoInfoPresenter infoPresenter;
     private final CaminoInfoController infoController;
+    private final CaminoInteractionRenderer interactionRenderer;
     private final CaminoHeightProfileController heightProfileController;
     private final TravelStatsController travelStatsController;
     private final CaminoDragController dragController;
     private final CaminoSelectionController selectionController;
 
     private MapLibreMap map;
-
-    private GeoJsonSource selectedRouteSource;
-    private GeoJsonSource connectorSource;
-    private GeoJsonSource dummySource;
-    private GeoJsonSource startSnapSource;
-    private GeoJsonSource selectedSource;
-    private GeoJsonSource routeGapSource;
 
     private LatLng dummyPosition;
 
@@ -145,6 +98,9 @@ public final class CaminoController {
                         mapView,
                         infoPresenter
                 );
+
+        this.interactionRenderer =
+                new CaminoInteractionRenderer();
 
         this.navigationController =
                 new NavigationController(
@@ -469,8 +425,13 @@ public final class CaminoController {
     private void refreshDragPreview(
             boolean draggingDummy
     ) {
-        updateDummySource();
-        updateSelectedSource();
+        interactionRenderer.updateDummyPosition(
+                dummyPosition
+        );
+        interactionRenderer.updateSelectedPositions(
+                selectionController.selectedHit(),
+                selectionController.secondTapHit()
+        );
 
         if (!draggingDummy
                 || selectionController.secondTapHit() != null) {
@@ -487,11 +448,12 @@ public final class CaminoController {
                         ? null
                         : startRouteHit.hit;
 
-        updateStartProjection(
+        interactionRenderer.updateStartProjection(
                 startHit
         );
 
-        updateConnector(
+        interactionRenderer.updateConnector(
+                dummyPosition,
                 startRouteHit
         );
 
@@ -515,277 +477,10 @@ public final class CaminoController {
         infoController.ensureView();
         heightProfileController.ensureView();
 
-        selectedRouteSource =
-                new GeoJsonSource(
-                        SELECTED_ROUTE_SOURCE,
-                        emptyFeatures()
-                );
-
-        style.addSource(
-                selectedRouteSource
-        );
-
-        LineLayer selectedRouteHaloLayer =
-                new LineLayer(
-                        SELECTED_ROUTE_HALO_LAYER,
-                        SELECTED_ROUTE_SOURCE
-                );
-
-        selectedRouteHaloLayer.setProperties(
-                PropertyFactory.lineColor(
-                        Expression.get(
-                                "highlight_color"
-                        )
-                ),
-                PropertyFactory.lineWidth(
-                        CaminoConfig.get().floatValue(
-                                "routes.selection.haloWidth"
-                        )
-                ),
-                PropertyFactory.lineOpacity(
-                        0.96f
-                ),
-                PropertyFactory.lineCap(
-                        Property.LINE_CAP_ROUND
-                ),
-                PropertyFactory.lineJoin(
-                        Property.LINE_JOIN_ROUND
-                )
-        );
-
-        style.addLayer(
-                selectedRouteHaloLayer
-        );
-
-        LineLayer selectedRouteLayer =
-                new LineLayer(
-                        SELECTED_ROUTE_LAYER,
-                        SELECTED_ROUTE_SOURCE
-                );
-
-        selectedRouteLayer.setProperties(
-                PropertyFactory.lineColor(
-                        Expression.get(
-                                "color"
-                        )
-                ),
-                PropertyFactory.lineWidth(
-                        CaminoConfig.get().floatValue(
-                                "routes.selection.lineWidth"
-                        )
-                ),
-                PropertyFactory.lineOpacity(
-                        1.0f
-                ),
-                PropertyFactory.lineCap(
-                        Property.LINE_CAP_ROUND
-                ),
-                PropertyFactory.lineJoin(
-                        Property.LINE_JOIN_ROUND
-                )
-        );
-
-        style.addLayer(
-                selectedRouteLayer
-        );
-
-        connectorSource =
-                new GeoJsonSource(
-                        CONNECTOR_SOURCE,
-                        emptyFeatures()
-                );
-
-        style.addSource(
-                connectorSource
-        );
-
-        LineLayer connector =
-                new LineLayer(
-                        CONNECTOR_LAYER,
-                        CONNECTOR_SOURCE
-                );
-
-        connector.setProperties(
-                PropertyFactory.lineColor(
-                        Expression.get(
-                                "highlight_color"
-                        )
-                ),
-                PropertyFactory.lineWidth(
-                        2.5f
-                ),
-                PropertyFactory.lineOpacity(
-                        0.90f
-                ),
-                PropertyFactory.lineCap(
-                        Property.LINE_CAP_ROUND
-                )
-        );
-
-        style.addLayer(
-                connector
-        );
-
-        routeGapSource =
-                new GeoJsonSource(
-                        ROUTE_GAP_SOURCE,
-                        emptyFeatures()
-                );
-
-        style.addSource(
-                routeGapSource
-        );
-
-        LineLayer routeGapLayer =
-                new LineLayer(
-                        ROUTE_GAP_LAYER,
-                        ROUTE_GAP_SOURCE
-                );
-
-        routeGapLayer.setProperties(
-                PropertyFactory.lineColor(
-                        Expression.get(
-                                "highlight_color"
-                        )
-                ),
-                PropertyFactory.lineWidth(
-                        2.5f
-                ),
-                PropertyFactory.lineOpacity(
-                        0.90f
-                ),
-                PropertyFactory.lineCap(
-                        Property.LINE_CAP_ROUND
-                )
-        );
-
-        style.addLayer(
-                routeGapLayer
-        );
-
-        dummySource =
-                new GeoJsonSource(
-                        DUMMY_SOURCE,
-                        Point.fromLngLat(
-                                dummyPosition
-                                        .getLongitude(),
-                                dummyPosition
-                                        .getLatitude()
-                        )
-                );
-
-        style.addSource(
-                dummySource
-        );
-
-        CircleLayer dummy =
-                new CircleLayer(
-                        DUMMY_LAYER,
-                        DUMMY_SOURCE
-                );
-
-        dummy.setProperties(
-                PropertyFactory.circleOpacity(
-                        livePositionMode ? 0.0f : 1.0f
-                ),
-                PropertyFactory.circleRadius(
-                        10.0f
-                ),
-                PropertyFactory.circleColor(
-                        Color.parseColor(
-                                "#F5C98E"
-                        )
-                ),
-                PropertyFactory.circleStrokeColor(
-                        Color.parseColor(
-                                "#3D332C"
-                        )
-                ),
-                PropertyFactory.circleStrokeWidth(
-                        3.0f
-                )
-        );
-
-        style.addLayer(
-                dummy
-        );
-
-        startSnapSource =
-                new GeoJsonSource(
-                        START_SNAP_SOURCE,
-                        emptyFeatures()
-                );
-
-        style.addSource(
-                startSnapSource
-        );
-
-        CircleLayer startSnap =
-                new CircleLayer(
-                        START_SNAP_LAYER,
-                        START_SNAP_SOURCE
-                );
-
-        startSnap.setProperties(
-                PropertyFactory.circleRadius(
-                        5.5f
-                ),
-                PropertyFactory.circleColor(
-                        Color.parseColor(
-                                "#FFF0C8"
-                        )
-                ),
-                PropertyFactory.circleStrokeColor(
-                        Color.parseColor(
-                                "#3D332C"
-                        )
-                ),
-                PropertyFactory.circleStrokeWidth(
-                        2.0f
-                )
-        );
-
-        style.addLayer(
-                startSnap
-        );
-
-        selectedSource =
-                new GeoJsonSource(
-                        SELECTED_SOURCE,
-                        emptyFeatures()
-                );
-
-        style.addSource(
-                selectedSource
-        );
-
-        CircleLayer selected =
-                new CircleLayer(
-                        SELECTED_LAYER,
-                        SELECTED_SOURCE
-                );
-
-        selected.setProperties(
-                PropertyFactory.circleRadius(
-                        7.0f
-                ),
-                PropertyFactory.circleColor(
-                        Color.parseColor(
-                                "#4A90E2"
-                        )
-                ),
-                PropertyFactory.circleStrokeColor(
-                        Color.parseColor(
-                                "#3D332C"
-                        )
-                ),
-                PropertyFactory.circleStrokeWidth(
-                        2.5f
-                )
-        );
-
-        style.addLayer(
-                selected
+        interactionRenderer.onStyleLoaded(
+                style,
+                dummyPosition,
+                livePositionMode
         );
 
         try {
@@ -824,8 +519,13 @@ public final class CaminoController {
     }
 
     private void refresh() {
-        updateDummySource();
-        updateSelectedSource();
+        interactionRenderer.updateDummyPosition(
+                dummyPosition
+        );
+        interactionRenderer.updateSelectedPositions(
+                selectionController.selectedHit(),
+                selectionController.secondTapHit()
+        );
 
         /*
          * CAMINO_NETWORK_MEASUREMENT_V2
@@ -848,16 +548,17 @@ public final class CaminoController {
 
         if (selectionController.secondTapHit()
                 == null) {
-            updateStartProjection(
+            interactionRenderer.updateStartProjection(
                     startHit
             );
 
-            updateConnector(
-                startRouteHit
-        );
+            interactionRenderer.updateConnector(
+                    dummyPosition,
+                    startRouteHit
+            );
 
         } else {
-            hideStartProjectionAndConnector();
+            interactionRenderer.hideStartProjectionAndConnector();
         }
 
         updateSelectedRoute(
@@ -906,176 +607,21 @@ public final class CaminoController {
         ) <= dp(28);
     }
 
-    private void updateDummySource() {
-        if (dummySource == null) {
-            return;
-        }
-
-        dummySource.setGeoJson(
-                Point.fromLngLat(
-                        dummyPosition
-                                .getLongitude(),
-                        dummyPosition
-                                .getLatitude()
-                )
-        );
-    }
-
-    private void updateStartProjection(
-            ProjectionHit startHit
-    ) {
-        if (startSnapSource == null) {
-            return;
-        }
-
-        if (startHit == null) {
-            startSnapSource.setGeoJson(
-                    emptyFeatures()
-            );
-            return;
-        }
-
-        startSnapSource.setGeoJson(
-                Point.fromLngLat(
-                        startHit.point
-                                .getLongitude(),
-                        startHit.point
-                                .getLatitude()
-                )
-        );
-    }
-
-    private void updateConnector(
-            RouteHit startRouteHit
-    ) {
-        if (connectorSource == null) {
-            return;
-        }
-
-        ProjectionHit startHit =
-                startRouteHit == null
-                        ? null
-                        : startRouteHit.hit;
-
-        if (startHit == null
-                || startHit.distanceFromQueryM < 3.0) {
-            connectorSource.setGeoJson(
-                    emptyFeatures()
-            );
-            return;
-        }
-
-        List<Point> points =
-                new ArrayList<>();
-
-        points.add(
-                Point.fromLngLat(
-                        dummyPosition.getLongitude(),
-                        dummyPosition.getLatitude()
-                )
-        );
-
-        points.add(
-                Point.fromLngLat(
-                        startHit.point.getLongitude(),
-                        startHit.point.getLatitude()
-                )
-        );
-
-        Feature feature =
-                Feature.fromGeometry(
-                        LineString.fromLngLats(points)
-                );
-
-        feature.addStringProperty(
-                "highlight_color",
-                startRouteHit.route.highlightColor
-        );
-
-        connectorSource.setGeoJson(feature);
-    }
-
-    private void hideStartProjectionAndConnector() {
-        if (startSnapSource != null) {
-            startSnapSource.setGeoJson(
-                    emptyFeatures()
-            );
-        }
-
-        if (connectorSource != null) {
-            connectorSource.setGeoJson(
-                    emptyFeatures()
-            );
-        }
-    }
-
-    private void updateSelectedSource() {
-        if (selectedSource == null) {
-            return;
-        }
-
-        if (selectionController.selectedHit() == null) {
-            selectedSource.setGeoJson(
-                    emptyFeatures()
-            );
-
-            return;
-        }
-
-        List<Feature> points =
-                new ArrayList<>();
-
-        points.add(
-                Feature.fromGeometry(
-                        Point.fromLngLat(
-                                selectionController.selectedHit().point
-                                        .getLongitude(),
-                                selectionController.selectedHit().point
-                                        .getLatitude()
-                        )
-                )
-        );
-
-        if (selectionController.secondTapHit() != null) {
-            points.add(
-                    Feature.fromGeometry(
-                            Point.fromLngLat(
-                                    selectionController.secondTapHit().point
-                                            .getLongitude(),
-                                    selectionController.secondTapHit().point
-                                            .getLatitude()
-                            )
-                    )
-            );
-        }
-
-        selectedSource.setGeoJson(
-                FeatureCollection.fromFeatures(
-                        points
-                )
-        );
-    }
-
     private void updateSelectedRoute(
             RouteHit startRouteHit
     ) {
         currentMeasurementPath =
                 null;
 
-        if (selectedRouteSource == null
-                || routeGapSource == null) {
+        if (!interactionRenderer.isMeasurementRouteReady()) {
             return;
         }
 
         if (selectionController.selectedRoute() == null
                 || selectionController.selectedHit() == null) {
 
-            selectedRouteSource.setGeoJson(
-                    emptyFeatures()
-            );
-
-            routeGapSource.setGeoJson(
-                    emptyFeatures()
+            interactionRenderer.renderMeasurementPath(
+                    null
             );
 
             return;
@@ -1086,12 +632,8 @@ public final class CaminoController {
 
         if (selectionController.secondTapHit() != null) {
             if (selectionController.secondSelectedRoute() == null) {
-                selectedRouteSource.setGeoJson(
-                        emptyFeatures()
-                );
-
-                routeGapSource.setGeoJson(
-                        emptyFeatures()
+                interactionRenderer.renderMeasurementPath(
+                        null
                 );
 
                 return;
@@ -1111,12 +653,8 @@ public final class CaminoController {
 
         } else {
             if (startRouteHit == null) {
-                selectedRouteSource.setGeoJson(
-                        emptyFeatures()
-                );
-
-                routeGapSource.setGeoJson(
-                        emptyFeatures()
+                interactionRenderer.renderMeasurementPath(
+                        null
                 );
 
                 return;
@@ -1138,30 +676,11 @@ public final class CaminoController {
                         routeEnd
                 );
 
-        if (currentMeasurementPath == null) {
-            selectedRouteSource.setGeoJson(
-                    emptyFeatures()
-            );
-
-            routeGapSource.setGeoJson(
-                    emptyFeatures()
-            );
-
-            return;
-        }
-
-        selectedRouteSource.setGeoJson(
-                FeatureCollection.fromFeatures(
-                        currentMeasurementPath.routeFeatures
-                )
-        );
-
-        routeGapSource.setGeoJson(
-                FeatureCollection.fromFeatures(
-                        currentMeasurementPath.gapFeatures
-                )
+        interactionRenderer.renderMeasurementPath(
+                currentMeasurementPath
         );
     }
+
 
     private double navigationBearingAtPosition() {
         if (livePositionMode
@@ -1295,12 +814,6 @@ public final class CaminoController {
         );
     }
 
-
-    private static FeatureCollection emptyFeatures() {
-        return FeatureCollection.fromFeatures(
-                new ArrayList<>()
-        );
-    }
 
     private static LatLng interpolate(
             LatLng a,

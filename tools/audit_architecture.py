@@ -32,6 +32,7 @@ projection_path = JAVA / "CaminoProjectionEngine.java"
 info_presenter_path = JAVA / "CaminoInfoPresenter.java"
 info_controller_path = JAVA / "CaminoInfoController.java"
 map_coordinator_path = JAVA / "MapCoordinator.java"
+interaction_renderer_path = JAVA / "CaminoInteractionRenderer.java"
 travel_stats_path = JAVA / "TravelStatsController.java"
 drag_path = JAVA / "CaminoDragController.java"
 selection_path = JAVA / "CaminoSelectionController.java"
@@ -59,6 +60,7 @@ check(projection_path.is_file(), "missing CaminoProjectionEngine.java")
 check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
 check(info_controller_path.is_file(), "missing CaminoInfoController.java")
 check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
+check(interaction_renderer_path.is_file(), "missing CaminoInteractionRenderer.java")
 check(travel_stats_path.is_file(), "missing TravelStatsController.java")
 check(drag_path.is_file(), "missing CaminoDragController.java")
 check(selection_path.is_file(), "missing CaminoSelectionController.java")
@@ -340,6 +342,34 @@ if main_path.is_file():
     check("CaminoMapRenderer" not in main,
           "MainActivity still owns Camino renderer")
 
+if interaction_renderer_path.is_file():
+    interaction_renderer = interaction_renderer_path.read_text()
+    check("void onStyleLoaded(" in interaction_renderer,
+          "CaminoInteractionRenderer does not own interaction overlay style setup")
+    check("void updateDummyPosition(" in interaction_renderer,
+          "CaminoInteractionRenderer does not own dummy marker rendering")
+    check("void updateSelectedPositions(" in interaction_renderer,
+          "CaminoInteractionRenderer does not own selected-point rendering")
+    check("void renderMeasurementPath(" in interaction_renderer,
+          "CaminoInteractionRenderer does not own measurement overlay rendering")
+    check("new MeasurementEngine(" not in interaction_renderer,
+          "CaminoInteractionRenderer incorrectly constructs MeasurementEngine")
+    check("buildMeasurementPath(" not in interaction_renderer,
+          "CaminoInteractionRenderer incorrectly owns measurement calculation")
+
+if controller_path.is_file():
+    controller = controller_path.read_text()
+    check("CaminoInteractionRenderer" in controller,
+          "CaminoController is not wired to CaminoInteractionRenderer")
+    check("private GeoJsonSource selectedRouteSource" not in controller,
+          "CaminoController still owns interaction overlay sources")
+    check("private void updateDummySource()" not in controller,
+          "CaminoController still owns dummy marker rendering")
+    check("private void updateSelectedSource()" not in controller,
+          "CaminoController still owns selected-point rendering")
+    check("measurementEngine.buildMeasurementPath(" in controller,
+          "CaminoController unexpectedly lost measurement decision ownership")
+
 if travel_stats_path.is_file():
     travel_stats = travel_stats_path.read_text()
     check("void noteSample(" in travel_stats,
@@ -604,6 +634,7 @@ print("  separated Camino info-panel drawing controls")
 print("  separated Camino height-profile sample model")
 print("  one Camino height-profile projection / refresh controller")
 print("  one runtime Camino map renderer")
+print("  one interactive Camino overlay renderer")
 print("  one immutable config file")
 print("  current Schaffhausen Munot round mask preserved")
 print("  obsolete Schaffhausen transition mask removed")
