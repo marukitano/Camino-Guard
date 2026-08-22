@@ -59,9 +59,14 @@ final class MeasurementEngine {
             return features;
         }
 
+        /*
+         * Track order is authoritative when crossing section boundaries.
+         * Chainage excludes physical gaps, so the end of one track and the
+         * start of the next can legitimately have identical chainage values.
+         */
         boolean forward =
-                start.chainageM
-                        <= end.chainageM;
+                start.trackIndex
+                        < end.trackIndex;
 
         if (forward) {
             for (int trackIndex =
@@ -586,9 +591,14 @@ final class MeasurementEngine {
             return;
         }
 
+        /*
+         * Track order is authoritative when crossing section boundaries.
+         * Chainage excludes physical gaps, so the end of one track and the
+         * start of the next can legitimately have identical chainage values.
+         */
         boolean forward =
-                start.chainageM
-                        <= end.chainageM;
+                start.trackIndex
+                        < end.trackIndex;
 
         if (forward) {
             for (int trackIndex =
