@@ -11,10 +11,23 @@ final class MapStyleConfig {
     }
 
     static String apply(String styleJson) throws Exception {
-        JSONObject style = new JSONObject(styleJson);
         JSONObject overrides = CaminoConfig.get().object(
                 "mapStyle.layerOverrides"
         );
+
+        /*
+         * With no overrides there is nothing to transform. Preserve the
+         * original MapLibre style text exactly instead of parsing and
+         * serialising a large style for no functional reason.
+         *
+         * This also keeps the default path identical to the pre-config
+         * behavior: token replacement followed directly by MapLibre parsing.
+         */
+        if (overrides.length() == 0) {
+            return styleJson;
+        }
+
+        JSONObject style = new JSONObject(styleJson);
         JSONArray layers = style.getJSONArray("layers");
         Iterator<String> ids = overrides.keys();
 
