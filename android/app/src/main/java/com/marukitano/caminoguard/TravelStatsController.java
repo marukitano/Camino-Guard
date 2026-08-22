@@ -8,6 +8,7 @@ import org.maplibre.android.geometry.LatLng;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 
 /**
  * Owns travel-session statistics and next-village ETA metrics.
@@ -44,6 +45,7 @@ final class TravelStatsController {
     private final PositionProvider positionProvider;
     private final MeasurementPathProvider measurementPathProvider;
     private final Consumer<String> statsSink;
+    private final LongSupplier elapsedRealtimeMs;
 
     private long travelSessionStartElapsedMs =
             -1L;
@@ -67,6 +69,26 @@ final class TravelStatsController {
             MeasurementPathProvider measurementPathProvider,
             Consumer<String> statsSink
     ) {
+        this(
+                routes,
+                projectionEngine,
+                measurementEngine,
+                positionProvider,
+                measurementPathProvider,
+                statsSink,
+                SystemClock::elapsedRealtime
+        );
+    }
+
+    TravelStatsController(
+            List<CaminoRoute> routes,
+            CaminoProjectionEngine projectionEngine,
+            MeasurementEngine measurementEngine,
+            PositionProvider positionProvider,
+            MeasurementPathProvider measurementPathProvider,
+            Consumer<String> statsSink,
+            LongSupplier elapsedRealtimeMs
+    ) {
         this.routes =
                 routes;
 
@@ -84,6 +106,9 @@ final class TravelStatsController {
 
         this.statsSink =
                 statsSink;
+
+        this.elapsedRealtimeMs =
+                elapsedRealtimeMs;
     }
 
     void noteSample(
@@ -94,7 +119,7 @@ final class TravelStatsController {
         }
 
         long now =
-                SystemClock.elapsedRealtime();
+                elapsedRealtimeMs.getAsLong();
 
         if (travelSessionStartElapsedMs < 0L) {
             travelSessionStartElapsedMs =
@@ -182,7 +207,7 @@ final class TravelStatsController {
         long totalElapsedMs =
                 travelSessionStartElapsedMs < 0L
                         ? 0L
-                        : SystemClock.elapsedRealtime()
+                        : elapsedRealtimeMs.getAsLong()
                         - travelSessionStartElapsedMs;
 
         double movingKmh =
