@@ -3,8 +3,7 @@ package com.marukitano.caminoguard;
 /**
  * Pure motion-state detector for the tracking service.
  *
- * The thresholds and timing are intentionally the measured production values
- * previously embedded in CaminoTrackingService.
+ * Thresholds and timing are production tuning values.
  */
 final class MotionStateDetector {
 

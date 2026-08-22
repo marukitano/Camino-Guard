@@ -10,8 +10,8 @@ import org.maplibre.android.maps.MapLibreMap;
 /**
  * Owns Camino drag gesture state and drag/snapping mechanics.
  *
- * Selection semantics remain in CaminoController. This class only moves the
- * already-selected interactive targets and delegates refresh side effects.
+ * Selection semantics remain in CaminoSelectionController. This class only
+ * moves already-selected interactive targets and delegates refresh side effects.
  */
 final class CaminoDragController {
 

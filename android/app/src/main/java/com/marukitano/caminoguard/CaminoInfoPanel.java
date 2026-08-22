@@ -13,8 +13,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
- * CAMINO_INFO_PANEL_DYNAMIC_FLEX_VILLAGE_V13
- *
  * Native Android equivalent of a CSS flex layout:
  *
  * title

@@ -22,9 +22,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -111,19 +109,17 @@ public final class CaminoTrackingService extends Service
     private Sensor linearAcceleration;
 
     private final List<Location> track = new ArrayList<>();
-    private final Deque<Location> courseHistory = new ArrayDeque<>();
-
     private Location acceptedLocation;
     private Location lastTrackLocation;
 
-    private Float gpsCourseDeg;
-    private Float phoneHeadingDeg;
-
-    private Float rawCameraYawDeg;
-    private Float gyroReferenceYawDeg;
-
     private final MotionStateDetector motionStateDetector =
             new MotionStateDetector();
+
+    private final CaminoDirectionTracker directionTracker =
+            new CaminoDirectionTracker(
+                    TRACK_POINT_SPACING_M,
+                    COURSE_BASELINE_M
+            );
 
     private long lastSensorPublishMs;
 
@@ -343,89 +339,9 @@ public final class CaminoTrackingService extends Service
                     new Location(location);
         }
 
-        appendCoursePoint(location);
-
-        Float course =
-                calculateCourseOverLastDistance(
-                        COURSE_BASELINE_M
-                );
-
-        if (course != null) {
-            gpsCourseDeg = course;
-        }
-
-        if (rawCameraYawDeg != null) {
-            gyroReferenceYawDeg = rawCameraYawDeg;
-        }
-
-        if (gpsCourseDeg != null) {
-            phoneHeadingDeg = gpsCourseDeg;
-        }
-    }
-
-    private void appendCoursePoint(Location location) {
-        if (!courseHistory.isEmpty()) {
-            Location newest =
-                    courseHistory.peekLast();
-
-            if (newest.distanceTo(location)
-                    < TRACK_POINT_SPACING_M) {
-                return;
-            }
-        }
-
-        courseHistory.addLast(
-                new Location(location)
+        directionTracker.acceptMovingLocation(
+                location
         );
-
-        /*
-         * Bounded history. At walking GPS rates this is far more than the
-         * 15 m required while keeping memory predictable.
-         */
-        while (courseHistory.size() > 80) {
-            courseHistory.removeFirst();
-        }
-    }
-
-    private Float calculateCourseOverLastDistance(
-            float targetDistanceM
-    ) {
-        if (courseHistory.size() < 2) {
-            return null;
-        }
-
-        List<Location> points =
-                new ArrayList<>(courseHistory);
-
-        int newestIndex =
-                points.size() - 1;
-
-        Location newest =
-                points.get(newestIndex);
-
-        float walkedBackM = 0.0f;
-
-        for (int index = newestIndex;
-                index > 0;
-                index--) {
-            Location newer =
-                    points.get(index);
-
-            Location older =
-                    points.get(index - 1);
-
-            walkedBackM +=
-                    older.distanceTo(newer);
-
-            if (walkedBackM
-                    >= targetDistanceM) {
-                return normalizeDegrees(
-                        older.bearingTo(newest)
-                );
-            }
-        }
-
-        return null;
     }
 
     @Override
@@ -441,10 +357,12 @@ public final class CaminoTrackingService extends Service
             return;
         }
 
-        updateRawCameraYaw(event);
+        directionTracker.updateRawCameraYaw(
+                event
+        );
 
         if (motionStateDetector.state() == MotionStateDetector.State.STATIONARY) {
-            updateGyroAugmentedHeading();
+            directionTracker.updateGyroAugmentedHeading();
 
             long now = SystemClock.elapsedRealtime();
 
@@ -488,95 +406,18 @@ public final class CaminoTrackingService extends Service
     }
 
     private void enterMoving() {
-        courseHistory.clear();
-
-        if (acceptedLocation != null) {
-            courseHistory.addLast(
-                    new Location(acceptedLocation)
-            );
-        }
+        directionTracker.enterMoving(
+                acceptedLocation
+        );
 
         publish();
     }
 
     private void enterStationary() {
-        gyroReferenceYawDeg = rawCameraYawDeg;
-
-        if (gpsCourseDeg != null) {
-            phoneHeadingDeg = gpsCourseDeg;
-        }
+        directionTracker.enterStationary();
 
         publish();
     }
-
-    private void updateRawCameraYaw(
-            SensorEvent event
-    ) {
-        float[] rotation =
-                new float[9];
-
-        SensorManager.getRotationMatrixFromVector(
-                rotation,
-                event.values
-        );
-
-        /*
-         * Physical device +Y = camera/top edge.
-         * No landscape/display remapping.
-         */
-        float worldX =
-                rotation[1];
-
-        float worldY =
-                rotation[4];
-
-        if (Math.hypot(worldX, worldY)
-                < 0.18) {
-            return;
-        }
-
-        rawCameraYawDeg =
-                normalizeDegrees(
-                        (float) Math.toDegrees(
-                                Math.atan2(
-                                        worldX,
-                                        worldY
-                                )
-                        )
-                );
-    }
-
-    private void updateGyroAugmentedHeading() {
-        if (rawCameraYawDeg == null) {
-            return;
-        }
-
-        if (gyroReferenceYawDeg == null) {
-            gyroReferenceYawDeg = rawCameraYawDeg;
-        }
-
-        Float baseHeading =
-                gpsCourseDeg != null
-                        ? gpsCourseDeg
-                        : phoneHeadingDeg;
-
-        if (baseHeading == null) {
-            return;
-        }
-
-        float offset =
-                shortestAngleDegrees(
-                        gyroReferenceYawDeg,
-                        rawCameraYawDeg
-                );
-
-        phoneHeadingDeg =
-                normalizeDegrees(
-                        baseHeading + offset
-                );
-    }
-
-
 
     private boolean isGoodGpsFix(
             Location location
@@ -591,8 +432,8 @@ public final class CaminoTrackingService extends Service
                 new Snapshot(
                         acceptedLocation,
                         track,
-                        gpsCourseDeg,
-                        phoneHeadingDeg,
+                        directionTracker.courseDeg(),
+                        directionTracker.phoneHeadingDeg(),
                         motionStateDetector.state()
                                 == MotionStateDetector.State.STATIONARY
                 );
@@ -632,35 +473,6 @@ public final class CaminoTrackingService extends Service
         manager.createNotificationChannel(
                 channel
         );
-    }
-
-    private static float normalizeDegrees(
-            float value
-    ) {
-        float normalized =
-                value % 360.0f;
-
-        if (normalized < 0.0f) {
-            normalized += 360.0f;
-        }
-
-        return normalized;
-    }
-
-    private static float shortestAngleDegrees(
-            float from,
-            float to
-    ) {
-        float delta =
-                normalizeDegrees(
-                        to - from
-                );
-
-        if (delta > 180.0f) {
-            delta -= 360.0f;
-        }
-
-        return delta;
     }
 
     @Override

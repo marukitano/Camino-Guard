@@ -42,6 +42,8 @@ info_navigation_button_path = JAVA / "CaminoNavigationButton.java"
 height_profile_view_path = JAVA / "CaminoHeightProfileView.java"
 height_profile_model_path = JAVA / "CaminoHeightProfileModel.java"
 height_profile_controller_path = JAVA / "CaminoHeightProfileController.java"
+tracking_service_path = JAVA / "CaminoTrackingService.java"
+direction_tracker_path = JAVA / "CaminoDirectionTracker.java"
 
 dead_code_audit_path = ROOT / "tools/audit_dead_code.py"
 check(dead_code_audit_path.is_file(), "missing dead-code audit tool")
@@ -70,6 +72,8 @@ check(info_navigation_button_path.is_file(), "missing CaminoNavigationButton.jav
 check(height_profile_view_path.is_file(), "missing CaminoHeightProfileView.java")
 check(height_profile_model_path.is_file(), "missing CaminoHeightProfileModel.java")
 check(height_profile_controller_path.is_file(), "missing CaminoHeightProfileController.java")
+check(tracking_service_path.is_file(), "missing CaminoTrackingService.java")
+check(direction_tracker_path.is_file(), "missing CaminoDirectionTracker.java")
 check(not (JAVA / "CaminoTapDebugController.java").exists(),
       "old CaminoTapDebugController.java still exists")
 
@@ -613,6 +617,32 @@ if errors:
         print("  - " + error)
     sys.exit(1)
 
+if direction_tracker_path.is_file():
+    direction_tracker = direction_tracker_path.read_text()
+    check("void acceptMovingLocation(" in direction_tracker,
+          "CaminoDirectionTracker does not own moving GPS course updates")
+    check("void updateRawCameraYaw(" in direction_tracker,
+          "CaminoDirectionTracker does not own raw gyro yaw")
+    check("void updateGyroAugmentedHeading()" in direction_tracker,
+          "CaminoDirectionTracker does not own stationary gyro heading")
+    check("calculateCourseOverLastDistance(" in direction_tracker,
+          "CaminoDirectionTracker does not own spatial course calculation")
+
+if tracking_service_path.is_file():
+    tracking_service = tracking_service_path.read_text()
+    check("CaminoDirectionTracker" in tracking_service,
+          "CaminoTrackingService is not wired to CaminoDirectionTracker")
+    check("private Float gpsCourseDeg;" not in tracking_service,
+          "CaminoTrackingService still owns GPS course state")
+    check("private Float phoneHeadingDeg;" not in tracking_service,
+          "CaminoTrackingService still owns phone heading state")
+    check("private Float rawCameraYawDeg;" not in tracking_service,
+          "CaminoTrackingService still owns raw gyro yaw state")
+    check("private Float gyroReferenceYawDeg;" not in tracking_service,
+          "CaminoTrackingService still owns gyro reference state")
+    check("private Float calculateCourseOverLastDistance(" not in tracking_service,
+          "CaminoTrackingService still owns course calculation")
+
 print("ARCHITECTURE AUDIT OK")
 print("  one canonical Camino dataset")
 print("  one global controller")
@@ -635,6 +665,7 @@ print("  separated Camino height-profile sample model")
 print("  one Camino height-profile projection / refresh controller")
 print("  one runtime Camino map renderer")
 print("  one interactive Camino overlay renderer")
+print("  one Camino walking-course / gyro direction tracker")
 print("  one immutable config file")
 print("  current Schaffhausen Munot round mask preserved")
 print("  obsolete Schaffhausen transition mask removed")

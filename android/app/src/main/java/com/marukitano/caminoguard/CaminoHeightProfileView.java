@@ -15,9 +15,6 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * CAMINO_PROFILE_CHEVRON_TAB_V7
- * CAMINO_NARROW_PROFILE_TOUCH_STRIP_V10
- *
  * Right-edge projected elevation silhouette.
  *
  * The center-right control is a real drawn chevron, not a text >/< and not a

@@ -1,25 +1,14 @@
 package com.marukitano.caminoguard;
 
 import android.app.Activity;
-import android.os.SystemClock;
-import android.text.format.DateFormat;
 import android.graphics.PointF;
-import android.graphics.drawable.GradientDrawable;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
 import org.maplibre.android.maps.Style;
-import org.maplibre.geojson.Feature;
-import org.maplibre.geojson.FeatureCollection;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -29,9 +18,6 @@ import java.util.List;
  * use the same canonical Camino dataset everywhere.
  */
 public final class CaminoController {
-
-    private static final double EARTH_RADIUS_M =
-            6371008.8;
 
     private final Activity activity;
     private final MapView mapView;
@@ -528,8 +514,6 @@ public final class CaminoController {
         );
 
         /*
-         * CAMINO_NETWORK_MEASUREMENT_V2
-         *
          * The fake position is always projected onto the nearest Camino,
          * even before a measurement point exists. This is the same behavior
          * the real GPS position will need later.
@@ -811,84 +795,6 @@ public final class CaminoController {
                         .getResources()
                         .getDisplayMetrics()
                         .density
-        );
-    }
-
-
-    private static LatLng interpolate(
-            LatLng a,
-            LatLng b,
-            double t
-    ) {
-        return new LatLng(
-                a.getLatitude()
-                        + t
-                        * (
-                        b.getLatitude()
-                                - a.getLatitude()
-                ),
-                a.getLongitude()
-                        + t
-                        * (
-                        b.getLongitude()
-                                - a.getLongitude()
-                )
-        );
-    }
-
-
-    private static double distanceMeters(
-            LatLng a,
-            LatLng b
-    ) {
-        double lat1 =
-                Math.toRadians(
-                        a.getLatitude()
-                );
-
-        double lat2 =
-                Math.toRadians(
-                        b.getLatitude()
-                );
-
-        double dLat =
-                lat2 - lat1;
-
-        double dLon =
-                Math.toRadians(
-                        b.getLongitude()
-                                - a.getLongitude()
-                );
-
-        double h =
-                Math.sin(
-                        dLat / 2.0
-                )
-                        * Math.sin(
-                        dLat / 2.0
-                )
-                        + Math.cos(
-                        lat1
-                )
-                        * Math.cos(
-                        lat2
-                )
-                        * Math.sin(
-                        dLon / 2.0
-                )
-                        * Math.sin(
-                        dLon / 2.0
-                );
-
-        return 2.0
-                * EARTH_RADIUS_M
-                * Math.asin(
-                Math.min(
-                        1.0,
-                        Math.sqrt(
-                                h
-                        )
-                )
         );
     }
 
