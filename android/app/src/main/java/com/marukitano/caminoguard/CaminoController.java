@@ -6,10 +6,6 @@ import android.os.SystemClock;
 import android.text.format.DateFormat;
 import android.graphics.PointF;
 import android.graphics.drawable.GradientDrawable;
-import android.view.Gravity;
-import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -34,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Global Camino interaction controller.
@@ -89,6 +84,7 @@ public final class CaminoController {
     private final NavigationController navigationController;
     private final CaminoProjectionEngine projectionEngine;
     private final CaminoInfoPresenter infoPresenter;
+    private final CaminoInfoController infoController;
     private final CaminoHeightProfileController heightProfileController;
     private final TravelStatsController travelStatsController;
     private final CaminoDragController dragController;
@@ -102,9 +98,6 @@ public final class CaminoController {
     private GeoJsonSource startSnapSource;
     private GeoJsonSource selectedSource;
     private GeoJsonSource routeGapSource;
-
-    private TextView distanceView;
-    private CaminoInfoPanel infoPanel;
 
     private LatLng dummyPosition;
 
@@ -143,27 +136,36 @@ public final class CaminoController {
                         caminoNetwork
                 );
 
+        this.infoPresenter =
+                new CaminoInfoPresenter();
+
+        this.infoController =
+                new CaminoInfoController(
+                        activity,
+                        mapView,
+                        infoPresenter
+                );
+
         this.navigationController =
                 new NavigationController(
                         mapView,
                         () -> dummyPosition,
                         this::navigationBearingAtPosition,
-                        enabled -> {
-                            if (infoPanel != null) {
-                                infoPanel.setNavigationFollowEnabled(
-                                        enabled
-                                );
-                            }
-                        }
+                        infoController::setNavigationFollowEnabled
                 );
+
+        infoController.setNavigationAction(
+                navigationController::toggleFollow
+        );
+
+        infoController.setNavigationFollowEnabled(
+                navigationController.isFollowEnabled()
+        );
 
         this.projectionEngine =
                 new CaminoProjectionEngine(
                         caminoNetwork
                 );
-
-        this.infoPresenter =
-                new CaminoInfoPresenter();
 
         this.heightProfileController =
                 new CaminoHeightProfileController(
@@ -403,6 +405,9 @@ public final class CaminoController {
             MapLibreMap map
     ) {
         this.map = map;
+        infoController.attachMap(
+                map
+        );
         heightProfileController.attachMap(
                 map
         );
@@ -427,14 +432,14 @@ public final class CaminoController {
          */
         map.addOnCameraMoveListener(
                 () -> {
-                    updateInfoCompass();
+                    infoController.updateCompass();
                     heightProfileController.scheduleRefresh();
                 }
         );
 
         map.addOnCameraIdleListener(
                 () -> {
-                    updateInfoCompass();
+                    infoController.updateCompass();
                     heightProfileController.handleCameraIdle();
                     navigationController.handleCameraIdle();
                 }
@@ -495,8 +500,11 @@ public final class CaminoController {
          * network path, so it is safe and cheap to keep it live while dragging.
          */
         if (selectionController.selectedHit() == null) {
-            updateDistanceLabel(
-                    startRouteHit
+            infoController.updateMeasurementSummary(
+                    routes,
+                    selectionController,
+                    startRouteHit,
+                    currentMeasurementPath
             );
         }
     }
@@ -504,7 +512,7 @@ public final class CaminoController {
     public void onStyleLoaded(
             Style style
     ) {
-        ensureDistanceView();
+        infoController.ensureView();
         heightProfileController.ensureView();
 
         selectedRouteSource =
@@ -856,8 +864,11 @@ public final class CaminoController {
                 startRouteHit
         );
 
-        updateDistanceLabel(
-                startRouteHit
+        infoController.updateMeasurementSummary(
+                routes,
+                selectionController,
+                startRouteHit,
+                currentMeasurementPath
         );
 
         heightProfileController.refresh();
@@ -1152,263 +1163,6 @@ public final class CaminoController {
         );
     }
 
-    private void updateDistanceLabel(
-            RouteHit startRouteHit
-    ) {
-        if (routes.isEmpty()) {
-            infoPresenter.setInfoTitle(
-                    ""
-            );
-
-            infoPresenter.setSummaryTexts(
-                    "Lade Caminos …",
-                    ""
-            );
-
-            return;
-        }
-
-        if (selectionController.selectedRoute() == null
-                || selectionController.selectedHit() == null) {
-
-            if (startRouteHit == null) {
-                infoPresenter.setInfoTitle(
-                        ""
-                );
-
-                infoPresenter.setSummaryTexts(
-                        "Kein Camino gefunden",
-                        ""
-                );
-
-                return;
-            }
-
-            infoPresenter.setInfoTitle(
-                    startRouteHit.route.name
-            );
-
-            double offRouteM =
-                    startRouteHit.hit.distanceFromQueryM;
-
-            infoPresenter.setSummaryTexts(
-                    offRouteM < 3.0
-                            ? "Auf dem Camino"
-                            : formatDistance(
-                                    offRouteM
-                            )
-                            + " bis Camino",
-                    ""
-            );
-
-            return;
-        }
-
-        RouteHit measurementStart;
-        RouteHit measurementEnd;
-
-        if (selectionController.secondTapHit() != null) {
-            if (selectionController.secondSelectedRoute() == null) {
-                infoPresenter.setInfoTitle(
-                        selectionController.selectedRoute().name
-                );
-
-                infoPresenter.setSummaryTexts(
-                        "Zweiter Camino fehlt",
-                        ""
-                );
-
-                return;
-            }
-
-            measurementStart =
-                    new RouteHit(
-                            selectionController.selectedRoute(),
-                            selectionController.selectedHit()
-                    );
-
-            measurementEnd =
-                    new RouteHit(
-                            selectionController.secondSelectedRoute(),
-                            selectionController.secondTapHit()
-                    );
-
-        } else {
-            if (startRouteHit == null) {
-                infoPresenter.setInfoTitle(
-                        selectionController.selectedRoute().name
-                );
-
-                infoPresenter.setSummaryTexts(
-                        "Startpunkt konnte nicht projiziert werden",
-                        ""
-                );
-
-                return;
-            }
-
-            measurementStart =
-                    startRouteHit;
-
-            measurementEnd =
-                    new RouteHit(
-                            selectionController.selectedRoute(),
-                            selectionController.selectedHit()
-                    );
-        }
-
-        infoPresenter.setInfoTitle(
-                measurementRouteLabel(
-                        measurementStart,
-                        measurementEnd
-                )
-        );
-
-        if (currentMeasurementPath == null) {
-            infoPresenter.setSummaryTexts(
-                    "Keine Camino-Verbindung",
-                    ""
-            );
-
-            return;
-        }
-
-        String leftText =
-                "";
-
-        if (selectionController.secondTapHit() == null) {
-            leftText =
-                    startRouteHit.hit.distanceFromQueryM < 3.0
-                            ? "Auf dem Camino"
-                            : formatDistance(
-                                    startRouteHit.hit.distanceFromQueryM
-                            )
-                            + " bis Camino";
-        }
-
-        String rightText =
-                formatDistance(
-                        currentMeasurementPath.distanceM
-                )
-                        + " Etappenlänge";
-
-        infoPresenter.setSummaryTexts(
-                leftText,
-                rightText
-        );
-    }
-    private String measurementRouteLabel(
-            RouteHit start,
-            RouteHit end
-    ) {
-        if (start.route
-                == end.route) {
-            return end.route.name;
-        }
-
-        return start.route.name
-                + " → "
-                + end.route.name;
-    }
-
-    private String formatDistance(
-            double distanceM
-    ) {
-        if (distanceM
-                >= 1000.0) {
-
-            return String.format(
-                    Locale.GERMANY,
-                    "%.2fkm",
-                    distanceM
-                            / 1000.0
-            );
-        }
-
-        return String.format(
-                Locale.GERMANY,
-                "%.0fm",
-                distanceM
-        );
-    }
-
-
-    private void ensureDistanceView() {
-        if (distanceView != null) {
-            return;
-        }
-
-        infoPanel =
-                new CaminoInfoPanel(
-                        activity
-                );
-
-        distanceView =
-                infoPanel.getTextView();
-
-        infoPresenter.attach(
-                infoPanel
-        );
-
-        infoPanel.setNavigationAction(
-                navigationController::toggleFollow
-        );
-
-        infoPanel.setNavigationFollowEnabled(
-                navigationController.isFollowEnabled()
-        );
-
-        if (map != null) {
-            infoPanel.setCompassDrawable(
-                    map.getUiSettings()
-                            .getCompassImage()
-            );
-
-            map.getUiSettings()
-                    .setCompassEnabled(
-                            false
-                    );
-
-            updateInfoCompass();
-        }
-
-        ViewGroup parent =
-                (ViewGroup)
-                        mapView.getParent();
-
-        FrameLayout.LayoutParams params =
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        Gravity.BOTTOM
-                                | Gravity.CENTER_HORIZONTAL
-                );
-
-        params.bottomMargin =
-                dp(18);
-
-        parent.addView(
-                infoPanel,
-                params
-        );
-
-        /*
-         * The HUD is intentionally the highest Android View in this overlay
-         * stack. The full-screen profile may draw under it, never touch over it.
-         */
-        infoPanel.setElevation(
-                dp(1000)
-        );
-
-        infoPanel.bringToFront();
-
-        infoPresenter.refresh();
-    }
-
-
-
-
-
     private double navigationBearingAtPosition() {
         if (livePositionMode
                 && liveCourseDeg != null
@@ -1529,24 +1283,6 @@ public final class CaminoController {
     }
 
 
-    private void updateInfoCompass() {
-        if (infoPanel == null
-                || map == null) {
-            return;
-        }
-
-        infoPanel.setBearing(
-                map.getCameraPosition()
-                        .bearing
-        );
-    }
-
-
-
-
-
-
-
     private int dp(
             int value
     ) {
@@ -1558,6 +1294,7 @@ public final class CaminoController {
                         .density
         );
     }
+
 
     private static FeatureCollection emptyFeatures() {
         return FeatureCollection.fromFeatures(

@@ -30,6 +30,7 @@ navigation_path = JAVA / "NavigationController.java"
 live_navigation_camera_path = JAVA / "LiveNavigationCameraController.java"
 projection_path = JAVA / "CaminoProjectionEngine.java"
 info_presenter_path = JAVA / "CaminoInfoPresenter.java"
+info_controller_path = JAVA / "CaminoInfoController.java"
 map_coordinator_path = JAVA / "MapCoordinator.java"
 travel_stats_path = JAVA / "TravelStatsController.java"
 drag_path = JAVA / "CaminoDragController.java"
@@ -56,6 +57,7 @@ check(navigation_path.is_file(), "missing NavigationController.java")
 check(live_navigation_camera_path.is_file(), "missing LiveNavigationCameraController.java")
 check(projection_path.is_file(), "missing CaminoProjectionEngine.java")
 check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
+check(info_controller_path.is_file(), "missing CaminoInfoController.java")
 check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
 check(travel_stats_path.is_file(), "missing TravelStatsController.java")
 check(drag_path.is_file(), "missing CaminoDragController.java")
@@ -273,6 +275,21 @@ if info_presenter_path.is_file():
     check("infoPanel.setStatsTexts(" in info_presenter,
           "CaminoInfoPresenter does not render panel stats")
 
+if info_controller_path.is_file():
+    info_controller = info_controller_path.read_text()
+    check("new CaminoInfoPanel(" in info_controller,
+          "CaminoInfoController does not own info-panel lifecycle")
+    check("void updateMeasurementSummary(" in info_controller,
+          "CaminoInfoController does not own measurement summary presentation")
+    check("void updateCompass()" in info_controller,
+          "CaminoInfoController does not own HUD compass updates")
+    check("void setNavigationFollowEnabled(" in info_controller,
+          "CaminoInfoController does not own navigation-button UI state")
+    check("new MeasurementEngine(" not in info_controller,
+          "CaminoInfoController incorrectly constructs measurement engine")
+    check("CaminoTrackingService" not in info_controller,
+          "CaminoInfoController incorrectly owns GPS tracking")
+
 if controller_path.is_file():
     controller = controller_path.read_text()
     check("infoTitleText" not in controller,
@@ -285,6 +302,16 @@ if controller_path.is_file():
           "CaminoController still owns speed stats presentation state")
     check("CaminoInfoPresenter" in controller,
           "CaminoController is not wired to CaminoInfoPresenter")
+    check("CaminoInfoController" in controller,
+          "CaminoController is not wired to CaminoInfoController")
+    check("private void updateDistanceLabel(" not in controller,
+          "CaminoController still owns measurement summary presentation")
+    check("private void ensureDistanceView()" not in controller,
+          "CaminoController still owns info-panel lifecycle")
+    check("private void updateInfoCompass()" not in controller,
+          "CaminoController still owns HUD compass updates")
+    check("CaminoInfoPanel" not in controller,
+          "CaminoController still directly owns CaminoInfoPanel")
 
 if map_coordinator_path.is_file():
     coordinator = map_coordinator_path.read_text()
@@ -568,6 +595,7 @@ print("  one navigation follow policy controller")
 print("  one proven live-GPS navigation camera executor")
 print("  one Camino projection / nearest-hit engine")
 print("  one Camino info-panel presenter")
+print("  one Camino info / HUD orchestration controller")
 print("  one MapLibre startup / style coordinator")
 print("  one travel statistics / village ETA controller")
 print("  one Camino drag interaction controller")
