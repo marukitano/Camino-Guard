@@ -61,7 +61,7 @@ final class LiveNavigationCameraController {
 
         if (enabled && map != null) {
             smoothedCameraBearingDeg =
-                    norm(map.getCameraPosition().bearing);
+                    GeoMath.normalizeDegrees(map.getCameraPosition().bearing);
             smoothedCameraBearingTimeMs =
                     SystemClock.elapsedRealtime();
         }
@@ -92,7 +92,7 @@ final class LiveNavigationCameraController {
 
         if (map != null) {
             smoothedCameraBearingDeg =
-                    norm(map.getCameraPosition().bearing);
+                    GeoMath.normalizeDegrees(map.getCameraPosition().bearing);
             smoothedCameraBearingTimeMs =
                     SystemClock.elapsedRealtime();
         }
@@ -124,7 +124,7 @@ final class LiveNavigationCameraController {
                 startCamera.zoom;
 
         final double bearing =
-                norm(startCamera.bearing);
+                GeoMath.normalizeDegrees(startCamera.bearing);
 
         smoothedCameraBearingDeg =
                 bearing;
@@ -155,7 +155,7 @@ final class LiveNavigationCameraController {
                         : 0.0;
 
         final LatLng finalTarget =
-                dest(
+                GeoMath.destination(
                         lastPose.getLatitude(),
                         lastPose.getLongitude(),
                         bearing,
@@ -164,41 +164,11 @@ final class LiveNavigationCameraController {
         final LatLng startTarget =
                 startCamera.target;
 
-        double dLat =
-                Math.toRadians(
-                        finalTarget.getLatitude()
-                                - startTarget.getLatitude());
-
-        double dLon =
-                Math.toRadians(
-                        finalTarget.getLongitude()
-                                - startTarget.getLongitude());
-
-        double lat1 =
-                Math.toRadians(
-                        startTarget.getLatitude());
-
-        double lat2 =
-                Math.toRadians(
-                        finalTarget.getLatitude());
-
-        double hav =
-                Math.sin(dLat / 2.0)
-                        * Math.sin(dLat / 2.0)
-                        + Math.cos(lat1)
-                        * Math.cos(lat2)
-                        * Math.sin(dLon / 2.0)
-                        * Math.sin(dLon / 2.0);
-
         double distanceMeters =
-                6371000.0
-                        * 2.0
-                        * Math.atan2(
-                                Math.sqrt(hav),
-                                Math.sqrt(
-                                        Math.max(
-                                                0.0,
-                                                1.0 - hav)));
+                GeoMath.distanceMeters(
+                        startTarget,
+                        finalTarget
+                );
 
         double visibleHalfHeightMeters =
                 Math.max(
@@ -385,7 +355,7 @@ final class LiveNavigationCameraController {
                         ? smoothCameraBearing(desiredCourse)
                         : smoothedCameraBearingDeg != null
                                 ? smoothedCameraBearingDeg
-                                : norm(map.getCameraPosition().bearing);
+                                : GeoMath.normalizeDegrees(map.getCameraPosition().bearing);
 
         double metersPerPixel =
                 map.getProjection()
@@ -419,7 +389,7 @@ final class LiveNavigationCameraController {
                         : 0.0;
 
         LatLng target =
-                dest(
+                GeoMath.destination(
                         pos.getLatitude(),
                         pos.getLongitude(),
                         cameraBearing,
@@ -447,7 +417,7 @@ final class LiveNavigationCameraController {
 
     private double smoothCameraBearing(double targetBearing) {
         double target =
-                norm(targetBearing);
+                GeoMath.normalizeDegrees(targetBearing);
 
         long now =
                 SystemClock.elapsedRealtime();
@@ -455,7 +425,7 @@ final class LiveNavigationCameraController {
         if (smoothedCameraBearingDeg == null) {
             smoothedCameraBearingDeg =
                     map != null
-                            ? norm(map.getCameraPosition().bearing)
+                            ? GeoMath.normalizeDegrees(map.getCameraPosition().bearing)
                             : target;
             smoothedCameraBearingTimeMs =
                     now;
@@ -491,7 +461,7 @@ final class LiveNavigationCameraController {
                                 -dtMs / BEARING_TAU_MS);
 
         smoothedCameraBearingDeg =
-                norm(
+                GeoMath.normalizeDegrees(
                         current + delta * alpha);
 
         return smoothedCameraBearingDeg;
@@ -502,44 +472,5 @@ final class LiveNavigationCameraController {
                 R.id.map_view);
     }
 
-    private static LatLng dest(
-            double lat,
-            double lon,
-            double bearing,
-            double meters
-    ) {
-        double radiusM = 6371008.8;
-        double p1 = Math.toRadians(lat);
-        double l1 = Math.toRadians(lon);
-        double b = Math.toRadians(bearing);
-        double d = meters / radiusM;
 
-        double p2 =
-                Math.asin(
-                        Math.sin(p1) * Math.cos(d)
-                                + Math.cos(p1)
-                                * Math.sin(d)
-                                * Math.cos(b));
-
-        double l2 =
-                l1
-                        + Math.atan2(
-                                Math.sin(b)
-                                        * Math.sin(d)
-                                        * Math.cos(p1),
-                                Math.cos(d)
-                                        - Math.sin(p1)
-                                        * Math.sin(p2));
-
-        return new LatLng(
-                Math.toDegrees(p2),
-                Math.toDegrees(l2));
-    }
-
-    private static double norm(double value) {
-        value %= 360.0;
-        return value < 0.0
-                ? value + 360.0
-                : value;
-    }
 }

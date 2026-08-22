@@ -186,13 +186,13 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
                 if(s.courseDeg!=null
                         && s.phoneHeadingDeg!=null){
-                    gyroOffset=shortestAngle(
+                    gyroOffset=GeoMath.shortestAngleDegrees(
                             s.courseDeg,
                             s.phoneHeadingDeg);
                 }
 
                 departureHeadingDeg=
-                        norm(base+gyroOffset);
+                        GeoMath.normalizeDegrees(base+gyroOffset);
 
                 displayedBearing=
                         departureHeadingDeg;
@@ -233,17 +233,17 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         if(state.stationary
                 && state.courseDeg!=null
                 && state.phoneHeadingDeg!=null){
-            double gyroOffset=shortestAngle(
+            double gyroOffset=GeoMath.shortestAngleDegrees(
                     state.courseDeg,
                     state.phoneHeadingDeg);
 
-            worldHeading=norm(
+            worldHeading=GeoMath.normalizeDegrees(
                     baseCourse+gyroOffset);
 
             image=ARROW_IMG_STATIONARY;
         }
 
-        float screenAngle=(float)norm(
+        float screenAngle=(float)GeoMath.normalizeDegrees(
                 worldHeading-map.getCameraPosition().bearing);
 
         arrowLayer.setProperties(
@@ -310,7 +310,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         LatLng end=newest;
 
         double directBearing=
-                bearingDegrees(
+                GeoMath.bearingDegrees(
                         start,
                         end);
 
@@ -329,7 +329,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                             playbackPoints.size()-3);
 
             double previousBearing=
-                    bearingDegrees(
+                    GeoMath.bearingDegrees(
                             older.point,
                             previous.point);
 
@@ -417,9 +417,9 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
             double to,
             double amount
     ){
-        return norm(
+        return GeoMath.normalizeDegrees(
                 from
-                        +shortestAngle(
+                        +GeoMath.shortestAngleDegrees(
                                 from,
                                 to)*amount);
     }
@@ -578,9 +578,9 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
                         +dh11*m1East;
 
         if(Math.hypot(east,north)<1e-12)
-            return bearingDegrees(a,b);
+            return GeoMath.bearingDegrees(a,b);
 
-        return norm(
+        return GeoMath.normalizeDegrees(
                 Math.toDegrees(
                         Math.atan2(
                                 east,
@@ -612,34 +612,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
 
 
-    private static double bearingDegrees(LatLng a,LatLng b){
-        double p1=Math.toRadians(a.getLatitude());
-        double p2=Math.toRadians(b.getLatitude());
-        double dl=Math.toRadians(
-                b.getLongitude()-a.getLongitude());
-
-        double y=Math.sin(dl)*Math.cos(p2);
-        double x=Math.cos(p1)*Math.sin(p2)
-                -Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
-
-        return norm(Math.toDegrees(Math.atan2(y,x)));
-    }
-
-    private static double distanceMeters(LatLng a,LatLng b){
-        double R=6371008.8;
-        double p1=Math.toRadians(a.getLatitude());
-        double p2=Math.toRadians(b.getLatitude());
-        double dp=p2-p1;
-        double dl=Math.toRadians(
-                b.getLongitude()-a.getLongitude());
-
-        double h=Math.sin(dp/2)*Math.sin(dp/2)
-                +Math.cos(p1)*Math.cos(p2)
-                *Math.sin(dl/2)*Math.sin(dl/2);
-
-        return 2*R*Math.asin(Math.min(1.0,Math.sqrt(h)));
-    }
-
     private Bitmap arrowBitmap(int fillColor){
         int size=Math.max(64,Math.round(40*activity.getResources().getDisplayMetrics().density));
         Bitmap bm=Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888);
@@ -654,10 +626,5 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         c.drawPath(p,out); c.drawPath(p,fill); return bm;
     }
 
-    private static double shortestAngle(double from,double to){
-        double d=norm(to-from);
-        return d>180.0?d-360.0:d;
-    }
 
-    private static double norm(double v){v%=360;return v<0?v+360:v;}
 }

@@ -181,7 +181,7 @@ final class MeasurementEngine {
 
             if (!endpoint
                     && lastRendered != null
-                    && CaminoRepository.distanceMeters(
+                    && GeoMath.distanceMeters(
                             lastRendered,
                             point
                     ) < minRenderSpacingM) {
@@ -270,7 +270,7 @@ final class MeasurementEngine {
             }
         }
 
-        if (CaminoRepository.distanceMeters(
+        if (GeoMath.distanceMeters(
                 result.get(
                         result.size() - 1
                 ),
@@ -938,7 +938,7 @@ final class MeasurementEngine {
                 != null) {
 
             result.profileCursorM +=
-                    CaminoRepository.distanceMeters(
+                    GeoMath.distanceMeters(
                             result.profileLastGeometryPoint,
                             point
                     );
@@ -982,7 +982,7 @@ final class MeasurementEngine {
                     previous.distanceM
                             - result.profileCursorM
             ) < 0.01
-                    && CaminoRepository.distanceMeters(
+                    && GeoMath.distanceMeters(
                     previous.point,
                     point
             ) < 0.05) {
@@ -1194,7 +1194,7 @@ final class MeasurementEngine {
                         secondTrackIndex
                 );
 
-        return CaminoRepository.distanceMeters(
+        return GeoMath.distanceMeters(
                 first.points.get(
                         first.points.size()
                                 - 1
@@ -1213,7 +1213,7 @@ final class MeasurementEngine {
     ) {
         if (from == null
                 || to == null
-                || CaminoRepository.distanceMeters(from, to) < 0.05) {
+                || GeoMath.distanceMeters(from, to) < 0.05) {
             return;
         }
 

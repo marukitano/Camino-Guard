@@ -171,7 +171,7 @@ final class CaminoNetwork {
                 }
 
                 double gapM =
-                        CaminoRepository.distanceMeters(
+                        GeoMath.distanceMeters(
                                 endpointPoint(
                                         firstNode
                                 ),
@@ -430,7 +430,7 @@ final class CaminoNetwork {
                         0
                 );
 
-        return CaminoRepository.distanceMeters(
+        return GeoMath.distanceMeters(
                 from,
                 to
         );

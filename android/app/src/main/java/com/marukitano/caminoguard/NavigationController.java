@@ -22,9 +22,6 @@ final class NavigationController {
         );
     }
 
-    private static final double EARTH_RADIUS_M =
-            6371008.8;
-
     private final long recenterDelayMs =
             CaminoConfig.get().longValue(
                     "navigation.recenterDelayMs"
@@ -244,7 +241,7 @@ final class NavigationController {
                 bearingProvider.currentBearingDegrees();
 
         LatLng cameraTarget =
-                destination(
+                GeoMath.destination(
                         position,
                         bearing,
                         cameraLeadM
@@ -318,54 +315,6 @@ final class NavigationController {
                 + zoomDelta;
     }
 
-    private static LatLng destination(
-            LatLng from,
-            double bearingDegrees,
-            double meters
-    ) {
-        double angularDistance =
-                meters / EARTH_RADIUS_M;
-
-        double bearing =
-                Math.toRadians(
-                        bearingDegrees
-                );
-
-        double lat1 =
-                Math.toRadians(
-                        from.getLatitude()
-                );
-
-        double lon1 =
-                Math.toRadians(
-                        from.getLongitude()
-                );
-
-        double lat2 =
-                Math.asin(
-                        Math.sin(lat1)
-                                * Math.cos(angularDistance)
-                                + Math.cos(lat1)
-                                * Math.sin(angularDistance)
-                                * Math.cos(bearing)
-                );
-
-        double lon2 =
-                lon1
-                        + Math.atan2(
-                        Math.sin(bearing)
-                                * Math.sin(angularDistance)
-                                * Math.cos(lat1),
-                        Math.cos(angularDistance)
-                                - Math.sin(lat1)
-                                * Math.sin(lat2)
-                );
-
-        return new LatLng(
-                Math.toDegrees(lat2),
-                Math.toDegrees(lon2)
-        );
-    }
 
     private void publishFollowState() {
         if (followStateListener != null) {

@@ -27,9 +27,6 @@ import java.util.List;
  */
 final class CaminoRepository {
 
-    private static final double EARTH_RADIUS_M =
-            6371008.8;
-
     private final Context context;
 
     CaminoRepository(
@@ -267,11 +264,11 @@ final class CaminoRepository {
 
             double startToSecond =
                     Math.min(
-                            distanceMeters(
+                            GeoMath.distanceMeters(
                                     firstStart,
                                     secondStart
                             ),
-                            distanceMeters(
+                            GeoMath.distanceMeters(
                                     firstStart,
                                     secondEnd
                             )
@@ -279,11 +276,11 @@ final class CaminoRepository {
 
             double endToSecond =
                     Math.min(
-                            distanceMeters(
+                            GeoMath.distanceMeters(
                                     firstEnd,
                                     secondStart
                             ),
-                            distanceMeters(
+                            GeoMath.distanceMeters(
                                     firstEnd,
                                     secondEnd
                             )
@@ -325,10 +322,10 @@ final class CaminoRepository {
                                         - 1
                         );
 
-                if (distanceMeters(
+                if (GeoMath.distanceMeters(
                         previousEnd,
                         last
-                ) < distanceMeters(
+                ) < GeoMath.distanceMeters(
                         previousEnd,
                         first
                 )) {
@@ -428,7 +425,7 @@ final class CaminoRepository {
                 index++) {
 
             total +=
-                    distanceMeters(
+                    GeoMath.distanceMeters(
                             points.get(
                                     index
                             ),
@@ -439,61 +436,6 @@ final class CaminoRepository {
         }
 
         return total;
-    }
-
-    static double distanceMeters(
-            LatLng a,
-            LatLng b
-    ) {
-        double lat1 =
-                Math.toRadians(
-                        a.getLatitude()
-                );
-
-        double lat2 =
-                Math.toRadians(
-                        b.getLatitude()
-                );
-
-        double dLat =
-                lat2 - lat1;
-
-        double dLon =
-                Math.toRadians(
-                        b.getLongitude()
-                                - a.getLongitude()
-                );
-
-        double h =
-                Math.sin(
-                        dLat / 2.0
-                )
-                        * Math.sin(
-                        dLat / 2.0
-                )
-                        + Math.cos(
-                        lat1
-                )
-                        * Math.cos(
-                        lat2
-                )
-                        * Math.sin(
-                        dLon / 2.0
-                )
-                        * Math.sin(
-                        dLon / 2.0
-                );
-
-        return 2.0
-                * EARTH_RADIUS_M
-                * Math.asin(
-                Math.min(
-                        1.0,
-                        Math.sqrt(
-                                h
-                        )
-                )
-        );
     }
 
     static String emptyToNull(
@@ -671,7 +613,7 @@ final class RouteTrack {
             radiusM =
                     Math.max(
                             radiusM,
-                            CaminoRepository.distanceMeters(
+                            GeoMath.distanceMeters(
                                     boundsCenter,
                                     point
                             )

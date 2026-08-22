@@ -93,7 +93,7 @@ final class CaminoDirectionTracker {
         }
 
         rawCameraYawDeg =
-                normalizeDegrees(
+                GeoMath.normalizeDegrees(
                         (float) Math.toDegrees(
                                 Math.atan2(
                                         worldX,
@@ -122,13 +122,13 @@ final class CaminoDirectionTracker {
         }
 
         float offset =
-                shortestAngleDegrees(
+                GeoMath.shortestAngleDegrees(
                         gyroReferenceYawDeg,
                         rawCameraYawDeg
                 );
 
         phoneHeadingDeg =
-                normalizeDegrees(
+                GeoMath.normalizeDegrees(
                         baseHeading + offset
                 );
     }
@@ -184,7 +184,7 @@ final class CaminoDirectionTracker {
             walkedBackM += older.distanceTo(newer);
 
             if (walkedBackM >= targetDistanceM) {
-                return normalizeDegrees(
+                return GeoMath.normalizeDegrees(
                         older.bearingTo(newest)
                 );
             }
@@ -193,29 +193,5 @@ final class CaminoDirectionTracker {
         return null;
     }
 
-    private static float normalizeDegrees(float value) {
-        float normalized = value % 360.0f;
 
-        if (normalized < 0.0f) {
-            normalized += 360.0f;
-        }
-
-        return normalized;
-    }
-
-    private static float shortestAngleDegrees(
-            float from,
-            float to
-    ) {
-        float delta =
-                normalizeDegrees(
-                        to - from
-                );
-
-        if (delta > 180.0f) {
-            delta -= 360.0f;
-        }
-
-        return delta;
-    }
 }

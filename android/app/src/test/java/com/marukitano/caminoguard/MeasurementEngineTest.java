@@ -504,7 +504,7 @@ public final class MeasurementEngineTest {
                 );
 
         double expectedGapM =
-                CaminoRepository.distanceMeters(
+                GeoMath.distanceMeters(
                         first.points.get(
                                 first.points.size() - 1
                         ),
@@ -588,7 +588,7 @@ public final class MeasurementEngineTest {
                 index++) {
 
             distanceM +=
-                    CaminoRepository.distanceMeters(
+                    GeoMath.distanceMeters(
                             points.get(
                                     index
                             ),

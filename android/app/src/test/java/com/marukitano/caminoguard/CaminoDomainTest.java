@@ -293,7 +293,7 @@ public final class CaminoDomainTest {
 
         assertEquals(
                 0.0,
-                CaminoRepository.distanceMeters(
+                GeoMath.distanceMeters(
                         origin,
                         origin
                 ),
@@ -306,13 +306,13 @@ public final class CaminoDomainTest {
                         / 180.0;
 
         double forward =
-                CaminoRepository.distanceMeters(
+                GeoMath.distanceMeters(
                         origin,
                         northOneDegree
                 );
 
         double backward =
-                CaminoRepository.distanceMeters(
+                GeoMath.distanceMeters(
                         northOneDegree,
                         origin
                 );
@@ -516,7 +516,7 @@ public final class CaminoDomainTest {
                 0.0;
 
         track.lengthM =
-                CaminoRepository.distanceMeters(
+                GeoMath.distanceMeters(
                         points.get(
                                 0
                         ),

@@ -26,9 +26,6 @@ final class TravelStatsController {
         MeasurementPath currentMeasurementPath();
     }
 
-    private static final double EARTH_RADIUS_M =
-            6371008.8;
-
     private static final double SPEED_SAMPLE_MIN_MOVE_M =
             CaminoConfig.get().doubleValue(
                     "measurement.speedSampleMinMoveMeters"
@@ -171,7 +168,7 @@ final class TravelStatsController {
         }
 
         double segmentM =
-                travelDistanceBetween(
+                GeoMath.distanceMeters(
                         lastTravelSamplePosition,
                         position
                 );
@@ -655,70 +652,5 @@ final class TravelStatsController {
         );
     }
 
-    private static double travelDistanceBetween(
-            LatLng from,
-            LatLng to
-    ) {
-        double lat1 =
-                Math.toRadians(
-                        from.getLatitude()
-                );
 
-        double lon1 =
-                Math.toRadians(
-                        from.getLongitude()
-                );
-
-        double lat2 =
-                Math.toRadians(
-                        to.getLatitude()
-                );
-
-        double lon2 =
-                Math.toRadians(
-                        to.getLongitude()
-                );
-
-        double dLat =
-                lat2
-                        - lat1;
-
-        double dLon =
-                lon2
-                        - lon1;
-
-        double a =
-                Math.sin(
-                        dLat / 2.0
-                )
-                        * Math.sin(
-                        dLat / 2.0
-                )
-                        + Math.cos(
-                        lat1
-                )
-                        * Math.cos(
-                        lat2
-                )
-                        * Math.sin(
-                        dLon / 2.0
-                )
-                        * Math.sin(
-                        dLon / 2.0
-                );
-
-        double c =
-                2.0
-                        * Math.atan2(
-                        Math.sqrt(
-                                a
-                        ),
-                        Math.sqrt(
-                                1.0 - a
-                        )
-                );
-
-        return EARTH_RADIUS_M
-                * c;
-    }
 }

@@ -9,9 +9,6 @@ import org.maplibre.android.geometry.LatLng;
  */
 final class CaminoProjectionEngine {
 
-    private static final double EARTH_RADIUS_M =
-            6371008.8;
-
     private final CaminoNetwork network;
 
     CaminoProjectionEngine(
@@ -227,7 +224,7 @@ final class CaminoProjectionEngine {
             }
 
             alongTrackM +=
-                    CaminoRepository.distanceMeters(
+                    GeoMath.distanceMeters(
                             a,
                             b
                     );
@@ -247,7 +244,7 @@ final class CaminoProjectionEngine {
             LatLng query
     ) {
         double centerDistanceM =
-                CaminoRepository.distanceMeters(
+                GeoMath.distanceMeters(
                         query,
                         track.boundsCenter
                 );
@@ -290,7 +287,7 @@ final class CaminoProjectionEngine {
                         a.getLongitude()
                                 - query.getLongitude()
                 )
-                        * EARTH_RADIUS_M
+                        * GeoMath.EARTH_RADIUS_M
                         * cosLat;
 
         double ay =
@@ -298,14 +295,14 @@ final class CaminoProjectionEngine {
                         a.getLatitude()
                                 - query.getLatitude()
                 )
-                        * EARTH_RADIUS_M;
+                        * GeoMath.EARTH_RADIUS_M;
 
         double bx =
                 Math.toRadians(
                         b.getLongitude()
                                 - query.getLongitude()
                 )
-                        * EARTH_RADIUS_M
+                        * GeoMath.EARTH_RADIUS_M
                         * cosLat;
 
         double by =
@@ -313,7 +310,7 @@ final class CaminoProjectionEngine {
                         b.getLatitude()
                                 - query.getLatitude()
                 )
-                        * EARTH_RADIUS_M;
+                        * GeoMath.EARTH_RADIUS_M;
 
         double vx =
                 bx - ax;
@@ -360,7 +357,7 @@ final class CaminoProjectionEngine {
                 );
 
         double segmentLength =
-                CaminoRepository.distanceMeters(
+                GeoMath.distanceMeters(
                         a,
                         b
                 );

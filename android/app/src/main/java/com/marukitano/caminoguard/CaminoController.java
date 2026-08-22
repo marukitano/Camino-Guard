@@ -731,7 +731,7 @@ public final class CaminoController {
                         )
                 );
 
-        return navigationBearingDegrees(
+        return GeoMath.bearingDegrees(
                 track.points.get(
                         segment
                 ),
@@ -740,64 +740,6 @@ public final class CaminoController {
                 )
         );
     }
-
-    private static double navigationBearingDegrees(
-            LatLng from,
-            LatLng to
-    ) {
-        double lat1 =
-                Math.toRadians(
-                        from.getLatitude()
-                );
-
-        double lat2 =
-                Math.toRadians(
-                        to.getLatitude()
-                );
-
-        double deltaLon =
-                Math.toRadians(
-                        to.getLongitude()
-                                - from.getLongitude()
-                );
-
-        double y =
-                Math.sin(
-                        deltaLon
-                ) * Math.cos(
-                        lat2
-                );
-
-        double x =
-                Math.cos(
-                        lat1
-                ) * Math.sin(
-                        lat2
-                )
-                        - Math.sin(
-                        lat1
-                ) * Math.cos(
-                        lat2
-                ) * Math.cos(
-                        deltaLon
-                );
-
-        double bearing =
-                Math.toDegrees(
-                        Math.atan2(
-                                y,
-                                x
-                        )
-                );
-
-        bearing %=
-                360.0;
-
-        return bearing < 0.0
-                ? bearing + 360.0
-                : bearing;
-    }
-
 
     private int dp(
             int value
