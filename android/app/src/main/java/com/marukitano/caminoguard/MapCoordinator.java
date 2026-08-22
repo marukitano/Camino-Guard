@@ -55,9 +55,7 @@ final class MapCoordinator {
         this.caminoController = caminoController;
 
         caminoMapRenderer =
-                new CaminoMapRenderer(
-                        activity
-                );
+                new CaminoMapRenderer();
 
         offlineMapRepository =
                 new OfflineMapRepository(
@@ -233,15 +231,16 @@ final class MapCoordinator {
                                             View.GONE
                                     );
 
-                                    caminoMapRenderer.onStyleLoaded(
+                                    caminoController.onStyleLoaded(
                                             style
+                                    );
+
+                                    caminoMapRenderer.onStyleLoaded(
+                                            style,
+                                            caminoController.routesForRendering()
                                     );
 
                                     orientationController.onStyleLoaded(
-                                            style
-                                    );
-
-                                    caminoController.onStyleLoaded(
                                             style
                                     );
                                 }

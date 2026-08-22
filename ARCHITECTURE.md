@@ -12,7 +12,9 @@ Runtime Camino geometry lives only in:
 
 `android/app/src/main/assets/camino/camino-global.json`
 
-Both `CaminoController` and `CaminoMapRenderer` read this file.
+`CaminoRepository` is the single runtime parser for this file.
+`CaminoMapRenderer` renders the already-parsed route domain objects and must
+not open or parse the canonical asset independently.
 Do not add another `tracks-global*.geojson` runtime truth.
 
 ## One configuration file

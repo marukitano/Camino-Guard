@@ -493,6 +493,11 @@ public final class CaminoController {
         }
     }
 
+    List<CaminoRoute> routesForRendering() {
+        return routes;
+    }
+
+
     private void loadRoutes()
             throws Exception {
 
