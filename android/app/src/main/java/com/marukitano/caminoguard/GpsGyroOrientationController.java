@@ -11,15 +11,29 @@ import android.graphics.Paint;
 import android.graphics.Path;
 
 import org.maplibre.android.geometry.LatLng;
-import org.maplibre.android.maps.*;
-import org.maplibre.android.style.layers.*;
+import org.maplibre.android.maps.MapLibreMap;
+import org.maplibre.android.maps.Style;
+import org.maplibre.android.style.layers.CircleLayer;
+import org.maplibre.android.style.layers.LineLayer;
+import org.maplibre.android.style.layers.Property;
+import org.maplibre.android.style.layers.PropertyFactory;
+import org.maplibre.android.style.layers.SymbolLayer;
 import org.maplibre.android.style.sources.GeoJsonSource;
-import org.maplibre.geojson.*;
+import org.maplibre.geojson.Feature;
+import org.maplibre.geojson.LineString;
+import org.maplibre.geojson.Point;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public final class GpsGyroOrientationController implements CaminoTrackingService.Listener {
-    public static final int LOCATION_PERMISSION_REQUEST=4207;
+public final class GpsGyroOrientationController
+        implements CaminoTrackingService.Listener {
+
+    public static final int LOCATION_PERMISSION_REQUEST =
+            4207;
+
+    private static final int MAX_PLAYBACK_POINTS =
+            3;
 
     private static final String POS_SRC="camino-user-location";
     private static final String DOT="camino-user-location-dot";
@@ -30,7 +44,8 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private static final String TRACK="camino-debug-gps-track-line";
     private final Activity activity;
     private MapLibreMap map;
-    private GeoJsonSource posSource, trackSource;
+    private GeoJsonSource posSource;
+    private GeoJsonSource trackSource;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
     private List<android.location.Location> renderedTrack;
@@ -52,25 +67,41 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         }
     }
 
-    private final List<TimedPoint> playbackPoints=new ArrayList<>();
+    private final List<TimedPoint> playbackPoints =
+            new ArrayList<>();
+
     private ValueAnimator playbackAnimator;
 
     private boolean previousStationary;
     private Double departureHeadingDeg;
-    private boolean started, asked;
+    private boolean started;
+    private boolean asked;
 
-    public GpsGyroOrientationController(Activity a){
-        activity=a;
-        liveNavigationCameraController=
+    public GpsGyroOrientationController(
+            Activity activity
+    ) {
+        this.activity =
+                activity;
+
+        liveNavigationCameraController =
                 new LiveNavigationCameraController(
-                        a);
+                        activity
+                );
     }
-    public void attachMap(MapLibreMap m){
-        map=m;
-        liveNavigationCameraController.attachMap(
-                m);
 
-        map.addOnCameraMoveListener(this::updateArrow);
+    public void attachMap(
+            MapLibreMap map
+    ) {
+        this.map =
+                map;
+
+        liveNavigationCameraController.attachMap(
+                map
+        );
+
+        map.addOnCameraMoveListener(
+                this::updateArrow
+        );
     }
 
     public void onStyleLoaded(Style style){
@@ -140,10 +171,21 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
         CaminoTrackingService.start(activity);
     }
 
-    public void stop(){
-        if(!started)return;
-        started=false;
-        CaminoTrackingService.removeListener(this); // service keeps GPS+gyro alive
+    public void stop() {
+        if (!started) {
+            return;
+        }
+
+        started =
+                false;
+
+        /*
+         * The process-wide tracking service may still have other listeners.
+         * Stopping this controller therefore only detaches its own listener.
+         */
+        CaminoTrackingService.removeListener(
+                this
+        );
     }
 
     public void onLocationPermissionResult(int requestCode,String[] p,int[] g){
@@ -208,8 +250,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
             animateToSnapshot(s);
         }
     }
-
-
 
     private void updateArrow(){
         if(map==null || arrowLayer==null || state==null)
@@ -283,8 +323,13 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
         playbackPoints.add(newestTimed);
 
-        while(playbackPoints.size()>120)
-            playbackPoints.remove(0);
+        while (playbackPoints.size()
+                > MAX_PLAYBACK_POINTS) {
+
+            playbackPoints.remove(
+                    0
+            );
+        }
 
         if(displayedPosition==null || previous==null){
             displayedPosition=newest;
@@ -408,8 +453,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
         playbackAnimator.start();
     }
-
-
 
 
     private static double blendHeading(
@@ -605,12 +648,6 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
         updateArrow();
     }
-
-
-
-
-
-
 
     private Bitmap arrowBitmap(int fillColor){
         int size=Math.max(64,Math.round(40*activity.getResources().getDisplayMetrics().density));
