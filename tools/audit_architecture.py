@@ -22,6 +22,8 @@ style_path = ASSETS / "styles/camino-basic.json"
 main_path = JAVA / "MainActivity.java"
 controller_path = JAVA / "CaminoController.java"
 repository_path = JAVA / "CaminoRepository.java"
+renderer_path = JAVA / "CaminoMapRenderer.java"
+geomath_path = JAVA / "GeoMath.java"
 network_path = JAVA / "CaminoNetwork.java"
 measurement_path = JAVA / "MeasurementEngine.java"
 offline_map_path = JAVA / "OfflineMapRepository.java"
@@ -52,6 +54,8 @@ check(config_path.is_file(), "missing camino-config.json")
 check(canonical.is_file(), "missing camino-global.json")
 check(controller_path.is_file(), "missing CaminoController.java")
 check(repository_path.is_file(), "missing CaminoRepository.java")
+check(renderer_path.is_file(), "missing CaminoMapRenderer.java")
+check(geomath_path.is_file(), "missing GeoMath.java")
 check(network_path.is_file(), "missing CaminoNetwork.java")
 check(measurement_path.is_file(), "missing MeasurementEngine.java")
 check(offline_map_path.is_file(), "missing OfflineMapRepository.java")
@@ -123,6 +127,41 @@ if repository_path.is_file():
           "CaminoRepository does not own JSON parsing")
     check("prepareRouteGeometry(" in repository,
           "CaminoRepository does not own static route geometry preparation")
+
+if renderer_path.is_file():
+    renderer = renderer_path.read_text()
+    check("new JSONObject(" not in renderer,
+          "CaminoMapRenderer still parses canonical JSON")
+    check("readAssetText(" not in renderer,
+          "CaminoMapRenderer still reads canonical asset text")
+    check("data.caminoAsset" not in renderer,
+          "CaminoMapRenderer still owns canonical asset lookup")
+    check("List<CaminoRoute>" in renderer
+          and "RouteTrack" in renderer,
+          "CaminoMapRenderer does not render parsed domain objects")
+
+if geomath_path.is_file():
+    geomath = geomath_path.read_text()
+    for required_method in (
+        "static double distanceMeters(",
+        "static double bearingDegrees(",
+        "static LatLng destination(",
+        "static double normalizeDegrees(",
+        "static double shortestAngleDegrees(",
+    ):
+        check(required_method in geomath,
+              "GeoMath missing shared method: " + required_method)
+
+    for java_path in JAVA.glob("*.java"):
+        if java_path == geomath_path:
+            continue
+
+        java_text = java_path.read_text()
+
+        check("6371008.8" not in java_text,
+              f"duplicate Earth radius literal remains in {java_path.name}")
+        check("CaminoRepository.distanceMeters(" not in java_text,
+              f"old repository distance helper remains in {java_path.name}")
 
 if controller_path.is_file():
     controller = controller_path.read_text()
@@ -210,6 +249,10 @@ if navigation_path.is_file():
 
 if live_navigation_camera_path.is_file():
     live_navigation_camera = live_navigation_camera_path.read_text()
+    check("GeoMath.distanceMeters(" in live_navigation_camera,
+          "LiveNavigationCameraController is not using shared GeoMath distance")
+    check("GeoMath.destination(" in live_navigation_camera,
+          "LiveNavigationCameraController is not using shared GeoMath destination")
     check("RETURN_MS = 1650" in live_navigation_camera,
           "LiveNavigationCameraController lost proven 1650 ms return timing")
     check("BEARING_TAU_MS = 2200.0" in live_navigation_camera,
@@ -226,6 +269,17 @@ if live_navigation_camera_path.is_file():
 gps_orientation_path = JAVA / "GpsGyroOrientationController.java"
 if gps_orientation_path.is_file():
     gps_orientation = gps_orientation_path.read_text()
+    check("import org.maplibre.android.maps.*;" not in gps_orientation,
+          "GpsGyroOrientationController still has MapLibre wildcard imports")
+    check("import org.maplibre.geojson.*;" not in gps_orientation,
+          "GpsGyroOrientationController still has GeoJSON wildcard imports")
+    check("MAX_PLAYBACK_POINTS =" in gps_orientation
+          and "            3;" in gps_orientation,
+          "GpsGyroOrientationController playback history is not capped at 3")
+    check("GeoMath.bearingDegrees(" in gps_orientation,
+          "GpsGyroOrientationController is not using shared GeoMath bearing")
+    check("GeoMath.shortestAngleDegrees(" in gps_orientation,
+          "GpsGyroOrientationController is not using shared GeoMath angles")
     check("LiveNavigationCameraController" in gps_orientation,
           "GpsGyroOrientationController is not wired to live camera controller")
     check("private void renderExternalCamera(" not in gps_orientation,
@@ -611,14 +665,12 @@ if canonical.is_file():
     check(isinstance(root.get("routes"), list) and root["routes"],
           "canonical Camino dataset has no routes")
 
-if errors:
-    print("ARCHITECTURE AUDIT FAILED")
-    for error in errors:
-        print("  - " + error)
-    sys.exit(1)
-
 if direction_tracker_path.is_file():
     direction_tracker = direction_tracker_path.read_text()
+    check("GeoMath.normalizeDegrees(" in direction_tracker,
+          "CaminoDirectionTracker is not using shared GeoMath normalization")
+    check("GeoMath.shortestAngleDegrees(" in direction_tracker,
+          "CaminoDirectionTracker is not using shared GeoMath angles")
     check("void acceptMovingLocation(" in direction_tracker,
           "CaminoDirectionTracker does not own moving GPS course updates")
     check("void updateRawCameraYaw(" in direction_tracker,
@@ -643,10 +695,18 @@ if tracking_service_path.is_file():
     check("private Float calculateCourseOverLastDistance(" not in tracking_service,
           "CaminoTrackingService still owns course calculation")
 
+if errors:
+    print("ARCHITECTURE AUDIT FAILED")
+    for error in errors:
+        print("  - " + error)
+    sys.exit(1)
+
 print("ARCHITECTURE AUDIT OK")
 print("  one canonical Camino dataset")
 print("  one global controller")
-print("  one Camino repository / domain owner")
+print("  one Camino repository / canonical parser")
+print("  one runtime Camino renderer over parsed domain objects")
+print("  one shared geographic math owner")
 print("  one Camino graph / shortest-path engine")
 print("  one measurement / height-profile engine")
 print("  one offline-map repository")
