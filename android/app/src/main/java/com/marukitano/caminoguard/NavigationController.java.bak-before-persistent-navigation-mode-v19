@@ -41,7 +41,6 @@ final class NavigationController {
     private final PositionProvider positionProvider;
     private final BearingProvider bearingProvider;
     private final FollowStateListener followStateListener;
-    private final CaminoUiStateStore uiStateStore;
 
     private MapLibreMap map;
     private GpsGyroOrientationController externalController;
@@ -61,11 +60,6 @@ final class NavigationController {
         this.positionProvider = positionProvider;
         this.bearingProvider = bearingProvider;
         this.followStateListener = followStateListener;
-
-        uiStateStore =
-                new CaminoUiStateStore(
-                        mapView.getContext()
-                );
     }
 
     void attachMap(
@@ -80,16 +74,7 @@ final class NavigationController {
         liveMode = enabled;
 
         if (enabled) {
-            /*
-             * First installation defaults to centered/follow mode, matching
-             * the old behaviour. Afterwards restore the user's last explicit
-             * navigation mode.
-             */
-            followEnabled =
-                    uiStateStore.restoreFollowEnabled(
-                            true
-                    );
-
+            followEnabled = true;
             followSuspended = false;
             resumeGeneration++;
 
@@ -128,14 +113,6 @@ final class NavigationController {
                 !followEnabled;
 
         followSuspended = false;
-
-        /*
-         * Persist only the explicit centered/manual mode. Temporary camera
-         * suspension caused by dragging remains transient and is not saved.
-         */
-        uiStateStore.saveFollowEnabled(
-                followEnabled
-        );
 
         publishFollowState();
 

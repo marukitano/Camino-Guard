@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.FrameLayout;
@@ -46,18 +47,21 @@ final class CaminoInfoPanel extends FrameLayout {
     CaminoInfoPanel(Context context) {
         super(context);
 
-        /*
-         * The old bottom information card is temporarily disabled.
-         * This view now acts only as a transparent host for the two map
-         * controls that remain active: compass + navigation/recenter.
-         */
-        setClickable(false);
-        setMinimumWidth(dpInt(48));
-        setMinimumHeight(dpInt(96));
+        setClickable(true);
+        setMinimumWidth(dpInt(286));
 
-        setBackground(
-                null
+        GradientDrawable background =
+                new GradientDrawable();
+
+        background.setColor(
+                Color.parseColor("#E63D332C")
         );
+
+        background.setCornerRadius(
+                dp(18.0f)
+        );
+
+        setBackground(background);
 
         panelToggleView =
                 new CaminoChevronView(
@@ -84,8 +88,8 @@ final class CaminoInfoPanel extends FrameLayout {
                 toggleParams
         );
 
-        panelToggleView.setVisibility(
-                GONE
+        panelToggleView.setOnClickListener(
+                view -> togglePanel()
         );
 
         LinearLayout contentColumn =
@@ -116,14 +120,6 @@ final class CaminoInfoPanel extends FrameLayout {
         addView(
                 contentColumn,
                 contentParams
-        );
-
-        /*
-         * Presenter/state logic may continue updating these views, but the
-         * information screen itself is intentionally not rendered for now.
-         */
-        contentColumn.setVisibility(
-                GONE
         );
 
         titleView =
@@ -263,11 +259,14 @@ final class CaminoInfoPanel extends FrameLayout {
                 new FrameLayout.LayoutParams(
                         dpInt(40),
                         dpInt(40),
-                        Gravity.TOP | Gravity.CENTER_HORIZONTAL
+                        Gravity.END | Gravity.BOTTOM
                 );
 
-        compassParams.topMargin =
-                dpInt(4);
+        compassParams.rightMargin =
+                dpInt(8);
+
+        compassParams.bottomMargin =
+                dpInt(7);
 
         addView(
                 compassView,
@@ -287,11 +286,14 @@ final class CaminoInfoPanel extends FrameLayout {
                 new FrameLayout.LayoutParams(
                         dpInt(40),
                         dpInt(40),
-                        Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
+                        Gravity.END | Gravity.BOTTOM
                 );
 
+        navigationParams.rightMargin =
+                dpInt(56);
+
         navigationParams.bottomMargin =
-                dpInt(4);
+                dpInt(7);
 
         addView(
                 navigationButton,
@@ -548,6 +550,14 @@ final class CaminoInfoPanel extends FrameLayout {
 
     boolean isHidden() {
         return hidden;
+    }
+
+    private void togglePanel() {
+        if (hidden) {
+            showPanel();
+        } else {
+            hidePanel();
+        }
     }
 
     void hidePanel() {

@@ -39,12 +39,13 @@ final class CaminoNavigationButton extends View {
                 context
         );
 
-        /*
-         * Opaque white background so the recenter/follow control stays clearly
-         * visible on every map color underneath.
-         */
         circlePaint.setColor(
-                Color.WHITE
+                Color.argb(
+                        46,
+                        255,
+                        240,
+                        200
+                )
         );
 
         circlePaint.setStyle(
@@ -54,9 +55,9 @@ final class CaminoNavigationButton extends View {
         outlinePaint.setColor(
                 Color.argb(
                         190,
-                        61,
-                        51,
-                        44
+                        255,
+                        240,
+                        200
                 )
         );
 
@@ -70,9 +71,9 @@ final class CaminoNavigationButton extends View {
 
         iconPaint.setColor(
                 Color.rgb(
-                        61,
-                        51,
-                        44
+                        255,
+                        240,
+                        200
                 )
         );
 
@@ -82,9 +83,9 @@ final class CaminoNavigationButton extends View {
 
         textPaint.setColor(
                 Color.rgb(
-                        61,
-                        51,
-                        44
+                        255,
+                        240,
+                        200
                 )
         );
 

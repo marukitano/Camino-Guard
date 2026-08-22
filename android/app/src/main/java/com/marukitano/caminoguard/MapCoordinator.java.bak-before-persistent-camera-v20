@@ -36,7 +36,6 @@ final class MapCoordinator {
     private final CaminoMapRenderer caminoMapRenderer;
     private final OfflineMapRepository offlineMapRepository;
     private final MapStyleProvider mapStyleProvider;
-    private final CaminoUiStateStore uiStateStore;
 
     MapCoordinator(
             Activity activity,
@@ -111,11 +110,6 @@ final class MapCoordinator {
                 new MapStyleProvider(
                         activity
                 );
-
-        uiStateStore =
-                new CaminoUiStateStore(
-                        activity
-                );
     }
 
     static LatLng startupPosition() {
@@ -155,16 +149,6 @@ final class MapCoordinator {
                             map
                     );
 
-                    /*
-                     * Persist the complete camera only when MapLibre has
-                     * finished a move, zoom or rotation.
-                     */
-                    map.addOnCameraIdleListener(
-                            () -> uiStateStore.saveCameraPosition(
-                                    map.getCameraPosition()
-                            )
-                    );
-
                     mapView.post(
                             () -> configureStartupCamera(
                                     map
@@ -191,7 +175,7 @@ final class MapCoordinator {
                 0.0
         );
 
-        CameraPosition fallback =
+        map.setCameraPosition(
                 new CameraPosition.Builder()
                         .target(
                                 startupPosition()
@@ -211,16 +195,7 @@ final class MapCoordinator {
                                         "startup.tilt"
                                 )
                         )
-                        .build();
-
-        /*
-         * First launch uses CaminoConfig. Every later launch restores the
-         * exact last camera: center, zoom, rotation and tilt.
-         */
-        map.setCameraPosition(
-                uiStateStore.restoreCameraPosition(
-                        fallback
-                )
+                        .build()
         );
     }
 

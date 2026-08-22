@@ -113,21 +113,12 @@ final class CaminoInfoController {
                                 96
                         ),
                         Gravity.START
-                                | Gravity.BOTTOM
+                                | Gravity.CENTER_VERTICAL
                 );
 
         params.leftMargin =
                 dp(
                         2
-                );
-
-        /*
-         * Anchor the two controls at the bottom-left and let the stack grow
-         * upward: recenter/navigation at the bottom, compass above it.
-         */
-        params.bottomMargin =
-                dp(
-                        18
                 );
 
         parent.addView(

@@ -75,17 +75,8 @@ final class CaminoHeightProfileView extends View {
 
     private static final int MAX_DRAW_SAMPLES = 1000;
 
-    /*
-     * Dynamic horizontal elevation scale:
-     *
-     *   highest visible elevation -> 1/3 screen width from the right edge
-     *   lowest visible elevation  -> 3 mm from the right edge
-     *
-     * Absolute elevation values do not change the available profile width.
-     */
-    private static final float PROFILE_WIDTH_FRACTION = 1.0f / 3.0f;
-    private static final float PROFILE_RIGHT_MARGIN_MM = 3.0f;
-
+    private static final double PROFILE_MIN_ELEVATION_M = 0.0;
+    private static final double PROFILE_MAX_ELEVATION_M = 1800.0;
     private static final float CURSOR_LABEL_RIGHT_MARGIN_DP = 134.0f;
     private static final float PROFILE_END_FADE_MM = 6.0f;
 
@@ -95,9 +86,9 @@ final class CaminoHeightProfileView extends View {
     private static final double FULL_DOWNHILL_GRADE_PERCENT = 12.0;
 
     /*
-     * The profile occupies the right third of the screen. Interaction remains
-     * restricted to this narrow right-edge strip so the transparent drawing
-     * View does not steal map taps.
+     * The profile can span the full screen width for an absolute elevation
+     * scale. Interaction remains restricted to this narrow right-edge strip,
+     * so the transparent full-screen drawing View does not steal map taps.
      */
     private static final float PROFILE_TOUCH_STRIP_DP = 38.0f;
 
@@ -125,6 +116,11 @@ final class CaminoHeightProfileView extends View {
             );
 
     private final Paint linePaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
+    private final Paint edgePaint =
             new Paint(
                     Paint.ANTI_ALIAS_FLAG
             );
@@ -318,6 +314,25 @@ final class CaminoHeightProfileView extends View {
 
         linePaint.setStrokeCap(
                 Paint.Cap.ROUND
+        );
+
+        edgePaint.setColor(
+                Color.argb(
+                        72,
+                        255,
+                        255,
+                        255
+                )
+        );
+
+        edgePaint.setStyle(
+                Paint.Style.STROKE
+        );
+
+        edgePaint.setStrokeWidth(
+                dp(
+                        1.0f
+                )
         );
 
         cursorPaint.setColor(
@@ -817,88 +832,50 @@ final class CaminoHeightProfileView extends View {
             return;
         }
 
-        /*
-         * Dynamic elevation range from the currently visible profile samples.
-         * The absolute metre values are irrelevant for the horizontal width:
-         * the visible minimum and maximum always use the full profile band.
-         */
         double displayMin =
-                minElevation;
-
-        double displayMax =
-                maxElevation;
+                PROFILE_MIN_ELEVATION_M;
 
         double elevationSpan =
-                displayMax
-                        - displayMin;
-
-        if (elevationSpan
-                < 0.001) {
-
-            /*
-             * Degenerate flat profile: create a tiny symmetric range so the
-             * line sits in the middle of the band instead of at one edge.
-             */
-            displayMin =
-                    minElevation
-                            - 0.5;
-
-            displayMax =
-                    maxElevation
-                            + 0.5;
-
-            elevationSpan =
-                    displayMax
-                            - displayMin;
-        }
-
-        float profileWidth =
-                getWidth()
-                        * PROFILE_WIDTH_FRACTION;
+                PROFILE_MAX_ELEVATION_M
+                        - PROFILE_MIN_ELEVATION_M;
 
         /*
-         * Hide/reveal only needs to slide the right-third profile band out of
-         * the screen. A little extra margin guarantees that the 3-mm inset is
-         * also fully outside.
+         * Absolute horizontal elevation scale:
+         *   0 m    = physical right edge
+         *   1800 m = physical left edge
+         *
+         * Since the profile now spans the full width, hiding it must slide it
+         * by the full view width rather than the old 126 dp strip width.
          */
         float slide =
                 (
                         1.0f
                                 - reveal
                 )
-                        * (
-                        profileWidth
-                                + mm(
-                                PROFILE_RIGHT_MARGIN_MM
-                        )
-                );
-
-        /*
-         * Geometry at reveal == 1:
-         *
-         *   left  = highest visible elevation = exactly 1/3 screen from right
-         *   right = lowest visible elevation  = exactly 3 mm from right
-         */
-        float left =
-                getWidth()
-                        - profileWidth
-                        + slide;
+                        * getWidth();
 
         float right =
                 getWidth()
-                        - mm(
-                        PROFILE_RIGHT_MARGIN_MM
+                        - dp(
+                        2.0f
                 )
                         + slide;
 
-        /*
-         * The 3-mm inset belongs ONLY to the elevation contour / minimum
-         * elevation position. The translucent profile body continues all the
-         * way to the physical right screen edge.
-         */
-        float fillRight =
-                getWidth()
+        float left =
+                0.0f
                         + slide;
+
+        if (reveal
+                > 0.01f) {
+
+            canvas.drawLine(
+                    right,
+                    0.0f,
+                    right,
+                    getHeight(),
+                    edgePaint
+            );
+        }
 
         int profileFadeLayer =
                 beginProfileFadeLayer(
@@ -945,7 +922,7 @@ final class CaminoHeightProfileView extends View {
 
                 if (fragmentOpen) {
                     fillPath.lineTo(
-                            fillRight,
+                            right,
                             lastY
                     );
 
@@ -974,7 +951,7 @@ final class CaminoHeightProfileView extends View {
                 );
 
                 fillPath.moveTo(
-                        fillRight,
+                        right,
                         y
                 );
 
@@ -1004,7 +981,7 @@ final class CaminoHeightProfileView extends View {
 
         if (fragmentOpen) {
             fillPath.lineTo(
-                    fillRight,
+                    right,
                     lastY
             );
 
@@ -1981,17 +1958,6 @@ final class CaminoHeightProfileView extends View {
                                         - left
                         )
                 );
-    }
-
-    private float mm(
-            float value
-    ) {
-        return TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_MM,
-                value,
-                getResources()
-                        .getDisplayMetrics()
-        );
     }
 
     private float dp(

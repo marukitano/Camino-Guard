@@ -99,32 +99,14 @@ final class CaminoInfoController {
                 (ViewGroup)
                         mapView.getParent();
 
-        /*
-         * The former bottom info card is currently disabled. Its remaining
-         * compass + navigation/recenter controls live as a compact vertical
-         * stack at the left screen edge.
-         */
         FrameLayout.LayoutParams params =
                 new FrameLayout.LayoutParams(
-                        dp(
-                                48
-                        ),
-                        dp(
-                                96
-                        ),
-                        Gravity.START
-                                | Gravity.BOTTOM
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        Gravity.BOTTOM
+                                | Gravity.CENTER_HORIZONTAL
                 );
 
-        params.leftMargin =
-                dp(
-                        2
-                );
-
-        /*
-         * Anchor the two controls at the bottom-left and let the stack grow
-         * upward: recenter/navigation at the bottom, compass above it.
-         */
         params.bottomMargin =
                 dp(
                         18

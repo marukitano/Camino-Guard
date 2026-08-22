@@ -1,5 +1,7 @@
 package com.marukitano.caminoguard;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import org.maplibre.android.camera.CameraPosition;
 import org.maplibre.android.camera.CameraUpdateFactory;
 import org.maplibre.android.geometry.LatLng;
@@ -7,6 +9,12 @@ import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
 
 final class NavigationController {
+
+    private static final String PREFS_NAME =
+            "camino_guard_ui_state";
+
+    private static final String PREF_FOLLOW_ENABLED =
+            "navigation_follow_enabled";
 
     interface PositionProvider {
         LatLng currentPosition();
@@ -41,7 +49,7 @@ final class NavigationController {
     private final PositionProvider positionProvider;
     private final BearingProvider bearingProvider;
     private final FollowStateListener followStateListener;
-    private final CaminoUiStateStore uiStateStore;
+    private final SharedPreferences preferences;
 
     private MapLibreMap map;
     private GpsGyroOrientationController externalController;
@@ -62,10 +70,14 @@ final class NavigationController {
         this.bearingProvider = bearingProvider;
         this.followStateListener = followStateListener;
 
-        uiStateStore =
-                new CaminoUiStateStore(
-                        mapView.getContext()
-                );
+        preferences =
+                mapView
+                        .getContext()
+                        .getApplicationContext()
+                        .getSharedPreferences(
+                                PREFS_NAME,
+                                Context.MODE_PRIVATE
+                        );
     }
 
     void attachMap(
@@ -86,7 +98,8 @@ final class NavigationController {
              * navigation mode.
              */
             followEnabled =
-                    uiStateStore.restoreFollowEnabled(
+                    preferences.getBoolean(
+                            PREF_FOLLOW_ENABLED,
                             true
                     );
 
@@ -133,9 +146,13 @@ final class NavigationController {
          * Persist only the explicit centered/manual mode. Temporary camera
          * suspension caused by dragging remains transient and is not saved.
          */
-        uiStateStore.saveFollowEnabled(
-                followEnabled
-        );
+        preferences
+                .edit()
+                .putBoolean(
+                        PREF_FOLLOW_ENABLED,
+                        followEnabled
+                )
+                .apply();
 
         publishFollowState();
 

@@ -129,6 +129,11 @@ final class CaminoHeightProfileView extends View {
                     Paint.ANTI_ALIAS_FLAG
             );
 
+    private final Paint edgePaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
     private final Paint cursorPaint =
             new Paint(
                     Paint.ANTI_ALIAS_FLAG
@@ -318,6 +323,25 @@ final class CaminoHeightProfileView extends View {
 
         linePaint.setStrokeCap(
                 Paint.Cap.ROUND
+        );
+
+        edgePaint.setColor(
+                Color.argb(
+                        72,
+                        255,
+                        255,
+                        255
+                )
+        );
+
+        edgePaint.setStyle(
+                Paint.Style.STROKE
+        );
+
+        edgePaint.setStrokeWidth(
+                dp(
+                        1.0f
+                )
         );
 
         cursorPaint.setColor(
@@ -899,6 +923,18 @@ final class CaminoHeightProfileView extends View {
         float fillRight =
                 getWidth()
                         + slide;
+
+        if (reveal
+                > 0.01f) {
+
+            canvas.drawLine(
+                    right,
+                    0.0f,
+                    right,
+                    getHeight(),
+                    edgePaint
+            );
+        }
 
         int profileFadeLayer =
                 beginProfileFadeLayer(

@@ -1,7 +1,6 @@
 package com.marukitano.caminoguard;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
