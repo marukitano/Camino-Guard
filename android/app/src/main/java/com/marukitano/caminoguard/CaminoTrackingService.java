@@ -23,6 +23,7 @@ import android.os.IBinder;
 import android.os.SystemClock;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -33,7 +34,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *
  * MOVING:
  *   - GPS track is authoritative.
- *   - map course + arrow heading come from the last ~15 m of accepted path.
+ *   - map course + arrow heading come from the last ~10 m of accepted path.
  *   - gyro rotation is ignored.
  *
  * STATIONARY:
@@ -68,10 +69,7 @@ public final class CaminoTrackingService extends Service
                             ? null
                             : new Location(location);
 
-            this.track = new ArrayList<>();
-            for (Location point : track) {
-                this.track.add(new Location(point));
-            }
+            this.track = track;
 
             this.courseDeg = courseDeg;
             this.phoneHeadingDeg = phoneHeadingDeg;
@@ -87,7 +85,7 @@ public final class CaminoTrackingService extends Service
 
     /*
      * Fixed spatial direction window.
-     * The heading is the continuation of roughly the last 15 m walked.
+     * The heading is the continuation of roughly the last 10 m walked.
      */
     private static final float COURSE_BASELINE_M = 10.0f;
 
@@ -97,7 +95,7 @@ public final class CaminoTrackingService extends Service
     private static volatile Snapshot latestSnapshot =
             new Snapshot(
                     null,
-                    new ArrayList<>(),
+                    Collections.emptyList(),
                     null,
                     null,
                     false
@@ -109,6 +107,16 @@ public final class CaminoTrackingService extends Service
     private Sensor linearAcceleration;
 
     private final List<Location> track = new ArrayList<>();
+
+    /*
+     * Read-only deep copy exposed through Snapshot.
+     * It is rebuilt only when the GPS track itself grows. High-frequency gyro
+     * publications reuse the same immutable list instance.
+     */
+    private List<Location> publishedTrack =
+            Collections.emptyList();
+    private boolean publishedTrackDirty;
+
     private Location acceptedLocation;
     private Location lastTrackLocation;
 
@@ -295,6 +303,7 @@ public final class CaminoTrackingService extends Service
             track.add(
                     new Location(location)
             );
+            publishedTrackDirty = true;
 
             lastTrackLocation =
                     new Location(location);
@@ -334,6 +343,7 @@ public final class CaminoTrackingService extends Service
             track.add(
                     new Location(location)
             );
+            publishedTrackDirty = true;
 
             lastTrackLocation =
                     new Location(location);
@@ -431,7 +441,7 @@ public final class CaminoTrackingService extends Service
         Snapshot snapshot =
                 new Snapshot(
                         acceptedLocation,
-                        track,
+                        snapshotTrack(),
                         directionTracker.courseDeg(),
                         directionTracker.phoneHeadingDeg(),
                         motionStateDetector.state()
@@ -445,6 +455,32 @@ public final class CaminoTrackingService extends Service
                     snapshot
             );
         }
+    }
+
+    private List<Location> snapshotTrack() {
+        if (!publishedTrackDirty) {
+            return publishedTrack;
+        }
+
+        List<Location> copy =
+                new ArrayList<>(
+                        track.size()
+                );
+
+        for (Location point : track) {
+            copy.add(
+                    new Location(point)
+            );
+        }
+
+        publishedTrack =
+                Collections.unmodifiableList(
+                        copy
+                );
+
+        publishedTrackDirty = false;
+
+        return publishedTrack;
     }
 
     private void createNotificationChannel() {

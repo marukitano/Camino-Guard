@@ -33,6 +33,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     private GeoJsonSource posSource, trackSource;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
+    private List<android.location.Location> renderedTrack;
     private final LiveNavigationCameraController liveNavigationCameraController;
     private long lastFollowLocationTime = Long.MIN_VALUE;
     private LatLng displayedPosition;
@@ -75,6 +76,7 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
     public void onStyleLoaded(Style style){
         posSource=new GeoJsonSource(POS_SRC); style.addSource(posSource);
         trackSource=new GeoJsonSource(TRACK_SRC); style.addSource(trackSource);
+        renderedTrack=null;
 
         LineLayer line=new LineLayer(TRACK,TRACK_SRC);
         line.setProperties(
@@ -161,11 +163,15 @@ public final class GpsGyroOrientationController implements CaminoTrackingService
 
         liveNavigationCameraController.setCourseDeg(
                 s.courseDeg);
-        if(trackSource!=null && s.track.size()>=2){
-            List<Point> pts=new ArrayList<>();
-            for(android.location.Location l:s.track)
-                pts.add(Point.fromLngLat(l.getLongitude(),l.getLatitude()));
-            trackSource.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(pts)));
+        if(trackSource!=null && s.track!=renderedTrack){
+            renderedTrack=s.track;
+
+            if(s.track.size()>=2){
+                List<Point> pts=new ArrayList<>();
+                for(android.location.Location l:s.track)
+                    pts.add(Point.fromLngLat(l.getLongitude(),l.getLatitude()));
+                trackSource.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(pts)));
+            }
         }
         if(previousStationary && !s.stationary){
             Double base=
