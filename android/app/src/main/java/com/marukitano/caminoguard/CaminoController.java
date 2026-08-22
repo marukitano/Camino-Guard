@@ -114,7 +114,7 @@ public final class CaminoController {
                         activity,
                         mapView,
                         infoPresenter,
-                        () -> currentMeasurementPath
+                        routes
                 );
 
         this.travelStatsController =

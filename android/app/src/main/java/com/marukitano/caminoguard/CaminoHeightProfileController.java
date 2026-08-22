@@ -6,19 +6,22 @@ import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.function.Supplier;
 
 /**
  * Owns the projected Camino height-profile overlay and its refresh lifecycle.
  *
- * Measurement geometry remains owned by MeasurementEngine. Drawing/touch
- * behavior remains owned by CaminoHeightProfileView.
+ * The profile is deliberately independent from Camino selection/measurement.
+ *
+ * For each horizontal screen row, all visible Camino points compete with each
+ * other. Only the point furthest to the physical right survives. This creates
+ * one right-edge elevation envelope across every visible Camino without ever
+ * choosing a single "active route".
  */
 final class CaminoHeightProfileController {
 
@@ -27,41 +30,77 @@ final class CaminoHeightProfileController {
                     "measurement.heightProfileRefreshDelayMs"
             );
 
+    /*
+     * One candidate per two physical screen pixels gives almost full visual
+     * resolution while avoiding needless work above the View's 1000-sample
+     * drawing limit on tall phones.
+     */
+    private static final float ROW_BUCKET_PX =
+            2.0f;
+
+    /*
+     * The profile is only useful once the map is at roughly the scale where
+     * Malaga and Baena can still be visible together. Their straight-line
+     * separation is about 100 km; 105 km gives a little edge margin.
+     */
+    private static final double PROFILE_SHOW_VIEWPORT_HEIGHT_M =
+            50_000.0;
+
+    private static final double PROFILE_HIDE_VIEWPORT_HEIGHT_M =
+            80_000.0;
+
+    private static final double SLOPE_WINDOW_M =
+            100.0;
+
     private final Activity activity;
     private final MapView mapView;
     private final CaminoInfoPresenter infoPresenter;
-    private final Supplier<MeasurementPath> measurementPathSupplier;
+    private final List<CaminoRoute> routes;
 
     private MapLibreMap map;
     private CaminoHeightProfileView view;
     private boolean refreshScheduled;
 
+    private boolean profileScaleInitialized;
+    private boolean profileScaleAvailable;
+
     private final Runnable refreshRunnable =
             () -> {
-                refreshScheduled = false;
-                refresh();
+                refreshScheduled =
+                        false;
+
+                refreshVisibleEnvelope();
             };
 
     CaminoHeightProfileController(
             Activity activity,
             MapView mapView,
             CaminoInfoPresenter infoPresenter,
-            Supplier<MeasurementPath> measurementPathSupplier
+            List<CaminoRoute> routes
     ) {
-        this.activity = activity;
-        this.mapView = mapView;
-        this.infoPresenter = infoPresenter;
-        this.measurementPathSupplier = measurementPathSupplier;
+        this.activity =
+                activity;
+
+        this.mapView =
+                mapView;
+
+        this.infoPresenter =
+                infoPresenter;
+
+        this.routes =
+                routes;
     }
 
     void attachMap(
             MapLibreMap map
     ) {
-        this.map = map;
+        this.map =
+                map;
     }
 
     void ensureView() {
-        if (view != null) {
+        if (view
+                != null) {
             return;
         }
 
@@ -70,22 +109,42 @@ final class CaminoHeightProfileController {
                         activity
                 );
 
+        /*
+         * The transparent full-screen View must exist even while the profile is
+         * closed, because the right-edge chevron itself is the on/off control.
+         */
         view.setVisibility(
-                android.view.View.GONE
+                android.view.View.VISIBLE
+        );
+
+        view.setProfileVisibilityListener(
+                visible -> {
+                    if (visible) {
+                        if (updateProfileAvailability()) {
+                            refreshVisibleEnvelope();
+                        }
+
+                    } else {
+                        infoPresenter.setHeightStats(
+                                ""
+                        );
+                    }
+                }
+        );
+
+        /*
+         * Width/height may still be zero while ensureView() runs. Re-check once
+         * the MapView has completed layout so the chevron starts in the correct
+         * visible/hidden state.
+         */
+        mapView.post(
+                this::updateProfileAvailability
         );
 
         ViewGroup parent =
                 (ViewGroup)
                         mapView.getParent();
 
-        /*
-         * Full-screen transparent overlay: the profile still occupies only the
-         * rightmost 126 dp when drawn, but the cursor guide can extend all the
-         * way back to the corresponding Camino point.
-         *
-         * onTouchEvent() returns false outside the profile strip, so normal map
-         * gestures keep working everywhere else.
-         */
         FrameLayout.LayoutParams params =
                 new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
@@ -100,16 +159,29 @@ final class CaminoHeightProfileController {
         );
 
         view.setElevation(
-                dp(2)
+                dp(
+                        2
+                )
         );
     }
 
     void scheduleRefresh() {
-        if (refreshScheduled) {
+        if (view
+                == null) {
             return;
         }
 
-        refreshScheduled = true;
+        if (!updateProfileAvailability()) {
+            return;
+        }
+
+        if (view.isProfileHidden()
+                || refreshScheduled) {
+            return;
+        }
+
+        refreshScheduled =
+                true;
 
         mapView.postDelayed(
                 refreshRunnable,
@@ -122,30 +194,167 @@ final class CaminoHeightProfileController {
                 refreshRunnable
         );
 
-        refreshScheduled = false;
+        refreshScheduled =
+                false;
 
-        refresh();
+        if (view
+                == null) {
+            return;
+        }
+
+        if (!updateProfileAvailability()) {
+            return;
+        }
+
+        if (view.isProfileHidden()) {
+            return;
+        }
+
+        refreshVisibleEnvelope();
     }
 
     void refresh() {
-        MeasurementPath measurementPath =
-                measurementPathSupplier.get();
+        if (view
+                == null) {
+            return;
+        }
 
-        if (view == null
-                || map == null
-                || measurementPath == null
-                || measurementPath.profilePoints.size()
-                < 2
-                || mapView.getWidth() <= 0
-                || mapView.getHeight() <= 0) {
+        if (!updateProfileAvailability()) {
+            return;
+        }
 
-            if (view != null) {
-                view.clearProfile();
+        if (view.isProfileHidden()) {
+            return;
+        }
+
+        refreshVisibleEnvelope();
+    }
+
+    private boolean updateProfileAvailability() {
+        if (view
+                == null
+                || map
+                == null
+                || mapView.getWidth()
+                <= 0
+                || mapView.getHeight()
+                <= 0) {
+
+            if (view
+                    != null) {
+
+                view.setProfileAvailable(
+                        false
+                );
             }
 
+            profileScaleAvailable =
+                    false;
+
+            profileScaleInitialized =
+                    true;
+
+            return false;
+        }
+
+        org.maplibre.android.geometry.VisibleRegion visibleRegion =
+                map.getProjection()
+                        .getVisibleRegion();
+
+        double leftHeightM =
+                GeoMath.distanceMeters(
+                        visibleRegion.farLeft,
+                        visibleRegion.nearLeft
+                );
+
+        double rightHeightM =
+                GeoMath.distanceMeters(
+                        visibleRegion.farRight,
+                        visibleRegion.nearRight
+                );
+
+        double viewportHeightM =
+                Math.max(
+                        leftHeightM,
+                        rightHeightM
+                );
+
+        if (!Double.isFinite(
+                viewportHeightM
+        )) {
+
+            view.setProfileAvailable(
+                    false
+            );
+
+            profileScaleAvailable =
+                    false;
+
+            profileScaleInitialized =
+                    true;
+
+            return false;
+        }
+
+        /*
+         * Real hysteresis:
+         *
+         *   <= 50 km  -> available
+         *   50..80 km -> keep previous state
+         *   > 80 km   -> unavailable
+         *
+         * On first evaluation there is no previous state, so the profile only
+         * becomes available if we are already inside the 50 km threshold.
+         */
+        if (!profileScaleInitialized) {
+            profileScaleAvailable =
+                    viewportHeightM
+                            <= PROFILE_SHOW_VIEWPORT_HEIGHT_M;
+
+            profileScaleInitialized =
+                    true;
+
+        } else if (profileScaleAvailable) {
+
+            if (viewportHeightM
+                    > PROFILE_HIDE_VIEWPORT_HEIGHT_M) {
+
+                profileScaleAvailable =
+                        false;
+            }
+
+        } else if (viewportHeightM
+                <= PROFILE_SHOW_VIEWPORT_HEIGHT_M) {
+
+            profileScaleAvailable =
+                    true;
+        }
+
+        view.setProfileAvailable(
+                profileScaleAvailable
+        );
+
+        if (!profileScaleAvailable) {
             infoPresenter.setHeightStats(
                     ""
             );
+        }
+
+        return profileScaleAvailable;
+    }
+
+
+    private void refreshVisibleEnvelope() {
+        if (view
+                == null
+                || map
+                == null
+                || view.isProfileHidden()
+                || routes.isEmpty()
+                || mapView.getWidth()
+                <= 0
+                || mapView.getHeight()
+                <= 0) {
 
             return;
         }
@@ -156,131 +365,62 @@ final class CaminoHeightProfileController {
         float height =
                 mapView.getHeight();
 
-        List<CaminoHeightProfileView.Sample> visible =
-                new ArrayList<>();
+        int bucketCount =
+                Math.max(
+                        1,
+                        (int)
+                                Math.ceil(
+                                        height
+                                                / ROW_BUCKET_PX
+                                )
+                );
 
-        int previousVisibleIndex =
-                -2;
+        ScanCandidate[] rows =
+                new ScanCandidate[
+                        bucketCount
+                        ];
 
-        double previousElevation =
-                Double.NaN;
+        LatLng cameraCenter =
+                map.getCameraPosition()
+                        .target;
 
-        double minElevation =
-                Double.POSITIVE_INFINITY;
+        double viewportRadiusM =
+                visibleViewportRadiusM(
+                        cameraCenter
+                );
 
-        double maxElevation =
-                Double.NEGATIVE_INFINITY;
+        for (CaminoRoute route
+                : routes) {
 
-        double netElevationChange =
-                0.0;
+            for (RouteTrack track
+                    : route.tracks) {
 
-        double accumulatedAscent =
-                0.0;
-
-        double accumulatedDescent =
-                0.0;
-
-        for (int index = 0;
-                index
-                        < measurementPath.profilePoints.size();
-                index++) {
-
-            ProfilePoint point =
-                    measurementPath.profilePoints.get(
-                            index
-                    );
-
-            if (!Double.isFinite(
-                    point.elevationM
-            )) {
-                continue;
-            }
-
-            PointF screen =
-                    map.getProjection()
-                            .toScreenLocation(
-                                    point.point
-                            );
-
-            if (!Float.isFinite(
-                    screen.x
-            ) || !Float.isFinite(
-                    screen.y
-            ) || screen.x < 0.0f
-                    || screen.x > width
-                    || screen.y < 0.0f
-                    || screen.y > height) {
-
-                continue;
-            }
-
-            boolean breakBefore =
-                    point.breakBefore
-                            || previousVisibleIndex
-                            != index - 1;
-
-            visible.add(
-                    new CaminoHeightProfileView.Sample(
-                            screen.x / width,
-                            screen.y / height,
-                            point.elevationM,
-                            breakBefore
-                    )
-            );
-
-            minElevation =
-                    Math.min(
-                            minElevation,
-                            point.elevationM
-                    );
-
-            maxElevation =
-                    Math.max(
-                            maxElevation,
-                            point.elevationM
-                    );
-
-            if (!breakBefore
-                    && Double.isFinite(
-                    previousElevation
-            )) {
-
-                double delta =
-                        point.elevationM
-                                - previousElevation;
-
-                netElevationChange +=
-                        delta;
-
-                if (delta
-                        > 0.0) {
-
-                    accumulatedAscent +=
-                            delta;
-
-                } else if (delta
-                        < 0.0) {
-
-                    accumulatedDescent +=
-                            -delta;
+                if (!trackCouldBeVisible(
+                        track,
+                        cameraCenter,
+                        viewportRadiusM
+                )) {
+                    continue;
                 }
+
+                collectRightmostRows(
+                        rows,
+                        track,
+                        width,
+                        height
+                );
             }
-
-            previousElevation =
-                    point.elevationM;
-
-            previousVisibleIndex =
-                    index;
         }
 
-        if (visible.size()
-                < 2
-                || !Double.isFinite(
-                minElevation
-        )
-                || !Double.isFinite(
-                maxElevation
-        )) {
+        List<CaminoHeightProfileView.Sample> samples =
+                buildSamples(
+                        rows,
+                        width,
+                        height
+                );
+
+        if (samples.size()
+                < 2) {
 
             view.clearProfile();
 
@@ -292,29 +432,648 @@ final class CaminoHeightProfileController {
         }
 
         view.setSamples(
-                visible
+                samples
         );
 
         /*
-         * One metric per line keeps the bottom information panel readable.
-         * Sigma-down is a positive magnitude: total descended vertical metres
-         * over the currently visible route fragments.
+         * The envelope may combine different Caminos on different screen rows,
+         * so route-level ascent/descent totals would be meaningless here.
          */
         infoPresenter.setHeightStats(
-                String.format(
-                        Locale.GERMANY,
-                        "Altₘᵢₙ   %.0f m\n"
-                                + "Altₘₐₓ   %.0f m\n"
-                                + "AltΔ     %+.0f m\n"
-                                + "AltΣ↑    %.0f m\n"
-                                + "AltΣ↓    %.0f m",
-                        minElevation,
-                        maxElevation,
-                        netElevationChange,
-                        accumulatedAscent,
-                        accumulatedDescent
-                )
+                ""
         );
+    }
+
+    private void collectRightmostRows(
+            ScanCandidate[] rows,
+            RouteTrack track,
+            float width,
+            float height
+    ) {
+        int usablePointCount =
+                Math.min(
+                        track.points.size(),
+                        track.elevations.size()
+                );
+
+        if (usablePointCount
+                < 2) {
+            return;
+        }
+
+        double trackDistanceM =
+                0.0;
+
+        for (int segmentIndex = 0;
+                segmentIndex
+                        < usablePointCount - 1;
+                segmentIndex++) {
+
+            LatLng pointA =
+                    track.points.get(
+                            segmentIndex
+                    );
+
+            LatLng pointB =
+                    track.points.get(
+                            segmentIndex + 1
+                    );
+
+            double elevationA =
+                    track.elevations.get(
+                            segmentIndex
+                    );
+
+            double elevationB =
+                    track.elevations.get(
+                            segmentIndex + 1
+                    );
+
+            double segmentLengthM =
+                    GeoMath.distanceMeters(
+                            pointA,
+                            pointB
+                    );
+
+            if (!Double.isFinite(
+                    segmentLengthM
+            )
+                    || segmentLengthM
+                    <= 0.0
+                    || !Double.isFinite(
+                    elevationA
+            )
+                    || !Double.isFinite(
+                    elevationB
+            )) {
+
+                if (Double.isFinite(
+                        segmentLengthM
+                )
+                        && segmentLengthM
+                        > 0.0) {
+
+                    trackDistanceM +=
+                            segmentLengthM;
+                }
+
+                continue;
+            }
+
+            PointF screenA =
+                    map.getProjection()
+                            .toScreenLocation(
+                                    pointA
+                            );
+
+            PointF screenB =
+                    map.getProjection()
+                            .toScreenLocation(
+                                    pointB
+                            );
+
+            if (screenA
+                    == null
+                    || screenB
+                    == null
+                    || !Float.isFinite(
+                    screenA.x
+            )
+                    || !Float.isFinite(
+                    screenA.y
+            )
+                    || !Float.isFinite(
+                    screenB.x
+            )
+                    || !Float.isFinite(
+                    screenB.y
+            )) {
+
+                trackDistanceM +=
+                        segmentLengthM;
+
+                continue;
+            }
+
+            float minX =
+                    Math.min(
+                            screenA.x,
+                            screenB.x
+                    );
+
+            float maxX =
+                    Math.max(
+                            screenA.x,
+                            screenB.x
+                    );
+
+            float minY =
+                    Math.min(
+                            screenA.y,
+                            screenB.y
+                    );
+
+            float maxY =
+                    Math.max(
+                            screenA.y,
+                            screenB.y
+                    );
+
+            if (maxX
+                    < 0.0f
+                    || minX
+                    > width
+                    || maxY
+                    < 0.0f
+                    || minY
+                    > height) {
+
+                trackDistanceM +=
+                        segmentLengthM;
+
+                continue;
+            }
+
+            float dy =
+                    screenB.y
+                            - screenA.y;
+
+            if (Math.abs(
+                    dy
+            )
+                    < 0.01f) {
+
+                float y =
+                        (
+                                screenA.y
+                                        + screenB.y
+                        )
+                                / 2.0f;
+
+                if (y >= 0.0f
+                        && y <= height
+                        && maxX >= 0.0f
+                        && minX <= width) {
+
+                    float x =
+                            Math.max(
+                                    0.0f,
+                                    Math.min(
+                                            width,
+                                            maxX
+                                    )
+                            );
+
+                    double t =
+                            Math.abs(
+                                    screenB.x
+                                            - screenA.x
+                            )
+                                    < 0.01f
+                                    ? 0.5
+                                    : (
+                                    x
+                                            - screenA.x
+                            )
+                                    / (
+                                    screenB.x
+                                            - screenA.x
+                            );
+
+                    t =
+                            Math.max(
+                                    0.0,
+                                    Math.min(
+                                            1.0,
+                                            t
+                                    )
+                            );
+
+                    int row =
+                            Math.max(
+                                    0,
+                                    Math.min(
+                                            rows.length - 1,
+                                            (int)
+                                                    Math.floor(
+                                                            y
+                                                                    / ROW_BUCKET_PX
+                                                    )
+                                    )
+                            );
+
+                    ScanCandidate current =
+                            rows[
+                                    row
+                                    ];
+
+                    if (current
+                            == null
+                            || x
+                            > current.screenX) {
+
+                        rows[
+                                row
+                                ] =
+                                new ScanCandidate(
+                                        track,
+                                        segmentIndex,
+                                        x,
+                                        y,
+                                        elevationA
+                                                + (
+                                                elevationB
+                                                        - elevationA
+                                        )
+                                                * t,
+                                        track.baseChainageM
+                                                + trackDistanceM
+                                                + segmentLengthM
+                                                * t
+                                );
+                    }
+                }
+
+                trackDistanceM +=
+                        segmentLengthM;
+
+                continue;
+            }
+
+            int firstRow =
+                    Math.max(
+                            0,
+                            (int)
+                                    Math.floor(
+                                            Math.max(
+                                                    0.0f,
+                                                    minY
+                                            )
+                                                    / ROW_BUCKET_PX
+                                    )
+                    );
+
+            int lastRow =
+                    Math.min(
+                            rows.length - 1,
+                            (int)
+                                    Math.floor(
+                                            Math.min(
+                                                    height - 0.001f,
+                                                    maxY
+                                            )
+                                                    / ROW_BUCKET_PX
+                                    )
+                    );
+
+            for (int row = firstRow;
+                    row <= lastRow;
+                    row++) {
+
+                float scanY =
+                        row
+                                * ROW_BUCKET_PX
+                                + ROW_BUCKET_PX
+                                * 0.5f;
+
+                double t =
+                        (
+                                scanY
+                                        - screenA.y
+                        )
+                                / dy;
+
+                if (t
+                        < 0.0
+                        || t
+                        > 1.0) {
+                    continue;
+                }
+
+                float x =
+                        (float)
+                                (
+                                        screenA.x
+                                                + (
+                                                screenB.x
+                                                        - screenA.x
+                                        )
+                                                * t
+                                );
+
+                if (x
+                        < 0.0f
+                        || x
+                        > width) {
+                    continue;
+                }
+
+                ScanCandidate current =
+                        rows[
+                                row
+                                ];
+
+                if (current
+                        != null
+                        && current.screenX
+                        >= x) {
+                    continue;
+                }
+
+                rows[
+                        row
+                        ] =
+                        new ScanCandidate(
+                                track,
+                                segmentIndex,
+                                x,
+                                scanY,
+                                elevationA
+                                        + (
+                                        elevationB
+                                                - elevationA
+                                )
+                                        * t,
+                                track.baseChainageM
+                                        + trackDistanceM
+                                        + segmentLengthM
+                                        * t
+                        );
+            }
+
+            trackDistanceM +=
+                    segmentLengthM;
+        }
+    }
+
+    private List<CaminoHeightProfileView.Sample> buildSamples(
+            ScanCandidate[] rows,
+            float width,
+            float height
+    ) {
+        List<CaminoHeightProfileView.Sample> result =
+                new ArrayList<>();
+
+        int previousRow =
+                -1;
+
+        for (int row = 0;
+                row < rows.length;
+                row++) {
+
+            ScanCandidate candidate =
+                    rows[
+                            row
+                            ];
+
+            if (candidate
+                    == null) {
+                continue;
+            }
+
+            /*
+             * A large empty vertical gap means no visible Camino geometry joins
+             * the two regions. Small gaps are connected into the envelope.
+             */
+            boolean breakBefore =
+                    previousRow < 0
+                            || (
+                            row
+                                    - previousRow
+                    )
+                            * ROW_BUCKET_PX
+                            > 80.0f;
+
+            double slopePercent =
+                    smoothedTrackSlopePercent(
+                            candidate.track,
+                            candidate.pointIndex
+                    );
+
+            result.add(
+                    new CaminoHeightProfileView.Sample(
+                            candidate.screenX
+                                    / width,
+                            candidate.screenY
+                                    / height,
+                            candidate.elevationM,
+                            candidate.distanceM,
+                            slopePercent,
+                            breakBefore
+                    )
+            );
+
+            previousRow =
+                    row;
+        }
+
+        return result;
+    }
+
+    private double smoothedTrackSlopePercent(
+            RouteTrack track,
+            int centerIndex
+    ) {
+        if (centerIndex
+                < 0
+                || centerIndex
+                >= track.points.size()
+                || centerIndex
+                >= track.elevations.size()) {
+
+            return 0.0;
+        }
+
+        double halfWindowM =
+                SLOPE_WINDOW_M
+                        / 2.0;
+
+        int leftIndex =
+                centerIndex;
+
+        double leftDistanceM =
+                0.0;
+
+        while (leftIndex
+                > 0
+                && leftDistanceM
+                < halfWindowM) {
+
+            double segmentM =
+                    GeoMath.distanceMeters(
+                            track.points.get(
+                                    leftIndex - 1
+                            ),
+                            track.points.get(
+                                    leftIndex
+                            )
+                    );
+
+            if (!Double.isFinite(
+                    segmentM
+            )
+                    || segmentM
+                    <= 0.0) {
+                break;
+            }
+
+            leftDistanceM +=
+                    segmentM;
+
+            leftIndex--;
+        }
+
+        int rightIndex =
+                centerIndex;
+
+        double rightDistanceM =
+                0.0;
+
+        while (rightIndex + 1
+                < track.points.size()
+                && rightIndex + 1
+                < track.elevations.size()
+                && rightDistanceM
+                < halfWindowM) {
+
+            double segmentM =
+                    GeoMath.distanceMeters(
+                            track.points.get(
+                                    rightIndex
+                            ),
+                            track.points.get(
+                                    rightIndex + 1
+                            )
+                    );
+
+            if (!Double.isFinite(
+                    segmentM
+            )
+                    || segmentM
+                    <= 0.0) {
+                break;
+            }
+
+            rightDistanceM +=
+                    segmentM;
+
+            rightIndex++;
+        }
+
+        if (leftIndex
+                == rightIndex) {
+            return 0.0;
+        }
+
+        double leftElevationM =
+                track.elevations.get(
+                        leftIndex
+                );
+
+        double rightElevationM =
+                track.elevations.get(
+                        rightIndex
+                );
+
+        double runM =
+                leftDistanceM
+                        + rightDistanceM;
+
+        if (!Double.isFinite(
+                leftElevationM
+        )
+                || !Double.isFinite(
+                rightElevationM
+        )
+                || !Double.isFinite(
+                runM
+        )
+                || runM
+                <= 1.0) {
+
+            return 0.0;
+        }
+
+        return 100.0
+                * (
+                rightElevationM
+                        - leftElevationM
+        )
+                / runM;
+    }
+
+    private boolean trackCouldBeVisible(
+            RouteTrack track,
+            LatLng cameraCenter,
+            double viewportRadiusM
+    ) {
+        if (cameraCenter
+                == null
+                || viewportRadiusM
+                <= 0.0) {
+            return true;
+        }
+
+        return GeoMath.distanceMeters(
+                cameraCenter,
+                track.boundsCenter
+        )
+                <= viewportRadiusM
+                + track.boundsRadiusM;
+    }
+
+    private double visibleViewportRadiusM(
+            LatLng cameraCenter
+    ) {
+        if (cameraCenter
+                == null) {
+            return 0.0;
+        }
+
+        double radiusM =
+                0.0;
+
+        org.maplibre.android.geometry.VisibleRegion visibleRegion =
+                map.getProjection()
+                        .getVisibleRegion();
+
+        radiusM =
+                Math.max(
+                        radiusM,
+                        GeoMath.distanceMeters(
+                                cameraCenter,
+                                visibleRegion.farLeft
+                        )
+                );
+
+        radiusM =
+                Math.max(
+                        radiusM,
+                        GeoMath.distanceMeters(
+                                cameraCenter,
+                                visibleRegion.farRight
+                        )
+                );
+
+        radiusM =
+                Math.max(
+                        radiusM,
+                        GeoMath.distanceMeters(
+                                cameraCenter,
+                                visibleRegion.nearLeft
+                        )
+                );
+
+        radiusM =
+                Math.max(
+                        radiusM,
+                        GeoMath.distanceMeters(
+                                cameraCenter,
+                                visibleRegion.nearRight
+                        )
+                );
+
+        return radiusM;
     }
 
     private int dp(
@@ -327,5 +1086,43 @@ final class CaminoHeightProfileController {
                         .getDisplayMetrics()
                         .density
         );
+    }
+
+
+    private static final class ScanCandidate {
+
+        final RouteTrack track;
+        final int pointIndex;
+        final float screenX;
+        final float screenY;
+        final double elevationM;
+        final double distanceM;
+
+        ScanCandidate(
+                RouteTrack track,
+                int pointIndex,
+                float screenX,
+                float screenY,
+                double elevationM,
+                double distanceM
+        ) {
+            this.track =
+                    track;
+
+            this.pointIndex =
+                    pointIndex;
+
+            this.screenX =
+                    screenX;
+
+            this.screenY =
+                    screenY;
+
+            this.elevationM =
+                    elevationM;
+
+            this.distanceM =
+                    distanceM;
+        }
     }
 }

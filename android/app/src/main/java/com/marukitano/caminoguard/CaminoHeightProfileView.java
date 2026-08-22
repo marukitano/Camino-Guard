@@ -4,9 +4,14 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Shader;
+import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -26,16 +31,26 @@ import java.util.Locale;
  */
 final class CaminoHeightProfileView extends View {
 
+    interface ProfileVisibilityListener {
+        void onProfileVisibilityChanged(
+                boolean visible
+        );
+    }
+
     static final class Sample {
         final float screenXFraction;
         final float screenYFraction;
         final double elevationM;
+        final double distanceM;
+        final double slopePercent;
         final boolean breakBefore;
 
         Sample(
                 float screenXFraction,
                 float screenYFraction,
                 double elevationM,
+                double distanceM,
+                double slopePercent,
                 boolean breakBefore
         ) {
             this.screenXFraction =
@@ -47,6 +62,12 @@ final class CaminoHeightProfileView extends View {
             this.elevationM =
                     elevationM;
 
+            this.distanceM =
+                    distanceM;
+
+            this.slopePercent =
+                    slopePercent;
+
             this.breakBefore =
                     breakBefore;
         }
@@ -54,12 +75,20 @@ final class CaminoHeightProfileView extends View {
 
     private static final int MAX_DRAW_SAMPLES = 1000;
 
-    private static final float PROFILE_WIDTH_DP = 126.0f;
+    private static final double PROFILE_MIN_ELEVATION_M = 0.0;
+    private static final double PROFILE_MAX_ELEVATION_M = 1800.0;
+    private static final float CURSOR_LABEL_RIGHT_MARGIN_DP = 134.0f;
+    private static final float PROFILE_END_FADE_MM = 6.0f;
+
+    private static final double SLOPE_WINDOW_M = 100.0;
+    private static final double SLOPE_NEUTRAL_PERCENT = 1.0;
+    private static final double FULL_UPHILL_GRADE_PERCENT = 12.0;
+    private static final double FULL_DOWNHILL_GRADE_PERCENT = 12.0;
 
     /*
-     * Drawing stays 126dp wide. Only this narrow right-edge strip receives
-     * height-cursor touches, so the transparent full-screen drawing View can
-     * no longer steal taps from the HUD.
+     * The profile can span the full screen width for an absolute elevation
+     * scale. Interaction remains restricted to this narrow right-edge strip,
+     * so the transparent full-screen drawing View does not steal map taps.
      */
     private static final float PROFILE_TOUCH_STRIP_DP = 38.0f;
 
@@ -72,6 +101,16 @@ final class CaminoHeightProfileView extends View {
     private static final int TOUCH_TOGGLE = 2;
 
     private final Paint fillPaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
+    private final Paint slopeLinePaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
+    private final Paint profileFadeMaskPaint =
             new Paint(
                     Paint.ANTI_ALIAS_FLAG
             );
@@ -134,10 +173,83 @@ final class CaminoHeightProfileView extends View {
     private float downY;
 
     private float reveal =
-            1.0f;
+            0.0f;
 
-    private boolean profileHidden;
+    private boolean profileHidden =
+            true;
+
+    private boolean profileAvailable =
+            true;
+
+    private boolean restoreProfileWhenAvailable;
+
     private ValueAnimator revealAnimator;
+    private ProfileVisibilityListener profileVisibilityListener;
+
+    void setProfileVisibilityListener(
+            ProfileVisibilityListener listener
+    ) {
+        this.profileVisibilityListener =
+                listener;
+    }
+
+    boolean isProfileHidden() {
+        return profileHidden;
+    }
+
+    void setProfileAvailable(
+            boolean available
+    ) {
+        if (profileAvailable
+                == available) {
+            return;
+        }
+
+        profileAvailable =
+                available;
+
+        if (!available) {
+            /*
+             * Zoom-based hiding is temporary. Remember whether the USER had
+             * the profile open so it can be restored automatically when the
+             * map comes back below the lower hysteresis threshold.
+             */
+            restoreProfileWhenAvailable =
+                    !profileHidden;
+
+            stopRevealAnimation();
+
+            reveal =
+                    0.0f;
+
+            profileHidden =
+                    true;
+
+            cursorIndex =
+                    -1;
+
+            touchMode =
+                    TOUCH_NONE;
+
+            setVisibility(
+                    INVISIBLE
+            );
+
+        } else {
+            setVisibility(
+                    VISIBLE
+            );
+
+            if (restoreProfileWhenAvailable) {
+                animateReveal(
+                        1.0f
+                );
+            }
+        }
+
+        invalidate();
+    }
+
 
     CaminoHeightProfileView(
             Context context
@@ -149,9 +261,9 @@ final class CaminoHeightProfileView extends View {
         fillPaint.setColor(
                 Color.argb(
                         76,
-                        208,
-                        68,
-                        50
+                        255,
+                        255,
+                        255
                 )
         );
 
@@ -159,12 +271,30 @@ final class CaminoHeightProfileView extends View {
                 Paint.Style.FILL
         );
 
+        slopeLinePaint.setStyle(
+                Paint.Style.STROKE
+        );
+
+        slopeLinePaint.setStrokeWidth(
+                dp(
+                        4.4f
+                )
+        );
+
+        slopeLinePaint.setStrokeJoin(
+                Paint.Join.ROUND
+        );
+
+        slopeLinePaint.setStrokeCap(
+                Paint.Cap.ROUND
+        );
+
         linePaint.setColor(
                 Color.argb(
                         235,
                         255,
-                        240,
-                        200
+                        255,
+                        255
                 )
         );
 
@@ -190,8 +320,8 @@ final class CaminoHeightProfileView extends View {
                 Color.argb(
                         72,
                         255,
-                        240,
-                        200
+                        255,
+                        255
                 )
         );
 
@@ -301,12 +431,6 @@ final class CaminoHeightProfileView extends View {
     }
 
     void clearProfile() {
-        if (samples.isEmpty()
-                && getVisibility()
-                == GONE) {
-            return;
-        }
-
         samples =
                 new ArrayList<>();
 
@@ -317,7 +441,7 @@ final class CaminoHeightProfileView extends View {
                 TOUCH_NONE;
 
         setVisibility(
-                GONE
+                VISIBLE
         );
 
         invalidate();
@@ -364,8 +488,7 @@ final class CaminoHeightProfileView extends View {
     public boolean onTouchEvent(
             MotionEvent event
     ) {
-        if (samples.size()
-                < 2) {
+        if (!profileAvailable) {
             return false;
         }
 
@@ -391,16 +514,12 @@ final class CaminoHeightProfileView extends View {
                     return true;
                 }
 
-                if (profileHidden) {
+                if (profileHidden
+                        || samples.size()
+                        < 2) {
                     return false;
                 }
 
-                /*
-                 * The profile is a full-screen View only for drawing the
-                 * horizontal cursor line across the map. Interaction is much
-                 * smaller: only the narrow strip at the physical right edge
-                 * may start a height-cursor drag.
-                 */
                 float touchStripLeft =
                         getWidth()
                                 - dp(
@@ -531,11 +650,23 @@ final class CaminoHeightProfileView extends View {
     }
 
     private void toggleProfile() {
+        boolean visible =
+                profileHidden;
+
         animateReveal(
-                profileHidden
+                visible
                         ? 1.0f
                         : 0.0f
         );
+
+        if (profileVisibilityListener
+                != null) {
+
+            profileVisibilityListener
+                    .onProfileVisibilityChanged(
+                            visible
+                    );
+        }
     }
 
     private void animateReveal(
@@ -649,8 +780,21 @@ final class CaminoHeightProfileView extends View {
 
         if (samples.size()
                 < 2) {
+
+            drawToggle(
+                    canvas
+            );
+
             return;
         }
+
+        /*
+         * Draw the profile with its original paint first. End fading is done
+         * afterwards by one shared alpha mask over the completed diagram.
+         */
+        fillPaint.setShader(
+                null
+        );
 
         double minElevation =
                 Double.POSITIVE_INFINITY;
@@ -688,44 +832,27 @@ final class CaminoHeightProfileView extends View {
             return;
         }
 
-        double rawSpan =
-                Math.max(
-                        0.0,
-                        maxElevation
-                                - minElevation
-                );
-
-        double displaySpan =
-                Math.max(
-                        30.0,
-                        rawSpan
-                                * 1.15
-                );
-
-        double centreElevation =
-                (
-                        minElevation
-                                + maxElevation
-                ) / 2.0;
-
         double displayMin =
-                centreElevation
-                        - displaySpan / 2.0;
+                PROFILE_MIN_ELEVATION_M;
 
         double elevationSpan =
-                Math.max(
-                        1.0,
-                        displaySpan
-                );
+                PROFILE_MAX_ELEVATION_M
+                        - PROFILE_MIN_ELEVATION_M;
 
+        /*
+         * Absolute horizontal elevation scale:
+         *   0 m    = physical right edge
+         *   1800 m = physical left edge
+         *
+         * Since the profile now spans the full width, hiding it must slide it
+         * by the full view width rather than the old 126 dp strip width.
+         */
         float slide =
                 (
                         1.0f
                                 - reveal
                 )
-                        * dp(
-                        PROFILE_WIDTH_DP
-                );
+                        * getWidth();
 
         float right =
                 getWidth()
@@ -735,13 +862,7 @@ final class CaminoHeightProfileView extends View {
                         + slide;
 
         float left =
-                getWidth()
-                        - dp(
-                        PROFILE_WIDTH_DP
-                )
-                        + dp(
-                        8.0f
-                )
+                0.0f
                         + slide;
 
         if (reveal
@@ -755,6 +876,11 @@ final class CaminoHeightProfileView extends View {
                     edgePaint
             );
         }
+
+        int profileFadeLayer =
+                beginProfileFadeLayer(
+                        canvas
+                );
 
         Path linePath =
                 null;
@@ -872,6 +998,19 @@ final class CaminoHeightProfileView extends View {
             );
         }
 
+        drawSlopeLine(
+                canvas,
+                left,
+                right,
+                displayMin,
+                elevationSpan
+        );
+
+        finishProfileFadeLayer(
+                canvas,
+                profileFadeLayer
+        );
+
         if (!profileHidden
                 && reveal > 0.95f
                 && touchMode == TOUCH_CURSOR
@@ -894,6 +1033,644 @@ final class CaminoHeightProfileView extends View {
                 canvas
         );
     }
+
+    private void drawSlopeLine(
+            Canvas canvas,
+            float left,
+            float right,
+            double displayMin,
+            double elevationSpan
+    ) {
+        if (samples.size()
+                < 2
+                || reveal <= 0.01f) {
+            return;
+        }
+
+        for (int index = 1;
+                index < samples.size();
+                index++) {
+
+            Sample previous =
+                    samples.get(
+                            index - 1
+                    );
+
+            Sample current =
+                    samples.get(
+                            index
+                    );
+
+            if (current.breakBefore
+                    || !Double.isFinite(
+                    previous.elevationM
+            )
+                    || !Double.isFinite(
+                    current.elevationM
+            )) {
+                continue;
+            }
+
+            double slopePercent =
+                    smoothedSlopePercent(
+                            index
+                    );
+
+            float previousX =
+                    profileX(
+                            previous,
+                            left,
+                            right,
+                            displayMin,
+                            elevationSpan
+                    );
+
+            float previousY =
+                    screenY(
+                            previous
+                    );
+
+            float currentX =
+                    profileX(
+                            current,
+                            left,
+                            right,
+                            displayMin,
+                            elevationSpan
+                    );
+
+            float currentY =
+                    screenY(
+                            current
+                    );
+
+            slopeLinePaint.setColor(
+                    slopeLineColor(
+                            slopePercent
+                    )
+            );
+
+            canvas.drawLine(
+                    previousX,
+                    previousY,
+                    currentX,
+                    currentY,
+                    slopeLinePaint
+            );
+        }
+    }
+
+    private double smoothedSlopePercent(
+            int centerIndex
+    ) {
+        if (centerIndex
+                < 0
+                || centerIndex
+                >= samples.size()) {
+
+            return 0.0;
+        }
+
+        Sample sample =
+                samples.get(
+                        centerIndex
+                );
+
+        if (!Double.isFinite(
+                sample.slopePercent
+        )) {
+            return 0.0;
+        }
+
+        return sample.slopePercent;
+    }
+
+
+    private float profileEndFadePx() {
+        return TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_MM,
+                PROFILE_END_FADE_MM,
+                getResources()
+                        .getDisplayMetrics()
+        );
+    }
+
+
+
+    private int beginProfileFadeLayer(
+            Canvas canvas
+    ) {
+        if (!profileNeedsEndFade()) {
+            return -1;
+        }
+
+        return canvas.saveLayer(
+                0.0f,
+                0.0f,
+                getWidth(),
+                getHeight(),
+                null
+        );
+    }
+
+    private boolean profileNeedsEndFade() {
+        /*
+         * v13 simplification:
+         * always use the same beautiful fragment fade, even when a fragment
+         * starts or ends directly at the physical screen edge.
+         */
+        return samples.size()
+                >= 2
+                && getHeight()
+                > 0;
+    }
+
+    private void finishProfileFadeLayer(
+            Canvas canvas,
+            int layerSaveCount
+    ) {
+        if (layerSaveCount
+                < 0) {
+            return;
+        }
+
+        float canvasHeight =
+                getHeight();
+
+        if (canvasHeight
+                <= 0.0f
+                || samples.size()
+                < 2) {
+
+            canvas.restoreToCount(
+                    layerSaveCount
+            );
+
+            return;
+        }
+
+        float fadePx =
+                profileEndFadePx();
+
+        int transparent =
+                Color.argb(
+                        0,
+                        255,
+                        255,
+                        255
+                );
+
+        int opaque =
+                Color.argb(
+                        255,
+                        255,
+                        255,
+                        255
+                );
+
+        List<Integer> maskColors =
+                new ArrayList<>();
+
+        List<Float> maskPositions =
+                new ArrayList<>();
+
+        /*
+         * Outside visible profile fragments the mask stays transparent.
+         */
+        addFadeStop(
+                maskColors,
+                maskPositions,
+                transparent,
+                0.0f
+        );
+
+        int fragmentStart =
+                0;
+
+        for (int i = 1;
+                i <= samples.size();
+                i++) {
+
+            boolean fragmentEnds =
+                    i
+                            == samples.size()
+                            || samples.get(
+                            i
+                    ).breakBefore;
+
+            if (!fragmentEnds) {
+                continue;
+            }
+
+            Sample first =
+                    samples.get(
+                            fragmentStart
+                    );
+
+            Sample last =
+                    samples.get(
+                            i - 1
+                    );
+
+            float firstY =
+                    screenY(
+                            first
+                    );
+
+            float lastY =
+                    screenY(
+                            last
+                    );
+
+            if (!Float.isFinite(
+                    firstY
+            )
+                    || !Float.isFinite(
+                    lastY
+            )) {
+
+                fragmentStart =
+                        i;
+
+                continue;
+            }
+
+            float minY =
+                    Math.max(
+                            0.0f,
+                            Math.min(
+                                    firstY,
+                                    lastY
+                            )
+                    );
+
+            float maxY =
+                    Math.min(
+                            canvasHeight,
+                            Math.max(
+                                    firstY,
+                                    lastY
+                            )
+                    );
+
+            if (maxY
+                    <= minY) {
+
+                fragmentStart =
+                        i;
+
+                continue;
+            }
+
+            /*
+             * v13 change:
+             * ALWAYS fade both fragment ends with the same algorithm, even
+             * at y=0 or y=screenHeight.
+             */
+            boolean fadeTop =
+                    true;
+
+            boolean fadeBottom =
+                    true;
+
+            float span =
+                    maxY
+                            - minY;
+
+            float localFadePx =
+                    Math.min(
+                            fadePx,
+                            span
+                    );
+
+            addFadeStop(
+                    maskColors,
+                    maskPositions,
+                    transparent,
+                    minY
+                            / canvasHeight
+            );
+
+            if (span
+                    <= localFadePx
+                    * 2.0f) {
+
+                /*
+                 * Very short fragment: both fades overlap, with full NORMAL
+                 * profile opacity only at the center.
+                 */
+                addFadeStop(
+                        maskColors,
+                        maskPositions,
+                        opaque,
+                        (
+                                minY
+                                        + span
+                                        * 0.5f
+                        )
+                                / canvasHeight
+                );
+
+                addFadeStop(
+                        maskColors,
+                        maskPositions,
+                        transparent,
+                        maxY
+                                / canvasHeight
+                );
+
+            } else {
+                addFadeStop(
+                        maskColors,
+                        maskPositions,
+                        opaque,
+                        (
+                                minY
+                                        + localFadePx
+                        )
+                                / canvasHeight
+                );
+
+                addFadeStop(
+                        maskColors,
+                        maskPositions,
+                        opaque,
+                        (
+                                maxY
+                                        - localFadePx
+                        )
+                                / canvasHeight
+                );
+
+                addFadeStop(
+                        maskColors,
+                        maskPositions,
+                        transparent,
+                        maxY
+                                / canvasHeight
+                );
+            }
+
+            fragmentStart =
+                    i;
+        }
+
+        addFadeStop(
+                maskColors,
+                maskPositions,
+                transparent,
+                1.0f
+        );
+
+        if (maskColors.size()
+                < 2) {
+
+            canvas.restoreToCount(
+                    layerSaveCount
+            );
+
+            return;
+        }
+
+        int[] colors =
+                new int[
+                        maskColors.size()
+                        ];
+
+        float[] positions =
+                new float[
+                        maskPositions.size()
+                        ];
+
+        for (int i = 0;
+                i < maskColors.size();
+                i++) {
+
+            colors[
+                    i
+                    ] =
+                    maskColors.get(
+                            i
+                    );
+
+            positions[
+                    i
+                    ] =
+                    maskPositions.get(
+                            i
+                    );
+        }
+
+        profileFadeMaskPaint.setShader(
+                new LinearGradient(
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        canvasHeight,
+                        colors,
+                        positions,
+                        Shader.TileMode.CLAMP
+                )
+        );
+
+        profileFadeMaskPaint.setXfermode(
+                new PorterDuffXfermode(
+                        PorterDuff.Mode.DST_IN
+                )
+        );
+
+        /*
+         * One alpha mask with one independent fade-in and fade-out for EVERY
+         * visible fragment, regardless of whether that fragment touches the
+         * screen border.
+         */
+        canvas.drawRect(
+                0.0f,
+                0.0f,
+                getWidth(),
+                canvasHeight,
+                profileFadeMaskPaint
+        );
+
+        profileFadeMaskPaint.setXfermode(
+                null
+        );
+
+        profileFadeMaskPaint.setShader(
+                null
+        );
+
+        canvas.restoreToCount(
+                layerSaveCount
+        );
+    }
+
+
+
+    private void addFadeStop(
+            List<Integer> colors,
+            List<Float> positions,
+            int color,
+            float position
+    ) {
+        position =
+                Math.max(
+                        0.0f,
+                        Math.min(
+                                1.0f,
+                                position
+                        )
+                );
+
+        if (!positions.isEmpty()) {
+            float previous =
+                    positions.get(
+                            positions.size() - 1
+                    );
+
+            /*
+             * LinearGradient requires monotonically increasing positions.
+             * Equal positions are useful for a hard transition at an empty
+             * fragment gap, but floating point noise must never reverse them.
+             */
+            position =
+                    Math.max(
+                            previous,
+                            position
+                    );
+        }
+
+        colors.add(
+                color
+        );
+
+        positions.add(
+                position
+        );
+    }
+
+    private int slopeLineColor(
+            double slopePercent
+    ) {
+        final int neutralR = 255;
+        final int neutralG = 250;
+        final int neutralB = 238;
+
+        final int uphillR = 190;
+        final int uphillG = 108;
+        final int uphillB = 86;
+
+        final int downhillR = 111;
+        final int downhillG = 143;
+        final int downhillB = 104;
+
+        if (!Double.isFinite(
+                slopePercent
+        )) {
+            return Color.argb(
+                    210,
+                    neutralR,
+                    neutralG,
+                    neutralB
+            );
+        }
+
+        double magnitude =
+                Math.abs(
+                        slopePercent
+                );
+
+        if (magnitude
+                <= SLOPE_NEUTRAL_PERCENT) {
+
+            return Color.argb(
+                    210,
+                    neutralR,
+                    neutralG,
+                    neutralB
+            );
+        }
+
+        double fullScale =
+                slopePercent > 0.0
+                        ? FULL_UPHILL_GRADE_PERCENT
+                        : FULL_DOWNHILL_GRADE_PERCENT;
+
+        double factor =
+                (
+                        magnitude
+                                - SLOPE_NEUTRAL_PERCENT
+                )
+                        / (
+                        fullScale
+                                - SLOPE_NEUTRAL_PERCENT
+                );
+
+        factor =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                1.0,
+                                factor
+                        )
+                );
+
+        int targetR =
+                slopePercent > 0.0
+                        ? uphillR
+                        : downhillR;
+
+        int targetG =
+                slopePercent > 0.0
+                        ? uphillG
+                        : downhillG;
+
+        int targetB =
+                slopePercent > 0.0
+                        ? uphillB
+                        : downhillB;
+
+        int red =
+                (int)
+                        Math.round(
+                                neutralR
+                                        + (
+                                        targetR
+                                                - neutralR
+                                )
+                                        * factor
+                        );
+
+        int green =
+                (int)
+                        Math.round(
+                                neutralG
+                                        + (
+                                        targetG
+                                                - neutralG
+                                )
+                                        * factor
+                        );
+
+        int blue =
+                (int)
+                        Math.round(
+                                neutralB
+                                        + (
+                                        targetB
+                                                - neutralB
+                                )
+                                        * factor
+                        );
+
+        return Color.argb(
+                210,
+                red,
+                green,
+                blue
+        );
+    }
+
 
     private void drawToggle(
             Canvas canvas
@@ -1028,8 +1805,11 @@ final class CaminoHeightProfileView extends View {
         String text =
                 String.format(
                         Locale.GERMANY,
-                        "%.0f m",
-                        sample.elevationM
+                        "%.0f m  %+.0f%%",
+                        sample.elevationM,
+                        smoothedSlopePercent(
+                                cursorIndex
+                        )
                 );
 
         float horizontalPadding =
@@ -1063,10 +1843,7 @@ final class CaminoHeightProfileView extends View {
                         ),
                         getWidth()
                                 - dp(
-                                PROFILE_WIDTH_DP
-                        )
-                                - dp(
-                                8.0f
+                                CURSOR_LABEL_RIGHT_MARGIN_DP
                         )
                 );
 
