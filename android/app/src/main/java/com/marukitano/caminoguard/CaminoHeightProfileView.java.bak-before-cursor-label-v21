@@ -87,14 +87,6 @@ final class CaminoHeightProfileView extends View {
     private static final float PROFILE_RIGHT_MARGIN_MM = 3.0f;
 
     private static final float CURSOR_LABEL_RIGHT_MARGIN_DP = 134.0f;
-
-    /*
-     * Swipe altitude label sits 10 mm further right than before.
-     * Use physical millimetres so this remains visually consistent across
-     * different phone densities.
-     */
-    private static final float CURSOR_LABEL_SHIFT_RIGHT_MM = 10.0f;
-
     private static final float PROFILE_END_FADE_MM = 6.0f;
 
     private static final double SLOPE_WINDOW_M = 100.0;
@@ -1836,8 +1828,11 @@ final class CaminoHeightProfileView extends View {
         String text =
                 String.format(
                         Locale.GERMANY,
-                        "%.0f m",
-                        sample.elevationM
+                        "%.0f m  %+.0f%%",
+                        sample.elevationM,
+                        smoothedSlopePercent(
+                                cursorIndex
+                        )
                 );
 
         float horizontalPadding =
@@ -1865,22 +1860,13 @@ final class CaminoHeightProfileView extends View {
                         - metrics.ascent;
 
         float labelRight =
-                Math.min(
-                        getWidth()
-                                - dp(
+                Math.max(
+                        dp(
                                 4.0f
                         ),
-                        Math.max(
-                                dp(
-                                        4.0f
-                                ),
-                                getWidth()
-                                        - dp(
-                                        CURSOR_LABEL_RIGHT_MARGIN_DP
-                                )
-                                        + mm(
-                                        CURSOR_LABEL_SHIFT_RIGHT_MM
-                                )
+                        getWidth()
+                                - dp(
+                                CURSOR_LABEL_RIGHT_MARGIN_DP
                         )
                 );
 

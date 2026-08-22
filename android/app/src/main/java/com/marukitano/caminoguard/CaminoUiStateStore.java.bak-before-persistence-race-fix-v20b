@@ -23,16 +23,6 @@ final class CaminoUiStateStore {
     private static final String PREF_CAMERA_VALID =
             "camera_valid";
 
-    /*
-     * v20 could save MapLibre's temporary world camera before startup restore.
-     * Version 2 deliberately invalidates those old camera values once.
-     */
-    private static final String PREF_CAMERA_STATE_VERSION =
-            "camera_state_version";
-
-    private static final int CURRENT_CAMERA_STATE_VERSION =
-            2;
-
     private static final String PREF_CAMERA_LAT =
             "camera_lat";
 
@@ -90,16 +80,7 @@ final class CaminoUiStateStore {
                 || !preferences.getBoolean(
                 PREF_CAMERA_VALID,
                 false
-        )
-                || preferences.getInt(
-                PREF_CAMERA_STATE_VERSION,
-                0
-        ) != CURRENT_CAMERA_STATE_VERSION) {
-
-            /*
-             * Old v20 camera data is intentionally ignored. The navigation
-             * follow/manual preference uses another key and remains intact.
-             */
+        )) {
             return fallback;
         }
 
@@ -220,10 +201,6 @@ final class CaminoUiStateStore {
                         Double.doubleToRawLongBits(
                                 camera.tilt
                         )
-                )
-                .putInt(
-                        PREF_CAMERA_STATE_VERSION,
-                        CURRENT_CAMERA_STATE_VERSION
                 )
                 .putBoolean(
                         PREF_CAMERA_VALID,

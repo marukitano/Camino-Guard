@@ -156,31 +156,19 @@ final class MapCoordinator {
                     );
 
                     /*
-                     * IMPORTANT startup ordering:
-                     *
-                     * MapLibre may emit an initial CameraIdle for its temporary
-                     * default/world camera. Do NOT listen for persistence yet,
-                     * otherwise that transient camera overwrites the user's
-                     * saved position before restoreCameraPosition() can read it.
-                     *
-                     * 1. restore the startup camera
-                     * 2. one UI turn later enable persistence
+                     * Persist the complete camera only when MapLibre has
+                     * finished a move, zoom or rotation.
                      */
-                    mapView.post(
-                            () -> {
-                                configureStartupCamera(
-                                        map
-                                );
+                    map.addOnCameraIdleListener(
+                            () -> uiStateStore.saveCameraPosition(
+                                    map.getCameraPosition()
+                            )
+                    );
 
-                                mapView.post(
-                                        () -> map.addOnCameraIdleListener(
-                                                () -> uiStateStore
-                                                        .saveCameraPosition(
-                                                                map.getCameraPosition()
-                                                        )
-                                        )
-                                );
-                            }
+                    mapView.post(
+                            () -> configureStartupCamera(
+                                    map
+                            )
                     );
 
                     ioExecutor.execute(

@@ -1,7 +1,6 @@
 package com.marukitano.caminoguard;
 
 import org.maplibre.android.maps.Style;
-import org.maplibre.android.style.expressions.Expression;
 import org.maplibre.android.style.layers.CircleLayer;
 import org.maplibre.android.style.layers.PropertyFactory;
 import org.maplibre.android.style.sources.GeoJsonSource;
@@ -39,14 +38,6 @@ final class CaminoMapRenderer {
      */
     private static final float STAGE_MARKER_RADIUS =
             20.0f;
-
-    /*
-     * Around zoom 6 the Almeria-to-Rioja span is roughly phone-screen scale.
-     * From here inward the 40-dp marker diameter stays fixed. Further out it
-     * scales exactly like map geometry: one zoom level out halves the size.
-     */
-    private static final float STAGE_MARKER_FULL_SIZE_ZOOM =
-            6.0f;
 
     void onStyleLoaded(
             Style style,
@@ -108,35 +99,7 @@ final class CaminoMapRenderer {
 
             stageLayer.setProperties(
                     PropertyFactory.circleRadius(
-                            Expression.interpolate(
-                                    Expression.exponential(
-                                            2.0f
-                                    ),
-                                    Expression.zoom(),
-                                    /*
-                                     * At zoom 0 this is 20 / 2^6 = 0.3125.
-                                     * The exponential interpolation therefore
-                                     * doubles the radius with every zoom level
-                                     * until it reaches 20 at zoom 6.
-                                     */
-                                    Expression.stop(
-                                            0.0f,
-                                            STAGE_MARKER_RADIUS
-                                                    / 64.0f
-                                    ),
-                                    Expression.stop(
-                                            STAGE_MARKER_FULL_SIZE_ZOOM,
-                                            STAGE_MARKER_RADIUS
-                                    ),
-                                    /*
-                                     * Same value at the high-zoom stop caps
-                                     * the marker: it never grows beyond 40 dp.
-                                     */
-                                    Expression.stop(
-                                            24.0f,
-                                            STAGE_MARKER_RADIUS
-                                    )
-                            )
+                            STAGE_MARKER_RADIUS
                     ),
                     PropertyFactory.circleColor(
                             "#FFFFFF"
