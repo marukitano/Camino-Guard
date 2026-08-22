@@ -323,6 +323,14 @@ public final class CaminoController {
                     dummyPosition = position;
                     liveCourseDeg = course;
 
+                    /*
+                     * This handler only reaches here for a new accepted GPS fix.
+                     * Gyro-only snapshots were rejected by lastLiveFixStamp above.
+                     */
+                    travelStatsController.noteSample(
+                            position
+                    );
+
                     if (map == null
                             || routes.isEmpty()) {
                         return;
