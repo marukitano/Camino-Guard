@@ -177,7 +177,7 @@ final class CaminoRepository {
                                 )
                         );
 
-                RouteTrack parsedTrack =
+                route.tracks.add(
                         new RouteTrack(
                                 sectionId,
                                 sectionNumber(
@@ -193,26 +193,8 @@ final class CaminoRepository {
                                 toKey,
                                 pseudoFrom,
                                 pseudoTo
-                        );
-
-                /*
-                 * All official CNIG tracks are renderable. Only the established
-                 * primary "a" tracks participate in the current linear routing
-                 * model. Variant branches stay out of route.tracks until the
-                 * graph is made fully branch-aware.
-                 */
-                route.renderTracks.add(
-                        parsedTrack
+                        )
                 );
-
-                if (trackJson.optBoolean(
-                        "routing_primary",
-                        true
-                )) {
-                    route.tracks.add(
-                            parsedTrack
-                    );
-                }
             }
 
             route.tracks.sort(
@@ -479,14 +461,7 @@ final class CaminoRoute {
     final String name;
     final String color;
     final String highlightColor;
-    /*
-     * Primary tracks remain the established routing/measurement sequence.
-     * renderTracks contains those same objects plus official CNIG variants.
-     */
     final List<RouteTrack> tracks =
-            new ArrayList<>();
-
-    final List<RouteTrack> renderTracks =
             new ArrayList<>();
 
     CaminoRoute(

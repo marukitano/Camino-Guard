@@ -3,7 +3,6 @@ package com.marukitano.caminoguard;
 import org.maplibre.android.geometry.VisibleRegion;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.Style;
-import org.maplibre.android.style.expressions.Expression;
 import org.maplibre.android.style.layers.CircleLayer;
 import org.maplibre.android.style.layers.PropertyFactory;
 import org.maplibre.android.style.sources.GeoJsonSource;
@@ -39,29 +38,16 @@ final class CaminoMapRenderer {
      * the later political/world overview fills. That way they are hidden by
      * exactly the same overview curtain as the Camino itself.
      */
-    private static final String SETTLEMENT_LAYER =
-            "camino-settlement-points";
+    private static final String CAMINO_ROUTE_LAYER =
+            "camino-routes";
 
     /*
      * The compass control is 40 x 40 dp. A MapLibre circle radius of 20 gives
      * the stage marker the same visual diameter and leaves enough room for a
      * stage number later.
      */
-    /*
-     * The far-zoom minimum circle diameter is 4.4:
-     *   Camino casing 2.2 * 2.
-     *
-     * The normal maximum should only be three times that minimum:
-     *   4.4 * 3 = 13.2 diameter -> 6.6 radius.
-     *
-     * The existing dynamic Camino-width floor still wins at very close zooms,
-     * so a marker can never become thinner than twice the visible Camino.
-     */
     private static final float STAGE_MARKER_RADIUS =
-            6.6f;
-
-    private static final float STAGE_MARKER_STROKE_WIDTH =
-            1.2f;
+            20.0f;
 
     /*
      * Official CNIG stage ES10a:01a Almeria -> Rioja is about 15.1 km long.
@@ -148,14 +134,6 @@ final class CaminoMapRenderer {
                     ),
                     PropertyFactory.circleColor(
                             "#FFFFFF"
-                    ),
-                    PropertyFactory.circleStrokeWidth(
-                            STAGE_MARKER_STROKE_WIDTH
-                    ),
-                    PropertyFactory.circleStrokeColor(
-                            Expression.get(
-                                    "marker_color"
-                            )
                     )
             );
 
@@ -166,7 +144,7 @@ final class CaminoMapRenderer {
              */
             style.addLayerAbove(
                     stageLayer,
-                    SETTLEMENT_LAYER
+                    CAMINO_ROUTE_LAYER
             );
 
         } else {
@@ -395,9 +373,6 @@ final class CaminoMapRenderer {
         Map<String, Point> pointsByPlaceKey =
                 new LinkedHashMap<>();
 
-        Map<String, String> colorsByPlaceKey =
-                new LinkedHashMap<>();
-
         for (CaminoRoute route
                 : routes) {
 
@@ -411,25 +386,21 @@ final class CaminoMapRenderer {
 
                 addStageEndpoint(
                         pointsByPlaceKey,
-                        colorsByPlaceKey,
                         track.fromKey,
                         track.pseudoFrom,
                         track.points.get(
                                 0
-                        ),
-                        track.color
+                        )
                 );
 
                 addStageEndpoint(
                         pointsByPlaceKey,
-                        colorsByPlaceKey,
                         track.toKey,
                         track.pseudoTo,
                         track.points.get(
                                 track.points.size()
                                         - 1
-                        ),
-                        track.color
+                        )
                 );
             }
         }
@@ -457,13 +428,6 @@ final class CaminoMapRenderer {
                     entry.getKey()
             );
 
-            feature.addStringProperty(
-                    "marker_color",
-                    colorsByPlaceKey.get(
-                            entry.getKey()
-                    )
-            );
-
             features.add(
                     feature
             );
@@ -476,11 +440,9 @@ final class CaminoMapRenderer {
 
     private void addStageEndpoint(
             Map<String, Point> pointsByPlaceKey,
-            Map<String, String> colorsByPlaceKey,
             String placeKey,
             boolean pseudo,
-            org.maplibre.android.geometry.LatLng point,
-            String markerColor
+            org.maplibre.android.geometry.LatLng point
     ) {
         if (pseudo
                 || placeKey == null
@@ -498,11 +460,6 @@ final class CaminoMapRenderer {
                         point.getLongitude(),
                         point.getLatitude()
                 )
-        );
-
-        colorsByPlaceKey.put(
-                placeKey,
-                markerColor
         );
     }
 

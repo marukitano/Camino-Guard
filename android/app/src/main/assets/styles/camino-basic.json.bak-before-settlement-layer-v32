@@ -71,10 +71,6 @@
     "schaffhausen-munot-mask": {
       "type": "geojson",
       "data": "asset://map-overlays/schaffhausen-munot-mask.geojson"
-    },
-    "camino-settlements": {
-      "type": "geojson",
-      "data": "asset://camino/camino-settlements.geojson"
     }
   },
   "layers": [
@@ -12397,35 +12393,6 @@
           15,
           5.0
         ]
-      }
-    },
-    {
-      "id": "camino-settlement-points",
-      "type": "circle",
-      "source": "camino-settlements",
-      "paint": {
-        "circle-radius": [
-          "interpolate",
-          [
-            "linear"
-          ],
-          [
-            "zoom"
-          ],
-          4,
-          2.2,
-          8,
-          3.0,
-          13,
-          5.0,
-          15,
-          7.0
-        ],
-        "circle-color": [
-          "get",
-          "marker_color"
-        ],
-        "circle-opacity": 1.0
       }
     },
     {

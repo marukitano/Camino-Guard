@@ -39,8 +39,8 @@ final class CaminoMapRenderer {
      * the later political/world overview fills. That way they are hidden by
      * exactly the same overview curtain as the Camino itself.
      */
-    private static final String SETTLEMENT_LAYER =
-            "camino-settlement-points";
+    private static final String CAMINO_ROUTE_LAYER =
+            "camino-routes";
 
     /*
      * The compass control is 40 x 40 dp. A MapLibre circle radius of 20 gives
@@ -166,7 +166,7 @@ final class CaminoMapRenderer {
              */
             style.addLayerAbove(
                     stageLayer,
-                    SETTLEMENT_LAYER
+                    CAMINO_ROUTE_LAYER
             );
 
         } else {
