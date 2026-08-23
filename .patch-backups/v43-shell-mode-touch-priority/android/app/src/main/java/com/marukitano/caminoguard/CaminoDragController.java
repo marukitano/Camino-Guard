@@ -73,25 +73,6 @@ final class CaminoDragController {
                 != DRAG_NONE;
     }
 
-    boolean beginDragAt(
-            float x,
-            float y
-    ) {
-        if (map == null) {
-            return false;
-        }
-
-        dragTarget =
-                findDragTarget(
-                        x,
-                        y
-                );
-
-        return dragTarget
-                != DRAG_NONE;
-    }
-
-
     boolean handleTouch(
             MotionEvent event
     ) {

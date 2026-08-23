@@ -335,16 +335,12 @@ final class MeasurementEngine {
 
     MeasurementPath buildStageVariantMeasurementPath(
             CaminoRoute route,
-            ProjectionHit stageStartHit,
-            ProjectionHit branchStartHit,
             RouteTrack variantTrack,
             boolean variantStartIsFirst,
             ProjectionHit mergeHit,
             ProjectionHit stageEndHit
     ) {
         if (route == null
-                || stageStartHit == null
-                || branchStartHit == null
                 || variantTrack == null
                 || mergeHit == null
                 || stageEndHit == null
@@ -369,74 +365,8 @@ final class MeasurementEngine {
                 new MeasurementPath();
 
         /*
-         * Part 0:
-         * Follow the primary Camino from the tapped stage shell to the actual
-         * branch point. This is required for variants such as Castro del Rio
-         * 14b whose official geometry begins about 700 m after the shell.
-         */
-        result.routeFeatures.addAll(
-                buildRoutePieces(
-                        route,
-                        stageStartHit,
-                        branchStartHit
-                )
-        );
-
-        result.gapFeatures.addAll(
-                buildRouteGapPieces(
-                        route,
-                        stageStartHit,
-                        branchStartHit
-                )
-        );
-
-        appendRouteProfilePieces(
-                result,
-                route,
-                stageStartHit,
-                branchStartHit
-        );
-
-        double prefixDistanceM =
-                routeDistanceWithGaps(
-                        route,
-                        stageStartHit,
-                        branchStartHit
-                );
-
-        double branchGapM =
-                GeoMath.distanceMeters(
-                        branchStartHit.point,
-                        variantStart.point
-                );
-
-        if (branchGapM > 25.0) {
-            addGapFeature(
-                    result.gapFeatures,
-                    branchStartHit.point,
-                    variantStart.point,
-                    route.highlightColor
-            );
-
-            appendGapProfile(
-                    result,
-                    branchStartHit.point,
-                    elevationAtHit(
-                            route.tracks.get(
-                                    branchStartHit.trackIndex
-                            ),
-                            branchStartHit
-                    ),
-                    variantStart.point,
-                    elevationAtHit(
-                            variantTrack,
-                            variantStart
-                    )
-            );
-        }
-
-        /*
-         * Part 1: traverse the complete official alternative geometry.
+         * Part 1: official alternative branch from the stage shell to its
+         * physical rejoin point.
          */
         addTrackSlice(
                 result.routeFeatures,
@@ -463,7 +393,13 @@ final class MeasurementEngine {
                         mergeHit.point
                 );
 
-        if (mergeGapM > 25.0) {
+        /*
+         * Usually the variant endpoint lies directly on the main line. Keep a
+         * tiny tolerance for coordinate rounding. If the official geometries
+         * really contain a gap, represent it explicitly instead of inventing
+         * terrain through it.
+         */
+        if (mergeGapM > 0.75) {
             addGapFeature(
                     result.gapFeatures,
                     variantEnd.point,
@@ -489,8 +425,10 @@ final class MeasurementEngine {
         }
 
         /*
-         * Part 2:
-         * Continue on the primary Camino after the rejoin point.
+         * Part 2: from the rejoin point continue on the normal routing-primary
+         * geometry all the way to the official stage destination. This is the
+         * crucial bit for branches such as Abla: the b-route itself is only
+         * the divergence, not the whole day stage.
          */
         result.routeFeatures.addAll(
                 buildRoutePieces(
@@ -515,19 +453,14 @@ final class MeasurementEngine {
                 stageEndHit
         );
 
-        double suffixDistanceM =
-                routeDistanceWithGaps(
-                        route,
-                        mergeHit,
-                        stageEndHit
-                );
-
         result.distanceM =
-                prefixDistanceM
-                        + branchGapM
-                        + variantDistanceM
+                variantDistanceM
                         + mergeGapM
-                        + suffixDistanceM;
+                        + routeDistanceWithGaps(
+                                route,
+                                mergeHit,
+                                stageEndHit
+                        );
 
         result.startRoute =
                 route;

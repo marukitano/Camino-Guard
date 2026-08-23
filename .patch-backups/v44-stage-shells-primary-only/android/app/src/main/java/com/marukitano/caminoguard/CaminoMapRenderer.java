@@ -101,7 +101,6 @@ CaminoMapRenderer(
     void onStyleLoaded(
             Style style,
             List<CaminoRoute> routes,
-            CaminoStageTopology stageTopology,
             MapLibreMap map
     ) {
         GeoJsonSource source =
@@ -124,13 +123,8 @@ CaminoMapRenderer(
 
         FeatureCollection stageFeatures =
                 buildStageFeatures(
-                        stageTopology
+                        routes
                 );
-
-        addRawTrackDebugLabels(
-                stageFeatures,
-                routes
-        );
 
         GeoJsonSource stageSource =
                 style.getSourceAs(
@@ -296,64 +290,6 @@ CaminoMapRenderer(
                                     STAGE_LAYER
                             );
         }
-
-
-        /*
-         * TEMPORARY DEBUG:
-         * Show the raw canonical route_group_id + section_id for all original
-         * track endpoints located at each currently rendered shell.
-         *
-         * No topology/outgoing-choice logic participates in these labels.
-         */
-        if (style.getLayer(
-                "camino-stage-raw-track-labels"
-        ) == null) {
-
-            SymbolLayer rawTrackLabelLayer =
-                    new SymbolLayer(
-                            "camino-stage-raw-track-labels",
-                            STAGE_SOURCE
-                    );
-
-            rawTrackLabelLayer.setProperties(
-                    PropertyFactory.textField(
-                            "{raw_track_label}"
-                    ),
-                    PropertyFactory.textSize(
-                            11.0f
-                    ),
-                    PropertyFactory.textOffset(
-                            new Float[]{
-                                    0.0f,
-                                    2.6f
-                            }
-                    ),
-                    PropertyFactory.textAllowOverlap(
-                            true
-                    ),
-                    PropertyFactory.textIgnorePlacement(
-                            true
-                    ),
-                    PropertyFactory.textColor(
-                            android.graphics.Color.BLACK
-                    ),
-                    PropertyFactory.textHaloColor(
-                            android.graphics.Color.WHITE
-                    ),
-                    PropertyFactory.textHaloWidth(
-                            2.0f
-                    )
-            );
-
-            rawTrackLabelLayer.setMinZoom(
-                    8.5f
-            );
-
-            style.addLayerAbove(
-                    rawTrackLabelLayer,
-                    STAGE_LAYER
-            );
-        }
 }
 
     private float fixedStageIconSize() {
@@ -369,43 +305,85 @@ CaminoMapRenderer(
     }
 
     private FeatureCollection buildStageFeatures(
-            CaminoStageTopology stageTopology
+            List<CaminoRoute> routes
     ) {
-        List<Feature> features =
-                new ArrayList<>();
-
         /*
-         * Renderer no longer invents or deduplicates routing identity.
-         * CaminoStageTopology already owns exactly one logical StageNode per
-         * placeKey and retains every Camino membership behind that node.
+         * One semantic place key -> exactly one rendered marker.
+         *
+         * A place can be the end of one stage and the start of the next, or
+         * can occur in several Camino route groups. LinkedHashMap guarantees
+         * that those repetitions never create two circles next to each other.
          */
-        for (CaminoStageTopology.StageNode node
-                : stageTopology.nodes()) {
+        Map<String, Point> pointsByPlaceKey =
+                new LinkedHashMap<>();
 
-            if (node == null
-                    || node.point == null
-                    || node.placeKey == null
-                    || node.placeKey.isEmpty()) {
+        Map<String, String> colorsByPlaceKey =
+                new LinkedHashMap<>();
 
-                continue;
+        for (CaminoRoute route
+                : routes) {
+
+            for (RouteTrack track
+                    : route.renderTracks) {
+
+                if (track.points.size()
+                        < 2) {
+                    continue;
+                }
+
+                addStageEndpoint(
+                        pointsByPlaceKey,
+                        colorsByPlaceKey,
+                        track.fromKey,
+                        track.pseudoFrom,
+                        track.points.get(
+                                0
+                        ),
+                        track.color
+                );
+
+                addStageEndpoint(
+                        pointsByPlaceKey,
+                        colorsByPlaceKey,
+                        track.toKey,
+                        track.pseudoTo,
+                        track.points.get(
+                                track.points.size()
+                                        - 1
+                        ),
+                        track.color
+                );
             }
+        }
+
+        List<Feature> features =
+                new ArrayList<>(
+                        pointsByPlaceKey.size()
+                );
+
+        for (Map.Entry<String, Point> entry
+                : pointsByPlaceKey.entrySet()) {
 
             Feature feature =
                     Feature.fromGeometry(
-                            Point.fromLngLat(
-                                    node.point.getLongitude(),
-                                    node.point.getLatitude()
-                            )
+                            entry.getValue()
                     );
 
+            /*
+             * Keep the semantic key in the GeoJSON. Later we can add a
+             * SymbolLayer with a stage number without rebuilding marker
+             * identity or deduplication.
+             */
             feature.addStringProperty(
                     "place_key",
-                    node.placeKey
+                    entry.getKey()
             );
 
             feature.addStringProperty(
                     "marker_color",
-                    node.markerColor
+                    colorsByPlaceKey.get(
+                            entry.getKey()
+                    )
             );
 
             features.add(
@@ -418,172 +396,36 @@ CaminoMapRenderer(
         );
     }
 
-
-    private void addRawTrackDebugLabels(
-            FeatureCollection stageFeatures,
-            List<CaminoRoute> routes
+    private void addStageEndpoint(
+            Map<String, Point> pointsByPlaceKey,
+            Map<String, String> colorsByPlaceKey,
+            String placeKey,
+            boolean pseudo,
+            org.maplibre.android.geometry.LatLng point,
+            String markerColor
     ) {
-        if (stageFeatures == null
-                || stageFeatures.features() == null) {
-
+        if (pseudo
+                || placeKey == null
+                || placeKey.isEmpty()
+                || point == null
+                || pointsByPlaceKey.containsKey(
+                placeKey
+        )) {
             return;
         }
 
-        for (Feature feature
-                : stageFeatures.features()) {
+        pointsByPlaceKey.put(
+                placeKey,
+                Point.fromLngLat(
+                        point.getLongitude(),
+                        point.getLatitude()
+                )
+        );
 
-            if (feature == null
-                    || !(feature.geometry() instanceof Point)) {
-
-                continue;
-            }
-
-            Point shell =
-                    (Point)
-                            feature.geometry();
-
-            String label =
-                    rawTrackLabelAt(
-                            shell,
-                            routes
-                    );
-
-            feature.addStringProperty(
-                    "raw_track_label",
-                    label
-            );
-        }
-    }
-
-
-    private String rawTrackLabelAt(
-            Point shell,
-            List<CaminoRoute> routes
-    ) {
-        org.maplibre.android.geometry.LatLng shellPoint =
-                new org.maplibre.android.geometry.LatLng(
-                        shell.latitude(),
-                        shell.longitude()
-                );
-
-        java.util.LinkedHashSet<String> labels =
-                new java.util.LinkedHashSet<>();
-
-        for (CaminoRoute route
-                : routes) {
-
-            for (RouteTrack track
-                    : route.renderTracks) {
-
-                if (track == null
-                        || track.points.size() < 2) {
-
-                    continue;
-                }
-
-                org.maplibre.android.geometry.LatLng first =
-                        track.points.get(
-                                0
-                        );
-
-                org.maplibre.android.geometry.LatLng last =
-                        track.points.get(
-                                track.points.size() - 1
-                        );
-
-                double firstDistanceM =
-                        GeoMath.distanceMeters(
-                                shellPoint,
-                                first
-                        );
-
-                double lastDistanceM =
-                        GeoMath.distanceMeters(
-                                shellPoint,
-                                last
-                        );
-
-                double distanceM =
-                        Math.min(
-                                firstDistanceM,
-                                lastDistanceM
-                        );
-
-                /*
-                 * This is deliberately a geometric audit, not routing logic.
-                 * 500 m tolerates imperfect official section endpoints while
-                 * staying local enough to avoid unrelated nearby tracks.
-                 */
-                if (distanceM > 500.0) {
-                    continue;
-                }
-
-                String endpoint =
-                        firstDistanceM
-                                <= lastDistanceM
-                                ? "P1"
-                                : "P2";
-
-                String from =
-                        track.fromKey == null
-                                ? "?"
-                                : track.fromKey;
-
-                String to =
-                        track.toKey == null
-                                ? "?"
-                                : track.toKey;
-
-                String primaryFlag =
-                        route.tracks.contains(
-                                track
-                        )
-                                ? "a/PRIMARY"
-                                : "VAR";
-
-                labels.add(
-                        route.id
-                                + ":"
-                                + track.sectionId
-                                + "  "
-                                + from
-                                + "→"
-                                + to
-                                + "  ["
-                                + primaryFlag
-                                + ", "
-                                + endpoint
-                                + ", "
-                                + Math.round(
-                                distanceM
-                        )
-                                + "m]"
-                );
-            }
-        }
-
-        if (labels.isEmpty()) {
-            return "(kein Track-Endpunkt ≤500m)";
-        }
-
-        StringBuilder result =
-                new StringBuilder();
-
-        for (String label
-                : labels) {
-
-            if (result.length() > 0) {
-                result.append(
-                        "\\n"
-                );
-            }
-
-            result.append(
-                    label
-            );
-        }
-
-        return result.toString();
+        colorsByPlaceKey.put(
+                placeKey,
+                markerColor
+        );
     }
 
 

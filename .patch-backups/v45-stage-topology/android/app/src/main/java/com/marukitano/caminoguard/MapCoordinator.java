@@ -292,7 +292,6 @@ final class MapCoordinator {
                                     caminoMapRenderer.onStyleLoaded(
                                             style,
                                             caminoController.routesForRendering(),
-                                            caminoController.stageTopologyForRendering(),
                                             map
                                     );
 

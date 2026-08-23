@@ -2,9 +2,6 @@ package com.marukitano.caminoguard;
 
 import android.app.Activity;
 import android.graphics.PointF;
-import android.graphics.RectF;
-import android.view.MotionEvent;
-import android.view.ViewConfiguration;
 
 import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
@@ -72,24 +69,6 @@ public final class CaminoController {
     private String selectedStagePlaceKey;
     private int selectedStageChoiceIndex;
     private StageRouteSelection selectedStageSelection;
-
-    /*
-     * One visible shell can represent several logical primary Camino edges.
-     * These temporary constraints let the established variant resolver run
-     * once for each topology edge without duplicating its Castro/Abla logic.
-     */
-    private final CaminoStageTopology stageTopology =
-            new CaminoStageTopology();
-
-    private CaminoRoute stageRouteConstraint;
-    private int stagePrimaryTrackConstraint =
-            -1;
-
-    private StageTapTarget pendingStageTouch;
-    private float stageTouchDownX;
-    private float stageTouchDownY;
-    private boolean stageTouchLongPressTriggered;
-    private Runnable pendingStageLongPress;
 
     public CaminoController(
             Activity activity,
@@ -487,10 +466,51 @@ public final class CaminoController {
         );
 
         mapView.setOnTouchListener(
-                (view, event) ->
-                        handleMapTouch(
-                                event
-                        )
+                (view, event) -> {
+                    /*
+                     * An active stage shell sits on top of selection point 1.
+                     * CaminoDragController normally grabs that point already on
+                     * ACTION_DOWN with a generous 34dp radius. That happens
+                     * before MapLibre can emit the click used for cycling stage
+                     * variants.
+                     *
+                     * Keep the active shell's touch area out of drag handling.
+                     * The click then reaches handleStageTap(). After the final
+                     * variant that method deliberately returns false and the
+                     * ordinary Camino click semantics take over.
+                     */
+                    if (selectedStagePoint != null
+                            && event.getActionMasked()
+                            == android.view.MotionEvent.ACTION_DOWN) {
+
+                        PointF shell =
+                                map.getProjection()
+                                        .toScreenLocation(
+                                                selectedStagePoint
+                                        );
+
+                        double dx =
+                                event.getX()
+                                        - shell.x;
+
+                        double dy =
+                                event.getY()
+                                        - shell.y;
+
+                        if (Math.hypot(
+                                dx,
+                                dy
+                        ) <= dp(
+                                34
+                        )) {
+                            return false;
+                        }
+                    }
+
+                    return dragController.handleTouch(
+                            event
+                    );
+                }
         );
     }
 
@@ -604,11 +624,6 @@ public final class CaminoController {
     }
 
 
-    CaminoStageTopology stageTopologyForRendering() {
-        return stageTopology;
-    }
-
-
     private void loadRoutes()
             throws Exception {
 
@@ -622,10 +637,6 @@ public final class CaminoController {
                     "keine Camino-Routen im kanonischen Datensatz"
             );
         }
-
-        stageTopology.rebuild(
-                routes
-        );
 
         caminoNetwork.rebuild(
                 routes
@@ -721,321 +732,94 @@ public final class CaminoController {
         heightProfileController.refresh();
     }
 
-    private boolean handleMapTouch(
-            MotionEvent event
-    ) {
-        if (map == null) {
-            return false;
-        }
-
-        if (selectedStagePoint == null) {
-            return dragController.handleTouch(
-                    event
-            );
-        }
-
-        switch (event.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
-                pendingStageTouch =
-                        findStageTapTarget(
-                                event.getX(),
-                                event.getY()
-                        );
-
-                stageTouchDownX = event.getX();
-                stageTouchDownY = event.getY();
-                stageTouchLongPressTriggered = false;
-
-                if (pendingStageTouch == null) {
-                    return false;
-                }
-
-                armStageLongPressIfDraggable();
-                return true;
-
-            case MotionEvent.ACTION_MOVE:
-                if (pendingStageTouch == null) {
-                    return false;
-                }
-
-                if (stageTouchLongPressTriggered) {
-                    dragController.handleTouch(event);
-                    return true;
-                }
-
-                float dx = event.getX() - stageTouchDownX;
-                float dy = event.getY() - stageTouchDownY;
-                float slop = stageDp(12);
-
-                if (dx * dx + dy * dy > slop * slop) {
-                    cancelPendingStageLongPress();
-                    pendingStageTouch = null;
-                }
-
-                return true;
-
-            case MotionEvent.ACTION_UP:
-                if (pendingStageTouch == null) {
-                    return false;
-                }
-
-                cancelPendingStageLongPress();
-
-                if (stageTouchLongPressTriggered) {
-                    dragController.handleTouch(event);
-                    clearPendingStageTouch();
-                    return true;
-                }
-
-                StageTapTarget target = pendingStageTouch;
-                clearPendingStageTouch();
-
-                handleStagePlaceTap(
-                        target.placeKey,
-                        target.point
-                );
-
-                return true;
-
-            case MotionEvent.ACTION_CANCEL:
-                cancelPendingStageLongPress();
-
-                if (stageTouchLongPressTriggered) {
-                    dragController.handleTouch(event);
-                }
-
-                clearPendingStageTouch();
-                return true;
-
-            default:
-                return pendingStageTouch != null;
-        }
-    }
-
-
-    private void armStageLongPressIfDraggable() {
-        cancelPendingStageLongPress();
-
-        if (pendingStageTouch == null
-                || !stageTargetRepresentsSelectedEndpoint(
-                pendingStageTouch
-        )) {
-            return;
-        }
-
-        pendingStageLongPress =
-                () -> {
-                    if (pendingStageTouch == null
-                            || stageTouchLongPressTriggered) {
-                        return;
-                    }
-
-                    stageTouchLongPressTriggered = true;
-
-                    /*
-                     * Explicitly leave shell mode without rebuilding the route:
-                     * selected 40 px shell disappears, ordinary 30 px shell
-                     * remains and the already existing blue points become visible.
-                     */
-                    clearSelectedStageVisual();
-
-                    interactionRenderer.updateSelectedStage(
-                            null,
-                            null
-                    );
-
-                    interactionRenderer.updateSelectedPositions(
-                            selectionController.selectedHit(),
-                            selectionController.secondTapHit()
-                    );
-
-                    dragController.beginDragAt(
-                            stageTouchDownX,
-                            stageTouchDownY
-                    );
-                };
-
-        mapView.postDelayed(
-                pendingStageLongPress,
-                ViewConfiguration.getLongPressTimeout()
-        );
-    }
-
-
-    private void cancelPendingStageLongPress() {
-        if (pendingStageLongPress == null) {
-            return;
-        }
-
-        mapView.removeCallbacks(pendingStageLongPress);
-        pendingStageLongPress = null;
-    }
-
-
-    private void clearPendingStageTouch() {
-        cancelPendingStageLongPress();
-        pendingStageTouch = null;
-        stageTouchLongPressTriggered = false;
-    }
-
-
-    private boolean stageTargetRepresentsSelectedEndpoint(
-            StageTapTarget target
-    ) {
-        if (target == null || map == null) {
-            return false;
-        }
-
-        PointF stageScreen =
-                map.getProjection()
-                        .toScreenLocation(target.point);
-
-        float maxDistance = stageDp(30);
-        float maxDistanceSq = maxDistance * maxDistance;
-
-        ProjectionHit first = selectionController.selectedHit();
-
-        if (first != null
-                && screenDistanceSq(
-                stageScreen,
-                first.point
-        ) <= maxDistanceSq) {
-            return true;
-        }
-
-        ProjectionHit second = selectionController.secondTapHit();
-
-        return second != null
-                && screenDistanceSq(
-                stageScreen,
-                second.point
-        ) <= maxDistanceSq;
-    }
-
-
-    private float screenDistanceSq(
-            PointF screen,
-            LatLng point
-    ) {
-        PointF other =
-                map.getProjection()
-                        .toScreenLocation(point);
-
-        float dx = screen.x - other.x;
-        float dy = screen.y - other.y;
-
-        return dx * dx + dy * dy;
-    }
-
-
     private boolean handleStageTap(
             LatLng tap
     ) {
-        if (map == null || routes.isEmpty()) {
+        if (map == null
+                || routes.isEmpty()) {
+
             return false;
+        }
+
+        /*
+         * IMPORTANT:
+         *
+         * The selected shell is visually larger than the normal 30 px stage
+         * symbol. On a repeated tap the finger can therefore hit the visible
+         * selected shell while being a few pixels outside the original
+         * STAGE_LAYER geometry.
+         *
+         * Treat the whole normal Camino tap tolerance around the active shell
+         * as a stage tap BEFORE querying the original stage layer. Otherwise
+         * the event falls through to the generic Camino tap handler and moves
+         * the small blue selection marker instead of cycling the variant.
+         */
+        if (selectedStagePoint != null
+                && selectedStagePlaceKey != null
+                && isTapCloseEnough(
+                        tap,
+                        selectedStagePoint
+                )) {
+
+            return handleStagePlaceTap(
+                    selectedStagePlaceKey,
+                    selectedStagePoint
+            );
         }
 
         PointF screenPoint =
                 map.getProjection()
-                        .toScreenLocation(tap);
-
-        StageTapTarget target =
-                findStageTapTarget(
-                        screenPoint.x,
-                        screenPoint.y
-                );
-
-        if (target == null) {
-            return false;
-        }
-
-        return handleStagePlaceTap(
-                target.placeKey,
-                target.point
-        );
-    }
-
-
-    private StageTapTarget findStageTapTarget(
-            float screenX,
-            float screenY
-    ) {
-        if (map == null) {
-            return null;
-        }
-
-        /* 56 dp invisible collider around the visible shell. */
-        float radius = stageDp(28);
-
-        RectF hitBox =
-                new RectF(
-                        screenX - radius,
-                        screenY - radius,
-                        screenX + radius,
-                        screenY + radius
-                );
+                        .toScreenLocation(
+                                tap
+                        );
 
         List<Feature> stageFeatures =
                 map.queryRenderedFeatures(
-                        hitBox,
+                        screenPoint,
                         CaminoMapRenderer.STAGE_LAYER
                 );
 
-        if (stageFeatures == null || stageFeatures.isEmpty()) {
-            return null;
+        if (stageFeatures == null
+                || stageFeatures.isEmpty()) {
+
+            return false;
         }
 
-        StageTapTarget best = null;
-        float bestDistanceSq = Float.POSITIVE_INFINITY;
+        for (Feature feature
+                : stageFeatures) {
 
-        for (Feature feature : stageFeatures) {
             if (feature == null
-                    || !feature.hasProperty("place_key")
-                    || !(feature.geometry() instanceof Point)) {
+                    || !feature.hasProperty(
+                    "place_key"
+            )
+                    || !(feature.geometry()
+                    instanceof Point)) {
+
                 continue;
             }
 
-            Point geometry = (Point) feature.geometry();
+            String placeKey =
+                    feature.getStringProperty(
+                            "place_key"
+                    );
 
-            LatLng point =
+            Point geometry =
+                    (Point)
+                            feature.geometry();
+
+            LatLng stagePoint =
                     new LatLng(
                             geometry.latitude(),
                             geometry.longitude()
                     );
 
-            PointF shellScreen =
-                    map.getProjection()
-                            .toScreenLocation(point);
-
-            float dx = screenX - shellScreen.x;
-            float dy = screenY - shellScreen.y;
-            float distanceSq = dx * dx + dy * dy;
-
-            if (distanceSq > radius * radius
-                    || distanceSq >= bestDistanceSq) {
-                continue;
-            }
-
-            bestDistanceSq = distanceSq;
-            best =
-                    new StageTapTarget(
-                            feature.getStringProperty("place_key"),
-                            point
-                    );
+            return handleStagePlaceTap(
+                    placeKey,
+                    stagePoint
+            );
         }
 
-        return best;
-    }
-
-
-    private float stageDp(
-            int value
-    ) {
-        return value
-                * activity
-                .getResources()
-                .getDisplayMetrics()
-                .density;
+        return false;
     }
 
 
@@ -1099,17 +883,47 @@ public final class CaminoController {
                         selectedStagePlaceKey
                 );
 
+        ProjectionHit previousExtendedEnd =
+                sameStage
+                        && selectedStageSelection != null
+                        ? selectedStageSelection.endHit
+                        : null;
+
+        String previousExtendedDestination =
+                sameStage
+                        && selectedStageSelection != null
+                        ? selectedStageSelection.destinationPlaceKey
+                        : null;
+
         int choiceIndex =
                 sameStage
-                        ? (
-                        selectedStageChoiceIndex + 1
-                ) % choices.size()
+                        ? selectedStageChoiceIndex + 1
                         : 0;
+
+        if (sameStage
+                && choiceIndex >= choices.size()) {
+
+            clearSelectedStageVisual();
+            return false;
+        }
 
         StageRouteSelection stageSelection =
                 choices.get(
                         choiceIndex
                 );
+
+        if (previousExtendedEnd != null
+                && compareRoutePosition(
+                previousExtendedEnd,
+                stageSelection.endHit
+        ) > 0) {
+
+            stageSelection =
+                    stageSelection.withExtendedEnd(
+                            previousExtendedEnd,
+                            previousExtendedDestination
+                    );
+        }
 
         selectedStagePoint = stagePoint;
         selectedStageHighlightColor = stageSelection.route.highlightColor;
@@ -1128,58 +942,6 @@ public final class CaminoController {
 
 
     private List<StageRouteSelection> findOutgoingStages(
-            String placeKey,
-            LatLng stagePoint
-    ) {
-        List<StageRouteSelection> result =
-                new ArrayList<>();
-
-        CaminoStageTopology.StageNode node =
-                stageTopology.node(
-                        placeKey
-                );
-
-        if (node == null) {
-            return result;
-        }
-
-        /*
-         * One rendered StageNode may own several outgoing primary StageEdges.
-         * Expand the already-established primary+variant resolver once for
-         * every edge. This preserves all existing variant semantics while
-         * making junctions between Caminos complete.
-         */
-        for (CaminoStageTopology.StageEdge edge
-                : node.outgoing()) {
-
-            stageRouteConstraint =
-                    edge.route;
-
-            stagePrimaryTrackConstraint =
-                    edge.primaryTrackIndex;
-
-            try {
-                result.addAll(
-                        findOutgoingStagesForSinglePrimary(
-                                placeKey,
-                                stagePoint
-                        )
-                );
-
-            } finally {
-                stageRouteConstraint =
-                        null;
-
-                stagePrimaryTrackConstraint =
-                        -1;
-            }
-        }
-
-        return result;
-    }
-
-
-    private List<StageRouteSelection> findOutgoingStagesForSinglePrimary(
             String placeKey,
             LatLng stagePoint
     ) {
@@ -1540,23 +1302,9 @@ public final class CaminoController {
         for (CaminoRoute route
                 : routes) {
 
-            if (stageRouteConstraint != null
-                    && route
-                    != stageRouteConstraint) {
-
-                continue;
-            }
-
             for (int trackIndex = 0;
                     trackIndex < route.tracks.size();
                     trackIndex++) {
-
-                if (stagePrimaryTrackConstraint >= 0
-                        && trackIndex
-                        != stagePrimaryTrackConstraint) {
-
-                    continue;
-                }
 
                 RouteTrack track =
                         route.tracks.get(
@@ -1675,21 +1423,6 @@ public final class CaminoController {
 
         selectedStageSelection =
                 null;
-    }
-
-
-    private static final class StageTapTarget {
-
-        final String placeKey;
-        final LatLng point;
-
-        StageTapTarget(
-                String placeKey,
-                LatLng point
-        ) {
-            this.placeKey = placeKey;
-            this.point = point;
-        }
     }
 
 

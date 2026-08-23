@@ -73,18 +73,6 @@ public final class CaminoController {
     private int selectedStageChoiceIndex;
     private StageRouteSelection selectedStageSelection;
 
-    /*
-     * One visible shell can represent several logical primary Camino edges.
-     * These temporary constraints let the established variant resolver run
-     * once for each topology edge without duplicating its Castro/Abla logic.
-     */
-    private final CaminoStageTopology stageTopology =
-            new CaminoStageTopology();
-
-    private CaminoRoute stageRouteConstraint;
-    private int stagePrimaryTrackConstraint =
-            -1;
-
     private StageTapTarget pendingStageTouch;
     private float stageTouchDownX;
     private float stageTouchDownY;
@@ -604,11 +592,6 @@ public final class CaminoController {
     }
 
 
-    CaminoStageTopology stageTopologyForRendering() {
-        return stageTopology;
-    }
-
-
     private void loadRoutes()
             throws Exception {
 
@@ -622,10 +605,6 @@ public final class CaminoController {
                     "keine Camino-Routen im kanonischen Datensatz"
             );
         }
-
-        stageTopology.rebuild(
-                routes
-        );
 
         caminoNetwork.rebuild(
                 routes
@@ -1134,58 +1113,6 @@ public final class CaminoController {
         List<StageRouteSelection> result =
                 new ArrayList<>();
 
-        CaminoStageTopology.StageNode node =
-                stageTopology.node(
-                        placeKey
-                );
-
-        if (node == null) {
-            return result;
-        }
-
-        /*
-         * One rendered StageNode may own several outgoing primary StageEdges.
-         * Expand the already-established primary+variant resolver once for
-         * every edge. This preserves all existing variant semantics while
-         * making junctions between Caminos complete.
-         */
-        for (CaminoStageTopology.StageEdge edge
-                : node.outgoing()) {
-
-            stageRouteConstraint =
-                    edge.route;
-
-            stagePrimaryTrackConstraint =
-                    edge.primaryTrackIndex;
-
-            try {
-                result.addAll(
-                        findOutgoingStagesForSinglePrimary(
-                                placeKey,
-                                stagePoint
-                        )
-                );
-
-            } finally {
-                stageRouteConstraint =
-                        null;
-
-                stagePrimaryTrackConstraint =
-                        -1;
-            }
-        }
-
-        return result;
-    }
-
-
-    private List<StageRouteSelection> findOutgoingStagesForSinglePrimary(
-            String placeKey,
-            LatLng stagePoint
-    ) {
-        List<StageRouteSelection> result =
-                new ArrayList<>();
-
         StageRouteSelection primary =
                 findPrimaryOutgoingStage(
                         placeKey,
@@ -1540,23 +1467,9 @@ public final class CaminoController {
         for (CaminoRoute route
                 : routes) {
 
-            if (stageRouteConstraint != null
-                    && route
-                    != stageRouteConstraint) {
-
-                continue;
-            }
-
             for (int trackIndex = 0;
                     trackIndex < route.tracks.size();
                     trackIndex++) {
-
-                if (stagePrimaryTrackConstraint >= 0
-                        && trackIndex
-                        != stagePrimaryTrackConstraint) {
-
-                    continue;
-                }
 
                 RouteTrack track =
                         route.tracks.get(
