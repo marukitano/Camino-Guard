@@ -315,6 +315,44 @@ CaminoMapRenderer(
          *
          * No topology/outgoing-choice logic participates in these labels.
          */
+        if (style.getLayer(
+                "camino-stage-raw-track-labels"
+        ) == null) {
+
+            SymbolLayer rawTrackLabelLayer =
+                    new SymbolLayer(
+                            "camino-stage-raw-track-labels",
+                            STAGE_SOURCE
+                    );
+
+            rawTrackLabelLayer.setProperties(
+                    PropertyFactory.iconImage(
+                            "{raw_track_icon}"
+                    ),
+                    PropertyFactory.iconAllowOverlap(
+                            true
+                    ),
+                    PropertyFactory.iconIgnorePlacement(
+                            true
+                    ),
+                    PropertyFactory.iconOffset(
+                            new Float[]{
+                                    0.0f,
+                                    34.0f
+                            }
+                    )
+            );
+
+            rawTrackLabelLayer.setMinZoom(
+                    8.5f
+            );
+
+            style.addLayerAbove(
+                    rawTrackLabelLayer,
+                    STAGE_LAYER
+            );
+        }
+
         FeatureCollection variantFeatures =
                 buildVariantFeatures(
                         routes
@@ -1219,7 +1257,6 @@ CaminoMapRenderer(
      * No routing/topology decision is derived from these debug objects.
      */
 
-    // v50a-short-node-labels
     private static final String DEBUG_NODE_SOURCE =
             "camino-debug-track-nodes";
 
@@ -2316,7 +2353,9 @@ CaminoMapRenderer(
 
                 result.add(
                         incoming
-                                + " - "
+                                + "-"
+                                + routeId
+                                + "-"
                                 + outgoing
                 );
             }

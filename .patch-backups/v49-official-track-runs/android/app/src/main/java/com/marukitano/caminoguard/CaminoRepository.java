@@ -226,10 +226,6 @@ final class CaminoRepository {
                     route
             );
 
-            CaminoVariantPathBuilder.rebuild(
-                    route
-            );
-
             if (!route.tracks.isEmpty()) {
                 routes.add(
                         route
@@ -491,9 +487,6 @@ final class CaminoRoute {
             new ArrayList<>();
 
     final List<RouteTrack> renderTracks =
-            new ArrayList<>();
-
-    final List<CaminoVariantPath> variantPaths =
             new ArrayList<>();
 
     CaminoRoute(

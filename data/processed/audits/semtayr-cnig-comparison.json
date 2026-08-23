@@ -1,0 +1,2083 @@
+{
+  "source": {
+    "semtayr_url": "https://www.semtayr.es/es/descarga-tracks.php",
+    "semtayr_stage_count": 105,
+    "local_cnig_track_count": 879
+  },
+  "status_counts": {
+    "DIRECT_PRESENT": 73,
+    "PATH_PRESENT": 1,
+    "REVIEW": 23,
+    "SPECIAL_REVIEW": 2,
+    "VIA_MISSING_CANDIDATE": 1,
+    "VIA_PRESENT": 3,
+    "VIA_REVIEW": 2
+  },
+  "items": [
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "01",
+      "semtayr_title": "Almería-Rioja",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=1",
+      "start": "Almería",
+      "end": "Rioja",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:01a"
+      ],
+      "path_evidence": [
+        "ES10a:01a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "02",
+      "semtayr_title": "Rioja-Alboloduy",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=2",
+      "start": "Rioja",
+      "end": "Alboloduy",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:02a"
+      ],
+      "path_evidence": [
+        "ES10a:02a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "03",
+      "semtayr_title": "Alboloduy-Abla",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=3",
+      "start": "Alboloduy",
+      "end": "Abla",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:03a"
+      ],
+      "path_evidence": [
+        "ES10a:03a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "VIA_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "04",
+      "semtayr_title": "Abla-Hueneja (Por Abrucena)",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=4",
+      "start": "Abla",
+      "end": "Hueneja",
+      "via": "Abrucena",
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:04a"
+      ],
+      "path_evidence": [
+        "ES10a:04a"
+      ],
+      "via_evidence": [
+        "ES10a:04b [data/raw/cnig/ES10a/ES10a_04b_variante-abrucena.kml]"
+      ],
+      "explanation": "SEMTAYR nennt eine Via-Variante und im lokalen CNIG-Bestand gibt es dafür semantische/Dateinamen-Evidenz."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "04a",
+      "semtayr_title": "Abla-Hueneja",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=5",
+      "start": "Abla",
+      "end": "Hueneja",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:04a"
+      ],
+      "path_evidence": [
+        "ES10a:04a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "05",
+      "semtayr_title": "Hueneja-Alquife",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=6",
+      "start": "Hueneja",
+      "end": "Alquife",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:05a"
+      ],
+      "path_evidence": [
+        "ES10a:05a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "06",
+      "semtayr_title": "Alquife-Guadix",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=7",
+      "start": "Alquife",
+      "end": "Guadix",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:06a"
+      ],
+      "path_evidence": [
+        "ES10a:06a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "07",
+      "semtayr_title": "Guadix-La Peza",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=8",
+      "start": "Guadix",
+      "end": "La Peza",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:07a"
+      ],
+      "path_evidence": [
+        "ES10a:07a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "VIA_MISSING_CANDIDATE",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "08",
+      "semtayr_title": "La Peza-Quentar (Por Tocón)",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=9",
+      "start": "La Peza",
+      "end": "Quentar",
+      "via": "Tocón",
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:08a"
+      ],
+      "path_evidence": [
+        "ES10a:08a"
+      ],
+      "via_evidence": [],
+      "explanation": "Start und Ziel sind im lokalen CNIG-Netz abgedeckt, aber für den Via-Ort „Tocón“ wurde in den betroffenen Routengruppen keinerlei Evidenz gefunden. Das ist ein starker Kandidat für eine fehlende Variante."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "08a",
+      "semtayr_title": "La Peza-Quentar",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=10",
+      "start": "La Peza",
+      "end": "Quentar",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:08a"
+      ],
+      "path_evidence": [
+        "ES10a:08a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "09",
+      "semtayr_title": "Quentar-Granada",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=11",
+      "start": "Quentar",
+      "end": "Granada",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10a"
+      ],
+      "exact_tracks": [
+        "ES10a:09a"
+      ],
+      "path_evidence": [
+        "ES10a:09a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "10",
+      "semtayr_title": "Granada-Pinos Puente",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=22",
+      "start": "Granada",
+      "end": "Pinos Puente",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10c"
+      ],
+      "exact_tracks": [
+        "ES10c:01a"
+      ],
+      "path_evidence": [
+        "ES10c:01a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "11",
+      "semtayr_title": "Pinos Puente-Moclín",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=23",
+      "start": "Pinos Puente",
+      "end": "Moclín",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10c"
+      ],
+      "exact_tracks": [
+        "ES10c:02a"
+      ],
+      "path_evidence": [
+        "ES10c:02a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "12",
+      "semtayr_title": "Moclín-Alcalá la Real",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=24",
+      "start": "Moclín",
+      "end": "Alcalá la Real",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10c"
+      ],
+      "exact_tracks": [
+        "ES10c:03a"
+      ],
+      "path_evidence": [
+        "ES10c:03a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "13",
+      "semtayr_title": "Alcalá la Real-Alcaudete",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=25",
+      "start": "Alcalá la Real",
+      "end": "Alcaudete",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10c"
+      ],
+      "exact_tracks": [
+        "ES10c:04a"
+      ],
+      "path_evidence": [
+        "ES10c:04a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "14",
+      "semtayr_title": "Alcaudete-Baena",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=26",
+      "start": "Alcaudete",
+      "end": "Baena",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10c"
+      ],
+      "exact_tracks": [
+        "ES10c:05a"
+      ],
+      "path_evidence": [
+        "ES10c:05a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "15",
+      "semtayr_title": "Baena-Castro del Río",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=39",
+      "start": "Baena",
+      "end": "Castro del Río",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:13a"
+      ],
+      "path_evidence": [
+        "ES10e:13a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "SPECIAL_REVIEW",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "16",
+      "semtayr_title": "Castro del Río-Espejo (Castro del Río-Córdoba)",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=40",
+      "start": "Castro del Río",
+      "end": "Espejo",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:14a"
+      ],
+      "path_evidence": [
+        "ES10e:14a"
+      ],
+      "via_evidence": [],
+      "explanation": "SEMTAYR enthält einen Klammerzusatz, der nicht als „Por …“-Via-Variante formuliert ist. Nicht automatisch als fehlende Variante klassifiziert."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "16a",
+      "semtayr_title": "Castro del Río-Córdoba",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=41",
+      "start": "Castro del Río",
+      "end": "Córdoba",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:14b"
+      ],
+      "path_evidence": [
+        "ES10e:14b"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "17",
+      "semtayr_title": "Espejo-Santa Cruz",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=42",
+      "start": "Espejo",
+      "end": "Santa Cruz",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:15a"
+      ],
+      "path_evidence": [
+        "ES10e:15a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "18",
+      "semtayr_title": "Santa Cruz-Córdoba",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=43",
+      "start": "Santa Cruz",
+      "end": "Córdoba",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:16a"
+      ],
+      "path_evidence": [
+        "ES10e:16a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "19",
+      "semtayr_title": "Córdoba -Cerro Muriano",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=44",
+      "start": "Córdoba",
+      "end": "Cerro Muriano",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10b"
+      ],
+      "exact_tracks": [
+        "ES10b:01a"
+      ],
+      "path_evidence": [
+        "ES10b:01a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "20",
+      "semtayr_title": "Cerro Muriano-Villaharta",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=45",
+      "start": "Cerro Muriano",
+      "end": "Villaharta",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10b"
+      ],
+      "exact_tracks": [
+        "ES10b:02a"
+      ],
+      "path_evidence": [
+        "ES10b:02a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "21",
+      "semtayr_title": "Villaharta-Alcaracejos",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=46",
+      "start": "Villaharta",
+      "end": "Alcaracejos",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10b"
+      ],
+      "exact_tracks": [
+        "ES10b:03a"
+      ],
+      "path_evidence": [
+        "ES10b:03a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "22",
+      "semtayr_title": "Alcaracejos-Hinojosa del Duque",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=47",
+      "start": "Alcaracejos",
+      "end": "Hinojosa del Duque",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10b"
+      ],
+      "exact_tracks": [
+        "ES10b:04a"
+      ],
+      "path_evidence": [
+        "ES10b:04a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "23",
+      "semtayr_title": "Hinojosa del Duque-Monterrubio de la Serena",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=48",
+      "start": "Hinojosa del Duque",
+      "end": "Monterrubio de la Serena",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10b"
+      ],
+      "exact_tracks": [
+        "ES10b:05a"
+      ],
+      "path_evidence": [
+        "ES10b:05a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "24",
+      "semtayr_title": "Monterrubio de la Serena-Castuera",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=49",
+      "start": "Monterrubio de la Serena",
+      "end": "Castuera",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "25",
+      "semtayr_title": "Castuera-Campanario",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=50",
+      "start": "Castuera",
+      "end": "Campanario",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "VIA_REVIEW",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "26",
+      "semtayr_title": "Campanario-Don Benito (Por Vva. de la Serena)",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=51",
+      "start": "Campanario",
+      "end": "Don Benito",
+      "via": "Vva. de la Serena",
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Keine lokale CNIG-Routengruppe enthält Start und Ziel eindeutig. Manuelle Prüfung nötig."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "26a",
+      "semtayr_title": "Campanario-Don Benito",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=52",
+      "start": "Campanario",
+      "end": "Don Benito",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "VIA_REVIEW",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "27",
+      "semtayr_title": "Don Benito-Torrefresneda (Por Sta. Amalia)",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=53",
+      "start": "Don Benito",
+      "end": "Torrefresneda",
+      "via": "Sta. Amalia",
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Keine lokale CNIG-Routengruppe enthält Start und Ziel eindeutig. Manuelle Prüfung nötig."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "27a",
+      "semtayr_title": "Don Benito-Torrefresneda",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=54",
+      "start": "Don Benito",
+      "end": "Torrefresneda",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "28",
+      "semtayr_title": "Torrefresneda-Mérida",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=55",
+      "start": "Torrefresneda",
+      "end": "Mérida",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Jaén",
+      "semtayr_stage": "01",
+      "semtayr_title": "Jaén-Martos",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=56",
+      "start": "Jaén",
+      "end": "Martos",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10d"
+      ],
+      "exact_tracks": [
+        "ES10d:01a"
+      ],
+      "path_evidence": [
+        "ES10d:01a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Jaén",
+      "semtayr_stage": "02",
+      "semtayr_title": "Martos-Alcaudete",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=57",
+      "start": "Martos",
+      "end": "Alcaudete",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10d"
+      ],
+      "exact_tracks": [
+        "ES10d:02a"
+      ],
+      "path_evidence": [
+        "ES10d:02a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "01",
+      "semtayr_title": "Málaga-Junta de los Caminos",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=27",
+      "start": "Málaga",
+      "end": "Junta de los Caminos",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "02",
+      "semtayr_title": "Junta de los Caminos-Almogía",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=28",
+      "start": "Junta de los Caminos",
+      "end": "Almogía",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "03",
+      "semtayr_title": "Almogía-Villanueva de la Concepción",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=29",
+      "start": "Almogía",
+      "end": "Villanueva de la Concepción",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:03a"
+      ],
+      "path_evidence": [
+        "ES10e:03a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "04",
+      "semtayr_title": "Villanueva de la Concepción-Antequera",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=30",
+      "start": "Villanueva de la Concepción",
+      "end": "Antequera",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:04a"
+      ],
+      "path_evidence": [
+        "ES10e:04a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "05",
+      "semtayr_title": "Antequera-Cartaojal",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=31",
+      "start": "Antequera",
+      "end": "Cartaojal",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:05a"
+      ],
+      "path_evidence": [
+        "ES10e:05a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "06",
+      "semtayr_title": "Cartaojal-Villanueva de Algaidas",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=32",
+      "start": "Cartaojal",
+      "end": "Villanueva de Algaidas",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:06a"
+      ],
+      "path_evidence": [
+        "ES10e:06a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "07",
+      "semtayr_title": "Villanueva de Algaidas-Cuevas Bajas",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=33",
+      "start": "Villanueva de Algaidas",
+      "end": "Cuevas Bajas",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:07a"
+      ],
+      "path_evidence": [
+        "ES10e:07a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "08",
+      "semtayr_title": "Cuevas Bajas-Encinas Reales",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=34",
+      "start": "Cuevas Bajas",
+      "end": "Encinas Reales",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:08a"
+      ],
+      "path_evidence": [
+        "ES10e:08a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "09",
+      "semtayr_title": "Encinas Reales-Lucena",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=35",
+      "start": "Encinas Reales",
+      "end": "Lucena",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:09a"
+      ],
+      "path_evidence": [
+        "ES10e:09a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "10",
+      "semtayr_title": "Lucena-Cabra",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=36",
+      "start": "Lucena",
+      "end": "Cabra",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:10a"
+      ],
+      "path_evidence": [
+        "ES10e:10a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "11",
+      "semtayr_title": "Cabra -Doña Mencía",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=37",
+      "start": "Cabra",
+      "end": "Doña Mencía",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:11a"
+      ],
+      "path_evidence": [
+        "ES10e:11a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "12",
+      "semtayr_title": "Doña Mencía-Baena",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=38",
+      "start": "Doña Mencía",
+      "end": "Baena",
+      "via": null,
+      "candidate_route_groups": [
+        "ES10e"
+      ],
+      "exact_tracks": [
+        "ES10e:12a"
+      ],
+      "path_evidence": [
+        "ES10e:12a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "01",
+      "semtayr_title": "Cádiz-San Fernando",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=12",
+      "start": "Cádiz",
+      "end": "San Fernando",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:01a"
+      ],
+      "path_evidence": [
+        "ES36a:01a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "02",
+      "semtayr_title": "San Fernando-Puerto Real",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=13",
+      "start": "San Fernando",
+      "end": "Puerto Real",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:02a"
+      ],
+      "path_evidence": [
+        "ES36a:02a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "03",
+      "semtayr_title": "Puerto Real-El Puerto de Santa María",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=14",
+      "start": "Puerto Real",
+      "end": "El Puerto de Santa María",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:03a"
+      ],
+      "path_evidence": [
+        "ES36a:03a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "04",
+      "semtayr_title": "El Puerto de Santa María-Jerez de la Frontera",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=15",
+      "start": "El Puerto de Santa María",
+      "end": "Jerez de la Frontera",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:04a"
+      ],
+      "path_evidence": [
+        "ES36a:04a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "05",
+      "semtayr_title": "Jerez de la Frontera-El Cuervo",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=16",
+      "start": "Jerez de la Frontera",
+      "end": "El Cuervo",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:05a"
+      ],
+      "path_evidence": [
+        "ES36a:05a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "06",
+      "semtayr_title": "El Cuervo-Lebrija",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=17",
+      "start": "El Cuervo",
+      "end": "Lebrija",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:06a"
+      ],
+      "path_evidence": [
+        "ES36a:06a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "07",
+      "semtayr_title": "Lebrija-Las Cabezas de San Juan",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=18",
+      "start": "Lebrija",
+      "end": "Las Cabezas de San Juan",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:07a"
+      ],
+      "path_evidence": [
+        "ES36a:07a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "08",
+      "semtayr_title": "Las Cabezas de San Juan-Utrera",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=19",
+      "start": "Las Cabezas de San Juan",
+      "end": "Utrera",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:08a"
+      ],
+      "path_evidence": [
+        "ES36a:08a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "09",
+      "semtayr_title": "Utrera-Alcalá de Guadaíra",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=20",
+      "start": "Utrera",
+      "end": "Alcalá de Guadaíra",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:09a"
+      ],
+      "path_evidence": [
+        "ES36a:09a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía Augusta desde Cádiz",
+      "semtayr_stage": "10",
+      "semtayr_title": "Alcalá de Guadaíra-Sevilla",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=21",
+      "start": "Alcalá de Guadaíra",
+      "end": "Sevilla",
+      "via": null,
+      "candidate_route_groups": [
+        "ES36a"
+      ],
+      "exact_tracks": [
+        "ES36a:10a"
+      ],
+      "path_evidence": [
+        "ES36a:10a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "01",
+      "semtayr_title": "Sevilla-Guillena",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=58",
+      "start": "Sevilla",
+      "end": "Guillena",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:01a"
+      ],
+      "path_evidence": [
+        "ES04a:01a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "02",
+      "semtayr_title": "Guillena-Castiblanco de los Arroyos",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=59",
+      "start": "Guillena",
+      "end": "Castiblanco de los Arroyos",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "03",
+      "semtayr_title": "Castiblanco de los Arroyos-Almadén de la Plata",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=60",
+      "start": "Castiblanco de los Arroyos",
+      "end": "Almadén de la Plata",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "SPECIAL_REVIEW",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "04",
+      "semtayr_title": "Almadén de la Plata-El Real de la Jara (El Real de la Jara)",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=61",
+      "start": "Almadén de la Plata",
+      "end": "El Real de la Jara",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:04a"
+      ],
+      "path_evidence": [
+        "ES04a:04a"
+      ],
+      "via_evidence": [],
+      "explanation": "SEMTAYR enthält einen Klammerzusatz, der nicht als „Por …“-Via-Variante formuliert ist. Nicht automatisch als fehlende Variante klassifiziert."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "04a",
+      "semtayr_title": "Almadén de la Plata-El Real de la Jara",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=62",
+      "start": "Almadén de la Plata",
+      "end": "El Real de la Jara",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:04a"
+      ],
+      "path_evidence": [
+        "ES04a:04a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "05",
+      "semtayr_title": "El Real de la Jara-Monesterio",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=63",
+      "start": "El Real de la Jara",
+      "end": "Monesterio",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:05a"
+      ],
+      "path_evidence": [
+        "ES04a:05a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "06",
+      "semtayr_title": "Monesterio-Fuente de Cantos",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=64",
+      "start": "Monesterio",
+      "end": "Fuente de Cantos",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:06a"
+      ],
+      "path_evidence": [
+        "ES04a:06a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "07",
+      "semtayr_title": "Fuente de Cantos-Zafra",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=65",
+      "start": "Fuente de Cantos",
+      "end": "Zafra",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:07a"
+      ],
+      "path_evidence": [
+        "ES04a:07a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "08",
+      "semtayr_title": "Zafra-Villafranca de los Barros",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=66",
+      "start": "Zafra",
+      "end": "Villafranca de los Barros",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:08a"
+      ],
+      "path_evidence": [
+        "ES04a:08a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "09",
+      "semtayr_title": "Villafranca de los Barros-Torremejía",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=67",
+      "start": "Villafranca de los Barros",
+      "end": "Torremejía",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:09a"
+      ],
+      "path_evidence": [
+        "ES04a:09a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "10",
+      "semtayr_title": "Torremejía-Mérida",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=68",
+      "start": "Torremejía",
+      "end": "Mérida",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:10a"
+      ],
+      "path_evidence": [
+        "ES04a:10a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "11",
+      "semtayr_title": "Mérida-Alcuéscar",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=69",
+      "start": "Mérida",
+      "end": "Alcuéscar",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:11a"
+      ],
+      "path_evidence": [
+        "ES04a:11a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "12",
+      "semtayr_title": "Alcuéscar-Valdesalor",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=70",
+      "start": "Alcuéscar",
+      "end": "Valdesalor",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "13",
+      "semtayr_title": "Valdesalor-Casar de Cáceres",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=71",
+      "start": "Valdesalor",
+      "end": "Casar de Cáceres",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "14",
+      "semtayr_title": "Casar de Cáceres-Cañaveral",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=72",
+      "start": "Casar de Cáceres",
+      "end": "Cañaveral",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "15",
+      "semtayr_title": "Cañaveral-Galisteo",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=73",
+      "start": "Cañaveral",
+      "end": "Galisteo",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:14a"
+      ],
+      "path_evidence": [
+        "ES04a:14a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "VIA_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "16",
+      "semtayr_title": "Galisteo-Oliva de Plasencia (Por Valdeobispo)",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=74",
+      "start": "Galisteo",
+      "end": "Oliva de Plasencia",
+      "via": "Valdeobispo",
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:15a"
+      ],
+      "path_evidence": [
+        "ES04a:15a"
+      ],
+      "via_evidence": [
+        "ES04a:15b [data/raw/cnig/ES04a/ES04a_15b_variante-valdeobispo.kml]"
+      ],
+      "explanation": "SEMTAYR nennt eine Via-Variante und im lokalen CNIG-Bestand gibt es dafür semantische/Dateinamen-Evidenz."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "16a",
+      "semtayr_title": "Galisteo-Oliva de Plasencia",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=75",
+      "start": "Galisteo",
+      "end": "Oliva de Plasencia",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:15a"
+      ],
+      "path_evidence": [
+        "ES04a:15a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "17",
+      "semtayr_title": "Oliva de Plasencia-Aldeanueva del Camino",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=76",
+      "start": "Oliva de Plasencia",
+      "end": "Aldeanueva del Camino",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:16a"
+      ],
+      "path_evidence": [
+        "ES04a:16a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "18",
+      "semtayr_title": "Aldeanueva del Camino-La Calzada de Béjar",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=77",
+      "start": "Aldeanueva del Camino",
+      "end": "La Calzada de Béjar",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "19",
+      "semtayr_title": "La Calzada de Béjar-Fuenterroble de Salvatierra",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=78",
+      "start": "La Calzada de Béjar",
+      "end": "Fuenterroble de Salvatierra",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "20",
+      "semtayr_title": "Fuenterroble de Salvatierra-San Pedro de Rozados",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=79",
+      "start": "Fuenterroble de Salvatierra",
+      "end": "San Pedro de Rozados",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:19a"
+      ],
+      "path_evidence": [
+        "ES04a:19a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "21",
+      "semtayr_title": "San Pedro de Rozados-Salamanca",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=80",
+      "start": "San Pedro de Rozados",
+      "end": "Salamanca",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:20a"
+      ],
+      "path_evidence": [
+        "ES04a:20a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "22",
+      "semtayr_title": "Salamanca-El Cubo de Tierra del Vino",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=81",
+      "start": "Salamanca",
+      "end": "El Cubo de Tierra del Vino",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:21a"
+      ],
+      "path_evidence": [
+        "ES04a:21a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "23",
+      "semtayr_title": "El Cubo de Tierra del Vino-Zamora",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=82",
+      "start": "El Cubo de Tierra del Vino",
+      "end": "Zamora",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:22a"
+      ],
+      "path_evidence": [
+        "ES04a:22a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "24",
+      "semtayr_title": "Zamora-Granja de Moreruela",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=83",
+      "start": "Zamora",
+      "end": "Granja de Moreruela",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a",
+        "ES04b",
+        "ES08a"
+      ],
+      "exact_tracks": [
+        "ES04a:23a",
+        "ES04b:01a",
+        "ES08a:28a"
+      ],
+      "path_evidence": [
+        "ES04a:23a",
+        "ES04b:01a",
+        "ES08a:28a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "01",
+      "semtayr_title": "Granja de Moreruela-Tábara",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=84",
+      "start": "Granja de Moreruela",
+      "end": "Tábara",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:24a"
+      ],
+      "path_evidence": [
+        "ES04a:24a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "VIA_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "02",
+      "semtayr_title": "Tábara-Santa Marta de Tera (Por Vva. de las Peras)",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=85",
+      "start": "Tábara",
+      "end": "Santa Marta de Tera",
+      "via": "Vva. de las Peras",
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:25a"
+      ],
+      "path_evidence": [
+        "ES04a:25a"
+      ],
+      "via_evidence": [
+        "ES04a:25b [data/raw/cnig/ES04a/ES04a_25b_variante-por_villanueva_de_las_peras.kml]"
+      ],
+      "explanation": "SEMTAYR nennt eine Via-Variante und im lokalen CNIG-Bestand gibt es dafür semantische/Dateinamen-Evidenz."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "02a",
+      "semtayr_title": "Tábara-Santa Marta de Tera",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=105",
+      "start": "Tábara",
+      "end": "Santa Marta de Tera",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:25a"
+      ],
+      "path_evidence": [
+        "ES04a:25a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "03",
+      "semtayr_title": "Santa Marta de Tera-Rionegro del Puente",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=86",
+      "start": "Santa Marta de Tera",
+      "end": "Rionegro del Puente",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "04",
+      "semtayr_title": "Rionegro del Puente-Asturianos",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=87",
+      "start": "Rionegro del Puente",
+      "end": "Asturianos",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "05",
+      "semtayr_title": "Asturianos-Requejo de Sanabria",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=88",
+      "start": "Asturianos",
+      "end": "Requejo de Sanabria",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "06",
+      "semtayr_title": "Requejo de Sanabria-Lubián",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=106",
+      "start": "Requejo de Sanabria",
+      "end": "Lubián",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "07",
+      "semtayr_title": "Lubian-A Gudiña",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=89",
+      "start": "Lubian",
+      "end": "A Gudiña",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:29a"
+      ],
+      "path_evidence": [
+        "ES04a:29a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "08",
+      "semtayr_title": "A Gudiña-Laza",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=90",
+      "start": "A Gudiña",
+      "end": "Laza",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:30a"
+      ],
+      "path_evidence": [
+        "ES04a:30a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "08a",
+      "semtayr_title": "A Gudiña-Vendas da Barreira",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=91",
+      "start": "A Gudiña",
+      "end": "Vendas da Barreira",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "09",
+      "semtayr_title": "Laza-Xunqueira de Ambia",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=97",
+      "start": "Laza",
+      "end": "Xunqueira de Ambia",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:31a"
+      ],
+      "path_evidence": [
+        "ES04a:31a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "09a",
+      "semtayr_title": "Vendas da Barreira-Verín",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=92",
+      "start": "Vendas da Barreira",
+      "end": "Verín",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "10",
+      "semtayr_title": "Xunqueira de Ambia-Ourense",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=98",
+      "start": "Xunqueira de Ambia",
+      "end": "Ourense",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:32a"
+      ],
+      "path_evidence": [
+        "ES04a:32a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "10a",
+      "semtayr_title": "Verín-Villaderey",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=93",
+      "start": "Verín",
+      "end": "Villaderey",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "11",
+      "semtayr_title": "Ourense-Cea",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=99",
+      "start": "Ourense",
+      "end": "Cea",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:33a"
+      ],
+      "path_evidence": [
+        "ES04a:33a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "11a",
+      "semtayr_title": "Villaderey-Xinzo de Lima",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=94",
+      "start": "Villaderey",
+      "end": "Xinzo de Lima",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "12",
+      "semtayr_title": "Cea-O Castro Dozón",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=100",
+      "start": "Cea",
+      "end": "O Castro Dozón",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:34a"
+      ],
+      "path_evidence": [
+        "ES04a:34a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "REVIEW",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "12a",
+      "semtayr_title": "Xinzo de Lima-Allariz",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=95",
+      "start": "Xinzo de Lima",
+      "end": "Allariz",
+      "via": null,
+      "candidate_route_groups": [],
+      "exact_tracks": [],
+      "path_evidence": [],
+      "via_evidence": [],
+      "explanation": "Kein eindeutiger automatischer CNIG-Treffer."
+    },
+    {
+      "status": "PATH_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "13",
+      "semtayr_title": "O Castro Dozón-Silleda",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=101",
+      "start": "O Castro Dozón",
+      "end": "Silleda",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [],
+      "path_evidence": [
+        "ES04a:34a + ES04a:35a + ES04a:36a"
+      ],
+      "via_evidence": [],
+      "explanation": "Kein einzelner CNIG-Track entspricht der SEMTAYR-Etappe, aber Start und Ziel sind über lokale CNIG-Tracks verbunden."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "13a",
+      "semtayr_title": "Allariz-Ourense",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=96",
+      "start": "Allariz",
+      "end": "Ourense",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:33b"
+      ],
+      "path_evidence": [
+        "ES04a:33b"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "14",
+      "semtayr_title": "Silleda-Ponte Ulla",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=102",
+      "start": "Silleda",
+      "end": "Ponte Ulla",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:37a"
+      ],
+      "path_evidence": [
+        "ES04a:37a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    },
+    {
+      "status": "DIRECT_PRESENT",
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "15",
+      "semtayr_title": "Ponte Ulla-Santiago de Compostela",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=103",
+      "start": "Ponte Ulla",
+      "end": "Santiago de Compostela",
+      "via": null,
+      "candidate_route_groups": [
+        "ES04a"
+      ],
+      "exact_tracks": [
+        "ES04a:38a"
+      ],
+      "path_evidence": [
+        "ES04a:38a"
+      ],
+      "via_evidence": [],
+      "explanation": "Mindestens ein lokaler CNIG-Track hat dieselben Start-/Zielpunkte."
+    }
+  ]
+}

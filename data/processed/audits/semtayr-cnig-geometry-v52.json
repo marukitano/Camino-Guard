@@ -1,0 +1,673 @@
+{
+  "sample_spacing_m": 400.0,
+  "results": [
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "08",
+      "semtayr_title": "La Peza-Quentar (Por Tocón)",
+      "v51_status": "VIA_MISSING_CANDIDATE",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=9",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 71,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 2.7,
+        "max_nearest_m": 41.2,
+        "best_local_tracks": [
+          {
+            "track": "ES10a:08a",
+            "sample_hits_within_250m": 69
+          },
+          {
+            "track": "ES10a:07a",
+            "sample_hits_within_250m": 1
+          },
+          {
+            "track": "ES10a:09a",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "16",
+      "semtayr_title": "Castro del Río-Espejo (Castro del Río-Córdoba)",
+      "v51_status": "SPECIAL_REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=40",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 28,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 5.2,
+        "max_nearest_m": 35.6,
+        "best_local_tracks": [
+          {
+            "track": "ES10e:14a",
+            "sample_hits_within_250m": 28
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "24",
+      "semtayr_title": "Monterrubio de la Serena-Castuera",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=49",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 48,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 0.4,
+        "max_nearest_m": 4.2,
+        "best_local_tracks": [
+          {
+            "track": "ES10b:06a",
+            "sample_hits_within_250m": 48
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "25",
+      "semtayr_title": "Castuera-Campanario",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=50",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 52,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 0.4,
+        "max_nearest_m": 4.6,
+        "best_local_tracks": [
+          {
+            "track": "ES10b:06a",
+            "sample_hits_within_250m": 52
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "26",
+      "semtayr_title": "Campanario-Don Benito (Por Vva. de la Serena)",
+      "v51_status": "VIA_REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=51",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 75,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 0.9,
+        "max_nearest_m": 9.1,
+        "best_local_tracks": [
+          {
+            "track": "ES10b:07a",
+            "sample_hits_within_250m": 74
+          },
+          {
+            "track": "ES10b:06a",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "26a",
+      "semtayr_title": "Campanario-Don Benito",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=52",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 89,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 2.0,
+        "max_nearest_m": 30.3,
+        "best_local_tracks": [
+          {
+            "track": "ES10b:07a",
+            "sample_hits_within_250m": 54
+          },
+          {
+            "track": "ES10b:07c",
+            "sample_hits_within_250m": 34
+          },
+          {
+            "track": "ES10b:06a",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "27",
+      "semtayr_title": "Don Benito-Torrefresneda (Por Sta. Amalia)",
+      "v51_status": "VIA_REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=53",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 74,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 1.8,
+        "max_nearest_m": 13.8,
+        "best_local_tracks": [
+          {
+            "track": "ES10b:08a",
+            "sample_hits_within_250m": 28
+          },
+          {
+            "track": "ES10b:07a",
+            "sample_hits_within_250m": 26
+          },
+          {
+            "track": "ES10b:08c",
+            "sample_hits_within_250m": 19
+          },
+          {
+            "track": "ES10b:08b",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "27a",
+      "semtayr_title": "Don Benito-Torrefresneda",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=54",
+      "download_status": "DOWNLOAD_ERROR: <urlopen error timed out>",
+      "geometry": {
+        "classification": "DOWNLOAD_ERROR"
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Almería",
+      "semtayr_stage": "28",
+      "semtayr_title": "Torrefresneda-Mérida",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=55",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 66,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 1.7,
+        "max_nearest_m": 24.1,
+        "best_local_tracks": [
+          {
+            "track": "ES10b:09a",
+            "sample_hits_within_250m": 42
+          },
+          {
+            "track": "ES10b:08b",
+            "sample_hits_within_250m": 20
+          },
+          {
+            "track": "ES10b:08a",
+            "sample_hits_within_250m": 3
+          },
+          {
+            "track": "ES10b:08c",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "01",
+      "semtayr_title": "Málaga-Junta de los Caminos",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=27",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 28,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 5.4,
+        "max_nearest_m": 40.8,
+        "best_local_tracks": [
+          {
+            "track": "ES10e:01a",
+            "sample_hits_within_250m": 28
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Mozárabe desde Málaga",
+      "semtayr_stage": "02",
+      "semtayr_title": "Junta de los Caminos-Almogía",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=28",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 33,
+        "within_50m_pct": 100.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 3.0,
+        "max_nearest_m": 16.9,
+        "best_local_tracks": [
+          {
+            "track": "ES10e:02a",
+            "sample_hits_within_250m": 32
+          },
+          {
+            "track": "ES10e:01a",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "02",
+      "semtayr_title": "Guillena-Castiblanco de los Arroyos",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=59",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 48,
+        "within_50m_pct": 97.9,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 3.2,
+        "max_nearest_m": 52.3,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:02a",
+            "sample_hits_within_250m": 48
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "03",
+      "semtayr_title": "Castiblanco de los Arroyos-Almadén de la Plata",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=60",
+      "download_status": "DOWNLOAD_ERROR: <urlopen error timed out>",
+      "geometry": {
+        "classification": "DOWNLOAD_ERROR"
+      }
+    },
+    {
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "04",
+      "semtayr_title": "Almadén de la Plata-El Real de la Jara (El Real de la Jara)",
+      "v51_status": "SPECIAL_REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=61",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 37,
+        "within_50m_pct": 97.3,
+        "within_100m_pct": 97.3,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 7.8,
+        "max_nearest_m": 115.1,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:04a",
+            "sample_hits_within_250m": 37
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "12",
+      "semtayr_title": "Alcuéscar-Valdesalor",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=70",
+      "download_status": "DOWNLOAD_ERROR: <urlopen error timed out>",
+      "geometry": {
+        "classification": "DOWNLOAD_ERROR"
+      }
+    },
+    {
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "13",
+      "semtayr_title": "Valdesalor-Casar de Cáceres",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=71",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 58,
+        "within_50m_pct": 94.8,
+        "within_100m_pct": 96.6,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 16.9,
+        "max_nearest_m": 120.9,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:12a",
+            "sample_hits_within_250m": 30
+          },
+          {
+            "track": "ES04a:13a",
+            "sample_hits_within_250m": 28
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "14",
+      "semtayr_title": "Casar de Cáceres-Cañaveral",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=72",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 85,
+        "within_50m_pct": 98.8,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 6.8,
+        "max_nearest_m": 61.3,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:13a",
+            "sample_hits_within_250m": 84
+          },
+          {
+            "track": "ES04a:14a",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "18",
+      "semtayr_title": "Aldeanueva del Camino-La Calzada de Béjar",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=77",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 57,
+        "within_50m_pct": 98.2,
+        "within_100m_pct": 98.2,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 13.3,
+        "max_nearest_m": 127.6,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:17a",
+            "sample_hits_within_250m": 56
+          },
+          {
+            "track": "ES04a:16a",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Vía de la Plata desde Sevilla",
+      "semtayr_stage": "19",
+      "semtayr_title": "La Calzada de Béjar-Fuenterroble de Salvatierra",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=78",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 51,
+        "within_50m_pct": 98.0,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 13.3,
+        "max_nearest_m": 96.3,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:18a",
+            "sample_hits_within_250m": 49
+          },
+          {
+            "track": "ES04a:17a",
+            "sample_hits_within_250m": 1
+          },
+          {
+            "track": "ES04a:19a",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "03",
+      "semtayr_title": "Santa Marta de Tera-Rionegro del Puente",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=86",
+      "download_status": "DOWNLOAD_ERROR: <urlopen error timed out>",
+      "geometry": {
+        "classification": "DOWNLOAD_ERROR"
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "04",
+      "semtayr_title": "Rionegro del Puente-Asturianos",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=87",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 66,
+        "within_50m_pct": 89.4,
+        "within_100m_pct": 93.9,
+        "within_250m_pct": 97.0,
+        "mean_nearest_m": 22.4,
+        "max_nearest_m": 319.5,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:27a",
+            "sample_hits_within_250m": 42
+          },
+          {
+            "track": "ES04a:26a",
+            "sample_hits_within_250m": 22
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "05",
+      "semtayr_title": "Asturianos-Requejo de Sanabria",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=88",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_MOSTLY_PRESENT",
+        "sample_count": 68,
+        "within_50m_pct": 70.6,
+        "within_100m_pct": 79.4,
+        "within_250m_pct": 92.6,
+        "mean_nearest_m": 70.8,
+        "max_nearest_m": 611.2,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:27a",
+            "sample_hits_within_250m": 36
+          },
+          {
+            "track": "ES04a:28a",
+            "sample_hits_within_250m": 27
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "06",
+      "semtayr_title": "Requejo de Sanabria-Lubián",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=106",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 46,
+        "within_50m_pct": 80.4,
+        "within_100m_pct": 95.7,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 31.8,
+        "max_nearest_m": 121.2,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:28a",
+            "sample_hits_within_250m": 46
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "08a",
+      "semtayr_title": "A Gudiña-Vendas da Barreira",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=91",
+      "download_status": "DOWNLOAD_ERROR: <urlopen error timed out>",
+      "geometry": {
+        "classification": "DOWNLOAD_ERROR"
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "09a",
+      "semtayr_title": "Vendas da Barreira-Verín",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=92",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 55,
+        "within_50m_pct": 98.2,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 5.4,
+        "max_nearest_m": 65.0,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:30b",
+            "sample_hits_within_250m": 55
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "10a",
+      "semtayr_title": "Verín-Villaderey",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=93",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_MISSING_OR_DIFFERENT",
+        "sample_count": 54,
+        "within_50m_pct": 9.3,
+        "within_100m_pct": 9.3,
+        "within_250m_pct": 9.3,
+        "mean_nearest_m": 812.6,
+        "max_nearest_m": 2058.1,
+        "best_local_tracks": [
+          {
+            "track": "PT02a:11a",
+            "sample_hits_within_250m": 4
+          },
+          {
+            "track": "ES04a:30b",
+            "sample_hits_within_250m": 1
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "11a",
+      "semtayr_title": "Villaderey-Xinzo de Lima",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=94",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_MISSING_OR_DIFFERENT",
+        "sample_count": 41,
+        "within_50m_pct": 2.4,
+        "within_100m_pct": 7.3,
+        "within_250m_pct": 7.3,
+        "mean_nearest_m": 570.0,
+        "max_nearest_m": 1509.5,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:32b",
+            "sample_hits_within_250m": 3
+          }
+        ]
+      }
+    },
+    {
+      "heading": "Camino Sanabrés desde Granja de Moreruela",
+      "semtayr_stage": "12a",
+      "semtayr_title": "Xinzo de Lima-Allariz",
+      "v51_status": "REVIEW",
+      "semtayr_url": "https://www.semtayr.es/track.php?etapa=95",
+      "download_status": "DOWNLOADED",
+      "geometry": {
+        "classification": "GEOMETRY_PRESENT",
+        "sample_count": 53,
+        "within_50m_pct": 98.1,
+        "within_100m_pct": 100.0,
+        "within_250m_pct": 100.0,
+        "mean_nearest_m": 4.1,
+        "max_nearest_m": 83.2,
+        "best_local_tracks": [
+          {
+            "track": "ES04a:32b",
+            "sample_hits_within_250m": 51
+          },
+          {
+            "track": "ES04a:33b",
+            "sample_hits_within_250m": 2
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -177,21 +177,6 @@ final class CaminoSelectionController {
         return routeHit;
     }
 
-    void clearSelectionWithoutRefresh() {
-        selectedRoute =
-                null;
-
-        selectedHit =
-                null;
-
-        secondSelectedRoute =
-                null;
-
-        secondTapHit =
-                null;
-    }
-
-
     private void clearSelection() {
         selectedRoute = null;
         selectedHit = null;

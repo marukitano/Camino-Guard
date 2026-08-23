@@ -1165,11 +1165,11 @@ public final class CaminoController {
         result.sort(
                 Comparator
                         .comparingDouble(
-                                (VariantTapTarget target) ->
+                                target ->
                                         target.distanceSq
                         )
                         .thenComparing(
-                                (VariantTapTarget target) ->
+                                target ->
                                         target.pathId
                         )
         );

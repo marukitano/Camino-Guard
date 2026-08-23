@@ -9,19 +9,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-
 /**
- * Primary-stage topology only.
+ * Logical stage topology derived from the canonical PRIMARY Camino tracks.
  *
- * Equal semantic names are kept as separate spatial nodes when their
- * coordinates are far apart. Alternative routes do not live here anymore;
- * they have explicit CaminoVariantPath objects and snail markers.
+ * One placeKey becomes one visible StageNode. A StageNode may belong to
+ * several Caminos and therefore owns several incoming/outgoing StageEdges.
+ *
+ * Rendering deduplication is deliberately NOT allowed to destroy this routing
+ * identity.
  */
 final class CaminoStageTopology {
-
-    private static final double SAME_PLACE_CLUSTER_M =
-            1500.0;
-
 
     static final class StageNode {
 
@@ -98,18 +95,14 @@ final class CaminoStageTopology {
     }
 
 
-    private final Map<String, List<StageNode>> nodesByPlaceKey =
+    private final Map<String, StageNode> nodesByPlaceKey =
             new LinkedHashMap<>();
-
-    private final List<StageNode> allNodes =
-            new ArrayList<>();
 
 
     void rebuild(
             List<CaminoRoute> routes
     ) {
         nodesByPlaceKey.clear();
-        allNodes.clear();
 
         for (CaminoRoute route
                 : routes) {
@@ -193,61 +186,23 @@ final class CaminoStageTopology {
 
 
     StageNode node(
-            String placeKey,
-            LatLng point
+            String placeKey
     ) {
         if (!meaningful(
                 placeKey
-        )
-                || point == null) {
-
+        )) {
             return null;
         }
 
-        List<StageNode> candidates =
-                nodesByPlaceKey.get(
-                        placeKey
-                );
-
-        if (candidates == null
-                || candidates.isEmpty()) {
-
-            return null;
-        }
-
-        StageNode best =
-                null;
-
-        double bestDistanceM =
-                Double.POSITIVE_INFINITY;
-
-        for (StageNode candidate
-                : candidates) {
-
-            double distanceM =
-                    GeoMath.distanceMeters(
-                            point,
-                            candidate.point
-                    );
-
-            if (distanceM
-                    < bestDistanceM) {
-
-                best =
-                        candidate;
-
-                bestDistanceM =
-                        distanceM;
-            }
-        }
-
-        return best;
+        return nodesByPlaceKey.get(
+                placeKey
+        );
     }
 
 
     Collection<StageNode> nodes() {
-        return Collections.unmodifiableList(
-                allNodes
+        return Collections.unmodifiableCollection(
+                nodesByPlaceKey.values()
         );
     }
 
@@ -257,23 +212,13 @@ final class CaminoStageTopology {
             LatLng point,
             String markerColor
     ) {
-        List<StageNode> candidates =
-                nodesByPlaceKey.computeIfAbsent(
-                        placeKey,
-                        ignored ->
-                                new ArrayList<>()
+        StageNode existing =
+                nodesByPlaceKey.get(
+                        placeKey
                 );
 
-        for (StageNode candidate
-                : candidates) {
-
-            if (GeoMath.distanceMeters(
-                    candidate.point,
-                    point
-            ) <= SAME_PLACE_CLUSTER_M) {
-
-                return candidate;
-            }
+        if (existing != null) {
+            return existing;
         }
 
         StageNode created =
@@ -283,11 +228,8 @@ final class CaminoStageTopology {
                         markerColor
                 );
 
-        candidates.add(
-                created
-        );
-
-        allNodes.add(
+        nodesByPlaceKey.put(
+                placeKey,
                 created
         );
 
