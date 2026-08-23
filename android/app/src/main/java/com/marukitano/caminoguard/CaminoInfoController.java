@@ -1,9 +1,16 @@
 package com.marukitano.caminoguard;
 
 import android.app.Activity;
+import android.app.Dialog;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.text.util.Linkify;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
@@ -91,6 +98,10 @@ final class CaminoInfoController {
                 navigationFollowEnabled
         );
 
+        panel.setAttributionAction(
+                this::showAttributionDialog
+        );
+
         if (map != null) {
             configureCompass();
         }
@@ -101,7 +112,7 @@ final class CaminoInfoController {
 
         /*
          * The former bottom info card is currently disabled. Its remaining
-         * compass + navigation/recenter controls live as a compact vertical
+         * compass + navigation/recenter + attribution controls live as a compact vertical
          * stack at the left screen edge.
          */
         FrameLayout.LayoutParams params =
@@ -110,7 +121,7 @@ final class CaminoInfoController {
                                 48
                         ),
                         dp(
-                                96
+                                144
                         ),
                         Gravity.START
                                 | Gravity.BOTTOM
@@ -122,7 +133,7 @@ final class CaminoInfoController {
                 );
 
         /*
-         * Anchor the two controls at the bottom-left and let the stack grow
+         * Anchor the three controls at the bottom-left and let the stack grow
          * upward: recenter/navigation at the bottom, compass above it.
          */
         params.bottomMargin =
@@ -307,6 +318,285 @@ final class CaminoInfoController {
         );
     }
 
+    private void showAttributionDialog() {
+        final Dialog dialog =
+                new Dialog(
+                        activity
+                );
+
+        LinearLayout card =
+                new LinearLayout(
+                        activity
+                );
+
+        card.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        card.setPadding(
+                dp(
+                        20
+                ),
+                dp(
+                        17
+                ),
+                dp(
+                        20
+                ),
+                dp(
+                        15
+                )
+        );
+
+        GradientDrawable background =
+                new GradientDrawable();
+
+        background.setColor(
+                Color.argb(
+                        238,
+                        35,
+                        39,
+                        43
+                )
+        );
+
+        background.setCornerRadius(
+                dp(
+                        22
+                )
+        );
+
+        background.setStroke(
+                dp(
+                        1
+                ),
+                Color.argb(
+                        95,
+                        255,
+                        255,
+                        255
+                )
+        );
+
+        card.setBackground(
+                background
+        );
+
+        TextView title =
+                new TextView(
+                        activity
+                );
+
+        title.setText(
+                "Kartendaten & Lizenzen"
+        );
+
+        title.setTextColor(
+                Color.WHITE
+        );
+
+        title.setTextSize(
+                18.0f
+        );
+
+        title.setGravity(
+                Gravity.START
+        );
+
+        title.setTypeface(
+                android.graphics.Typeface.DEFAULT,
+                android.graphics.Typeface.BOLD
+        );
+
+        card.addView(
+                title,
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+        );
+
+        TextView body =
+                new TextView(
+                        activity
+                );
+
+        body.setText(
+                "© OpenStreetMap-Mitwirkende\n"
+                        + "Basiskarte: Protomaps\n"
+                        + "Terrain/Höhendaten: Mapterhorn open-data sources\n"
+                        + "Weltübersicht: MapLibre Demo Tiles / Natural Earth\n"
+                        + "Camino-Routen: CNIG / FEAACS, CC BY 4.0\n\n"
+                        + "Camino Guard © Maru\n"
+                        + "Lizenz: GNU GPLv3\n"
+                        + "GitHub: https://github.com/marukitano/Camino-Guard"
+        );
+
+        body.setTextColor(
+                Color.WHITE
+        );
+
+        body.setTextSize(
+                14.0f
+        );
+
+        body.setLineSpacing(
+                0.0f,
+                1.12f
+        );
+
+        body.setAutoLinkMask(
+                Linkify.WEB_URLS
+        );
+
+        body.setLinkTextColor(
+                Color.rgb(
+                        150,
+                        205,
+                        255
+                )
+        );
+
+        LinearLayout.LayoutParams bodyParams =
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+
+        bodyParams.topMargin =
+                dp(
+                        12
+                );
+
+        card.addView(
+                body,
+                bodyParams
+        );
+
+        TextView close =
+                new TextView(
+                        activity
+                );
+
+        close.setText(
+                "OK"
+        );
+
+        close.setTextColor(
+                Color.WHITE
+        );
+
+        close.setTextSize(
+                14.0f
+        );
+
+        close.setTypeface(
+                android.graphics.Typeface.DEFAULT,
+                android.graphics.Typeface.BOLD
+        );
+
+        close.setGravity(
+                Gravity.CENTER
+        );
+
+        close.setPadding(
+                dp(
+                        14
+                ),
+                dp(
+                        9
+                ),
+                dp(
+                        14
+                ),
+                dp(
+                        9
+                )
+        );
+
+        LinearLayout.LayoutParams closeParams =
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+
+        closeParams.gravity =
+                Gravity.END;
+
+        closeParams.topMargin =
+                dp(
+                        8
+                );
+
+        card.addView(
+                close,
+                closeParams
+        );
+
+        close.setOnClickListener(
+                view ->
+                        dialog.dismiss()
+        );
+
+        dialog.setContentView(
+                card
+        );
+
+        android.view.Window window =
+                dialog.getWindow();
+
+        if (window != null) {
+            window.setBackgroundDrawable(
+                    new ColorDrawable(
+                            Color.TRANSPARENT
+                    )
+            );
+
+            window.setDimAmount(
+                    0.28f
+            );
+
+            window.addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND
+            );
+        }
+
+        dialog.setCanceledOnTouchOutside(
+                true
+        );
+
+        dialog.show();
+
+        window =
+                dialog.getWindow();
+
+        if (window != null) {
+            android.view.WindowManager.LayoutParams attributes =
+                    window.getAttributes();
+
+            attributes.width =
+                    Math.min(
+                            dp(
+                                    340
+                            ),
+                            activity
+                                    .getResources()
+                                    .getDisplayMetrics()
+                                    .widthPixels
+                                    - dp(
+                                    28
+                            )
+                    );
+
+            attributes.height =
+                    android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+
+            window.setAttributes(
+                    attributes
+            );
+        }
+    }
+
     private void configureCompass() {
         panel.setCompassDrawable(
                 map.getUiSettings()
@@ -315,6 +605,16 @@ final class CaminoInfoController {
 
         map.getUiSettings()
                 .setCompassEnabled(
+                        false
+                );
+
+        map.getUiSettings()
+                .setAttributionEnabled(
+                        false
+                );
+
+        map.getUiSettings()
+                .setLogoEnabled(
                         false
                 );
 

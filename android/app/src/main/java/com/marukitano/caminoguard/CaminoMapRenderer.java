@@ -1,10 +1,13 @@
 package com.marukitano.caminoguard;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+
 import org.maplibre.android.geometry.VisibleRegion;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.Style;
-import org.maplibre.android.style.expressions.Expression;
-import org.maplibre.android.style.layers.CircleLayer;
+import org.maplibre.android.style.layers.SymbolLayer;
 import org.maplibre.android.style.layers.PropertyFactory;
 import org.maplibre.android.style.sources.GeoJsonSource;
 import org.maplibre.geojson.Feature;
@@ -31,8 +34,14 @@ final class CaminoMapRenderer {
     private static final String STAGE_SOURCE =
             "camino-stage-points";
 
-    private static final String STAGE_LAYER =
+    static final String STAGE_LAYER =
             "camino-stage-circles";
+
+    private static final String STAGE_IMAGE =
+            "camino-stage-shell";
+
+    private static final float STAGE_ICON_FIXED_DIAMETER_PX =
+            30.0f;
 
     /*
      * Stage markers belong directly above the visible Camino route, but below
@@ -57,13 +66,7 @@ final class CaminoMapRenderer {
      * The existing dynamic Camino-width floor still wins at very close zooms,
      * so a marker can never become thinner than twice the visible Camino.
      */
-    private static final float STAGE_MARKER_RADIUS =
-            6.6f;
-
-    private static final float STAGE_MARKER_STROKE_WIDTH =
-            1.2f;
-
-    /*
+/*
      * Official CNIG stage ES10a:01a Almeria -> Rioja is about 15.1 km long.
      *
      * A roughly 30-km visible screen height comfortably contains that stage.
@@ -75,13 +78,22 @@ final class CaminoMapRenderer {
      *  120 km viewport -> radius 5
      *  240 km viewport -> radius 2.5
      */
-    private static final double STAGE_MARKER_FULL_SIZE_VIEWPORT_M =
-            30_000.0;
+private final Context context;
 
-    private CircleLayer stageLayer;
+    private SymbolLayer stageLayer;
 
-    private float lastStageMarkerRadius =
+    /*
+     * Logical MapLibre image size in style pixels, not raw bitmap pixels.
+     * MapLibre derives sprite pixelRatio from Bitmap.getDensity().
+     */
+    private float stageIconStyleSize =
             Float.NaN;
+CaminoMapRenderer(
+            Context context
+    ) {
+        this.context =
+                context.getApplicationContext();
+    }
 
     void onStyleLoaded(
             Style style,
@@ -132,30 +144,76 @@ final class CaminoMapRenderer {
             );
         }
 
+        Bitmap stageIcon =
+                BitmapFactory.decodeResource(
+                        context.getResources(),
+                        R.drawable.camino_stage_shell
+                );
+
+        if (stageIcon == null
+                || stageIcon.getWidth() <= 0
+                || stageIcon.getHeight() <= 0) {
+            throw new IllegalStateException(
+                    "Could not decode camino_stage_shell"
+            );
+        }
+
+        /*
+         * drawable-nodpi prevents Android from resizing the PNG, but it also
+         * leaves the decoded Bitmap without useful density metadata.
+         *
+         * MapLibre Android derives sprite pixelRatio from Bitmap.getDensity().
+         * Give the bitmap the real display density so 256 physical pixels map
+         * to the same logical/style pixel system as CircleLayer.
+         */
+        int densityDpi =
+                context.getResources()
+                        .getDisplayMetrics()
+                        .densityDpi;
+
+        float density =
+                context.getResources()
+                        .getDisplayMetrics()
+                        .density;
+
+        stageIcon.setDensity(
+                densityDpi
+        );
+
+        stageIconStyleSize =
+                Math.max(
+                        stageIcon.getWidth(),
+                        stageIcon.getHeight()
+                )
+                        / density;
+
+        style.addImage(
+                STAGE_IMAGE,
+                stageIcon
+        );
+
         if (style.getLayer(
                 STAGE_LAYER
         ) == null) {
 
             stageLayer =
-                    new CircleLayer(
+                    new SymbolLayer(
                             STAGE_LAYER,
                             STAGE_SOURCE
                     );
 
             stageLayer.setProperties(
-                    PropertyFactory.circleRadius(
-                            STAGE_MARKER_RADIUS
+                    PropertyFactory.iconImage(
+                            STAGE_IMAGE
                     ),
-                    PropertyFactory.circleColor(
-                            "#FFFFFF"
+                    PropertyFactory.iconAllowOverlap(
+                            true
                     ),
-                    PropertyFactory.circleStrokeWidth(
-                            STAGE_MARKER_STROKE_WIDTH
+                    PropertyFactory.iconIgnorePlacement(
+                            true
                     ),
-                    PropertyFactory.circleStrokeColor(
-                            Expression.get(
-                                    "marker_color"
-                            )
+                    PropertyFactory.iconSize(
+                            fixedStageIconSize()
                     )
             );
 
@@ -171,216 +229,24 @@ final class CaminoMapRenderer {
 
         } else {
             stageLayer =
-                    (CircleLayer)
+                    (SymbolLayer)
                             style.getLayer(
                                     STAGE_LAYER
                             );
         }
+}
 
-        lastStageMarkerRadius =
-                Float.NaN;
-
-        updateStageMarkerScale(
-                map
-        );
-    }
-
-    void updateStageMarkerScale(
-            MapLibreMap map
-    ) {
-        if (stageLayer == null
-                || map == null) {
-            return;
-        }
-
-        VisibleRegion visibleRegion =
-                map.getProjection()
-                        .getVisibleRegion();
-
-        if (visibleRegion == null) {
-            return;
-        }
-
-        /*
-         * Use the physical screen-height scale instead of MapLibre's abstract
-         * zoom number. This keeps the behaviour stable across devices and map
-         * orientation.
-         */
-        double leftHeightM =
-                GeoMath.distanceMeters(
-                        visibleRegion.farLeft,
-                        visibleRegion.nearLeft
-                );
-
-        double rightHeightM =
-                GeoMath.distanceMeters(
-                        visibleRegion.farRight,
-                        visibleRegion.nearRight
-                );
-
-        double viewportHeightM =
-                Math.max(
-                        leftHeightM,
-                        rightHeightM
-                );
-
-        if (!Double.isFinite(
-                viewportHeightM
+    private float fixedStageIconSize() {
+        if (!Float.isFinite(
+                stageIconStyleSize
         )
-                || viewportHeightM
-                <= 0.0) {
-            return;
+                || stageIconStyleSize <= 0.0f) {
+            return 1.0f;
         }
 
-        double scale =
-                Math.min(
-                        1.0,
-                        STAGE_MARKER_FULL_SIZE_VIEWPORT_M
-                                / viewportHeightM
-                );
-
-        float proportionalRadius =
-                (float)
-                        (
-                                STAGE_MARKER_RADIUS
-                                        * scale
-                        );
-
-        /*
-         * Never let a stage circle become visually thinner than the Camino
-         * itself.
-         *
-         * The visible Camino width is defined by the outer casing layer.
-         * Requiring:
-         *
-         *     circle diameter >= 2 * Camino width
-         *
-         * means:
-         *
-         *     circle radius >= Camino casing width
-         *
-         * Keep this interpolation in sync with camino-route-casing in
-         * styles/camino-basic.json.
-         */
-        float minimumRadius =
-                caminoCasingWidthAtZoom(
-                        map.getCameraPosition()
-                                .zoom
-                );
-
-        float radius =
-                Math.max(
-                        proportionalRadius,
-                        minimumRadius
-                );
-
-        /*
-         * Avoid needless JNI/style updates for sub-pixel changes while the
-         * camera is moving.
-         */
-        if (Float.isFinite(
-                lastStageMarkerRadius
-        )
-                && Math.abs(
-                radius
-                        - lastStageMarkerRadius
-        ) < 0.05f) {
-            return;
-        }
-
-        lastStageMarkerRadius =
-                radius;
-
-        stageLayer.setProperties(
-                PropertyFactory.circleRadius(
-                        radius
-                )
-        );
+        return STAGE_ICON_FIXED_DIAMETER_PX
+                / stageIconStyleSize;
     }
-
-    private float caminoCasingWidthAtZoom(
-            double zoom
-    ) {
-        /*
-         * Exact line-width stops from the MapLibre layer
-         * "camino-route-casing":
-         *
-         *   z4  -> 2.2
-         *   z8  -> 3.0
-         *   z13 -> 5.0
-         *   z15 -> 7.0
-         *
-         * MapLibre uses linear interpolation between these stops and clamps
-         * outside the range, so do the same here.
-         */
-        if (!Double.isFinite(
-                zoom
-        )
-                || zoom <= 4.0) {
-            return 2.2f;
-        }
-
-        if (zoom < 8.0) {
-            return lerp(
-                    2.2f,
-                    3.0f,
-                    (float)
-                            (
-                                    (zoom - 4.0)
-                                            / 4.0
-                            )
-            );
-        }
-
-        if (zoom < 13.0) {
-            return lerp(
-                    3.0f,
-                    5.0f,
-                    (float)
-                            (
-                                    (zoom - 8.0)
-                                            / 5.0
-                            )
-            );
-        }
-
-        if (zoom < 15.0) {
-            return lerp(
-                    5.0f,
-                    7.0f,
-                    (float)
-                            (
-                                    (zoom - 13.0)
-                                            / 2.0
-                            )
-            );
-        }
-
-        return 7.0f;
-    }
-
-    private float lerp(
-            float start,
-            float end,
-            float factor
-    ) {
-        factor =
-                Math.max(
-                        0.0f,
-                        Math.min(
-                                1.0f,
-                                factor
-                        )
-                );
-
-        return start
-                + (
-                end
-                        - start
-        )
-                * factor;
-    }
-
 
     private FeatureCollection buildStageFeatures(
             List<CaminoRoute> routes

@@ -7,6 +7,8 @@ import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
 import org.maplibre.android.maps.Style;
+import org.maplibre.geojson.Feature;
+import org.maplibre.geojson.Point;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +35,10 @@ public final class CaminoController {
     private final CaminoInteractionRenderer interactionRenderer;
     private final CaminoHeightProfileController heightProfileController;
     private final TravelStatsController travelStatsController;
+    private final WalkingPerformanceModel walkingPerformanceModel;
     private final CaminoDragController dragController;
     private final CaminoSelectionController selectionController;
+    private final CaminoSelectionStatsOverlay selectionStatsOverlay;
 
     private MapLibreMap map;
 
@@ -54,6 +58,13 @@ public final class CaminoController {
             this::handleLiveTrackingState;
 
     private MeasurementPath currentMeasurementPath;
+
+    /*
+     * Visual state only. The actual stage selection lives in the ordinary
+     * two-point CaminoSelectionController state.
+     */
+    private LatLng selectedStagePoint;
+    private String selectedStageHighlightColor;
 
     public CaminoController(
             Activity activity,
@@ -109,6 +120,13 @@ public final class CaminoController {
                         caminoNetwork
                 );
 
+        this.walkingPerformanceModel =
+                new WalkingPerformanceModel(
+                        activity,
+                        projectionEngine,
+                        measurementEngine
+                );
+
         this.heightProfileController =
                 new CaminoHeightProfileController(
                         activity,
@@ -133,6 +151,13 @@ public final class CaminoController {
                         projectionEngine,
                         this::isTapCloseEnough,
                         this::refresh
+                );
+
+        this.selectionStatsOverlay =
+                new CaminoSelectionStatsOverlay(
+                        activity,
+                        mapView,
+                        walkingPerformanceModel
                 );
 
         this.dragController =
@@ -172,6 +197,8 @@ public final class CaminoController {
                             public void setSelectedHit(
                                     ProjectionHit hit
                             ) {
+                                clearSelectedStageVisual();
+
                                 selectionController.setSelectedHit(
                                         hit
                                 );
@@ -191,6 +218,8 @@ public final class CaminoController {
                             public void setSecondTapHit(
                                     ProjectionHit hit
                             ) {
+                                clearSelectedStageVisual();
+
                                 selectionController.setSecondTapHit(
                                         hit
                                 );
@@ -289,6 +318,20 @@ public final class CaminoController {
             return;
         }
 
+        /*
+         * Motion-state publications can arrive without a new GPS timestamp.
+         * Handle STATIONARY before the duplicate-fix early return so pauses are
+         * excluded from learned walking speed.
+         */
+        if (snapshot.stationary) {
+            travelStatsController.noteStationary(
+                    new LatLng(
+                            snapshot.location.getLatitude(),
+                            snapshot.location.getLongitude()
+                    )
+            );
+        }
+
         long stamp =
                 snapshot.location.getElapsedRealtimeNanos() > 0L
                         ? snapshot.location.getElapsedRealtimeNanos()
@@ -369,10 +412,29 @@ public final class CaminoController {
         );
 
         map.addOnMapClickListener(
-                point -> selectionController.handleMapTap(
-                        point,
-                        dragController.isDragging()
-                )
+                point -> {
+                    if (dragController.isDragging()) {
+                        return false;
+                    }
+
+                    /*
+                     * Shells sit directly on the Camino, so test them before
+                     * the generic route tap. A shell tap consumes one tap and
+                     * creates the full two-point day-stage selection.
+                     */
+                    if (handleStageTap(
+                            point
+                    )) {
+                        return true;
+                    }
+
+                    clearSelectedStageVisual();
+
+                    return selectionController.handleMapTap(
+                            point,
+                            false
+                    );
+                }
         );
 
         /*
@@ -422,9 +484,27 @@ public final class CaminoController {
         interactionRenderer.updateDummyPosition(
                 dummyPosition
         );
-        interactionRenderer.updateSelectedPositions(
-                selectionController.selectedHit(),
-                selectionController.secondTapHit()
+        if (selectedStagePoint != null) {
+            /*
+             * Do not paint the normal blue tap dots over the shell artwork.
+             * The route endpoints still exist in selectionController; this is
+             * only a rendering choice.
+             */
+            interactionRenderer.updateSelectedPositions(
+                    null,
+                    null
+            );
+
+        } else {
+            interactionRenderer.updateSelectedPositions(
+                    selectionController.selectedHit(),
+                    selectionController.secondTapHit()
+            );
+        }
+
+        interactionRenderer.updateSelectedStage(
+                selectedStagePoint,
+                selectedStageHighlightColor
         );
 
         if (!draggingDummy
@@ -470,6 +550,7 @@ public final class CaminoController {
     ) {
         infoController.ensureView();
         heightProfileController.ensureView();
+        selectionStatsOverlay.ensureView();
 
         interactionRenderer.onStyleLoaded(
                 style,
@@ -521,9 +602,27 @@ public final class CaminoController {
         interactionRenderer.updateDummyPosition(
                 dummyPosition
         );
-        interactionRenderer.updateSelectedPositions(
-                selectionController.selectedHit(),
-                selectionController.secondTapHit()
+        if (selectedStagePoint != null) {
+            /*
+             * Do not paint the normal blue tap dots over the shell artwork.
+             * The route endpoints still exist in selectionController; this is
+             * only a rendering choice.
+             */
+            interactionRenderer.updateSelectedPositions(
+                    null,
+                    null
+            );
+
+        } else {
+            interactionRenderer.updateSelectedPositions(
+                    selectionController.selectedHit(),
+                    selectionController.secondTapHit()
+            );
+        }
+
+        interactionRenderer.updateSelectedStage(
+                selectedStagePoint,
+                selectedStageHighlightColor
         );
 
         /*
@@ -562,6 +661,22 @@ public final class CaminoController {
                 startRouteHit
         );
 
+        /*
+         * The compact stats card belongs only to an explicit two-point
+         * selection. A one-point measurement from the current GPS/dummy
+         * position intentionally stays card-free.
+         */
+        if (selectionController.secondTapHit()
+                != null) {
+
+            selectionStatsOverlay.update(
+                    currentMeasurementPath
+            );
+
+        } else {
+            selectionStatsOverlay.hide();
+        }
+
         infoController.updateMeasurementSummary(
                 routes,
                 selectionController,
@@ -571,6 +686,257 @@ public final class CaminoController {
 
         heightProfileController.refresh();
     }
+
+    private boolean handleStageTap(
+            LatLng tap
+    ) {
+        if (map == null
+                || routes.isEmpty()) {
+
+            return false;
+        }
+
+        PointF screenPoint =
+                map.getProjection()
+                        .toScreenLocation(
+                                tap
+                        );
+
+        List<Feature> stageFeatures =
+                map.queryRenderedFeatures(
+                        screenPoint,
+                        CaminoMapRenderer.STAGE_LAYER
+                );
+
+        if (stageFeatures == null
+                || stageFeatures.isEmpty()) {
+
+            return false;
+        }
+
+        /*
+         * The stage source is a Point source carrying its semantic place_key.
+         * Normally there is exactly one rendered feature under the shell.
+         */
+        for (Feature feature
+                : stageFeatures) {
+
+            if (feature == null
+                    || !feature.hasProperty(
+                    "place_key"
+            )
+                    || !(feature.geometry()
+                    instanceof Point)) {
+
+                continue;
+            }
+
+            String placeKey =
+                    feature.getStringProperty(
+                            "place_key"
+                    );
+
+            Point geometry =
+                    (Point)
+                            feature.geometry();
+
+            LatLng stagePoint =
+                    new LatLng(
+                            geometry.latitude(),
+                            geometry.longitude()
+                    );
+
+            StageRouteSelection stageSelection =
+                    findOutgoingStage(
+                            placeKey,
+                            stagePoint
+                    );
+
+            /*
+             * A real shell was tapped. Consume the tap even at a final route
+             * endpoint where no outgoing official stage exists, otherwise the
+             * same touch would unexpectedly become a normal Camino tap.
+             */
+            if (stageSelection == null) {
+                return true;
+            }
+
+            selectedStagePoint =
+                    stagePoint;
+
+            selectedStageHighlightColor =
+                    stageSelection.route.highlightColor;
+
+            selectionController.selectStage(
+                    stageSelection.route,
+                    stageSelection.startHit,
+                    stageSelection.endHit
+            );
+
+            return true;
+        }
+
+        return false;
+    }
+
+
+    private StageRouteSelection findOutgoingStage(
+            String placeKey,
+            LatLng stagePoint
+    ) {
+        if (placeKey == null
+                || placeKey.isEmpty()
+                || stagePoint == null) {
+
+            return null;
+        }
+
+        StageRouteSelection best =
+                null;
+
+        double bestDistanceM =
+                Double.POSITIVE_INFINITY;
+
+        for (CaminoRoute route
+                : routes) {
+
+            for (int trackIndex = 0;
+                    trackIndex < route.tracks.size();
+                    trackIndex++) {
+
+                RouteTrack track =
+                        route.tracks.get(
+                                trackIndex
+                        );
+
+                /*
+                 * route.tracks contains only routing_primary tracks. Therefore
+                 * a shell selects the official primary day stage, never a b/c/d
+                 * rendering variant.
+                 */
+                if (track.pseudoFrom
+                        || track.pseudoTo
+                        || track.fromKey == null
+                        || track.toKey == null
+                        || !placeKey.equals(
+                        track.fromKey
+                )
+                        || track.points.size() < 2) {
+
+                    continue;
+                }
+
+                LatLng first =
+                        track.points.get(
+                                0
+                        );
+
+                LatLng last =
+                        track.points.get(
+                                track.points.size() - 1
+                        );
+
+                double firstDistanceM =
+                        GeoMath.distanceMeters(
+                                stagePoint,
+                                first
+                        );
+
+                double lastDistanceM =
+                        GeoMath.distanceMeters(
+                                stagePoint,
+                                last
+                        );
+
+                /*
+                 * CaminoRepository is allowed to reverse geometry for route
+                 * continuity without swapping fromKey/toKey. The actual shell
+                 * coordinate therefore decides which physical track endpoint
+                 * is the semantic FROM endpoint.
+                 */
+                boolean startIsFirst =
+                        firstDistanceM
+                                <= lastDistanceM;
+
+                double startDistanceM =
+                        Math.min(
+                                firstDistanceM,
+                                lastDistanceM
+                        );
+
+                if (startDistanceM
+                        >= bestDistanceM) {
+
+                    continue;
+                }
+
+                ProjectionHit startHit =
+                        projectionEngine.projectToTrackEndpoint(
+                                route,
+                                trackIndex,
+                                startIsFirst
+                        );
+
+                ProjectionHit endHit =
+                        projectionEngine.projectToTrackEndpoint(
+                                route,
+                                trackIndex,
+                                !startIsFirst
+                        );
+
+                if (startHit == null
+                        || endHit == null) {
+
+                    continue;
+                }
+
+                bestDistanceM =
+                        startDistanceM;
+
+                best =
+                        new StageRouteSelection(
+                                route,
+                                startHit,
+                                endHit
+                        );
+            }
+        }
+
+        return best;
+    }
+
+
+    private void clearSelectedStageVisual() {
+        selectedStagePoint =
+                null;
+
+        selectedStageHighlightColor =
+                null;
+    }
+
+
+    private static final class StageRouteSelection {
+
+        final CaminoRoute route;
+        final ProjectionHit startHit;
+        final ProjectionHit endHit;
+
+        StageRouteSelection(
+                CaminoRoute route,
+                ProjectionHit startHit,
+                ProjectionHit endHit
+        ) {
+            this.route =
+                    route;
+
+            this.startHit =
+                    startHit;
+
+            this.endHit =
+                    endHit;
+        }
+    }
+
 
     private boolean isTapCloseEnough(
             LatLng tap,

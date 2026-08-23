@@ -44,6 +44,12 @@ final class TravelStatsController {
     private final Consumer<String> statsSink;
     private final LongSupplier elapsedRealtimeMs;
 
+    /*
+     * Prevent the first GPS point after a stationary period from inheriting
+     * the pause as moving delta time.
+     */
+    private boolean stationaryNoted;
+
     private long travelSessionStartElapsedMs =
             -1L;
 
@@ -118,6 +124,9 @@ final class TravelStatsController {
         long now =
                 elapsedRealtimeMs.getAsLong();
 
+        stationaryNoted =
+                false;
+
         if (travelSessionStartElapsedMs < 0L) {
             travelSessionStartElapsedMs =
                     now;
@@ -190,6 +199,29 @@ final class TravelStatsController {
 
         lastTravelSampleElapsedMs =
                 now;
+
+        publishStats();
+    }
+
+    void noteStationary(
+            LatLng position
+    ) {
+        if (stationaryNoted) {
+            return;
+        }
+
+        stationaryNoted =
+                true;
+
+        /*
+         * A pause is not walking time. Drop the old GPS/time anchor so the
+         * next moving fix starts a fresh interval.
+         */
+        lastTravelSamplePosition =
+                null;
+
+        lastTravelSampleElapsedMs =
+                -1L;
 
         publishStats();
     }

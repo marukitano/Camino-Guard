@@ -56,7 +56,9 @@ final class MapCoordinator {
         this.caminoController = caminoController;
 
         caminoMapRenderer =
-                new CaminoMapRenderer();
+                new CaminoMapRenderer(
+                        activity
+                );
 
         offlineMapRepository =
                 new OfflineMapRepository(
@@ -137,6 +139,21 @@ final class MapCoordinator {
                                     true
                             );
 
+                    /*
+                     * Source attribution remains embedded in the style, but the
+                     * long always-visible MapLibre attribution row is replaced
+                     * by Camino Guard's compact info button.
+                     */
+                    map.getUiSettings()
+                            .setAttributionEnabled(
+                                    false
+                            );
+
+                    map.getUiSettings()
+                            .setLogoEnabled(
+                                    false
+                            );
+
                     map.getUiSettings()
                             .setDisableRotateWhenScaling(
                                     false
@@ -153,17 +170,6 @@ final class MapCoordinator {
 
                     caminoController.attachMap(
                             map
-                    );
-
-                    /*
-                     * Stage circles scale continuously with the actual visible
-                     * map span. Before the style exists this is a cheap no-op.
-                     */
-                    map.addOnCameraMoveListener(
-                            () -> caminoMapRenderer
-                                    .updateStageMarkerScale(
-                                            map
-                                    )
                     );
 
                     /*

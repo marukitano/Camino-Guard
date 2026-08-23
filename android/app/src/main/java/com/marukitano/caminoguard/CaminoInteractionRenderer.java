@@ -7,6 +7,7 @@ import org.maplibre.android.maps.Style;
 import org.maplibre.android.style.expressions.Expression;
 import org.maplibre.android.style.layers.CircleLayer;
 import org.maplibre.android.style.layers.LineLayer;
+import org.maplibre.android.style.layers.SymbolLayer;
 import org.maplibre.android.style.layers.Property;
 import org.maplibre.android.style.layers.PropertyFactory;
 import org.maplibre.android.style.sources.GeoJsonSource;
@@ -53,6 +54,15 @@ final class CaminoInteractionRenderer {
     private static final String SELECTED_LAYER =
             "camino-selected-position";
 
+    private static final String SELECTED_STAGE_SOURCE =
+            "camino-selected-stage-source";
+
+    private static final String SELECTED_STAGE_LAYER =
+            "camino-selected-stage-halo";
+
+    private static final String SELECTED_STAGE_SHELL_LAYER =
+            "camino-selected-stage-shell-selected";
+
     private static final String ROUTE_GAP_SOURCE =
             "camino-route-gap-source";
     private static final String ROUTE_GAP_LAYER =
@@ -63,6 +73,7 @@ final class CaminoInteractionRenderer {
     private GeoJsonSource dummySource;
     private GeoJsonSource startSnapSource;
     private GeoJsonSource selectedSource;
+    private GeoJsonSource selectedStageSource;
     private GeoJsonSource routeGapSource;
 
     void onStyleLoaded(
@@ -340,6 +351,87 @@ final class CaminoInteractionRenderer {
         style.addLayer(
                 selected
         );
+
+        selectedStageSource =
+                new GeoJsonSource(
+                        SELECTED_STAGE_SOURCE,
+                        emptyFeatures()
+                );
+
+        style.addSource(
+                selectedStageSource
+        );
+
+        /*
+         * The normal stage shell is 30 px. For an active day-stage selection
+         * draw the same shell at 40 px on the same point:
+         *
+         *     40 / 30 = 1.333333...
+         *
+         * The existing selection ring is created immediately afterwards and
+         * therefore remains visible on top. The original 30 px stage marker
+         * may still be rendered by CaminoMapRenderer; because both icons are
+         * identical and perfectly centred it simply sits inside this larger
+         * selected copy.
+         */
+        SymbolLayer selectedStageShell =
+                new SymbolLayer(
+                        SELECTED_STAGE_SHELL_LAYER,
+                        SELECTED_STAGE_SOURCE
+                );
+
+        selectedStageShell.setProperties(
+                PropertyFactory.iconImage(
+                        "camino-stage-shell"
+                ),
+                PropertyFactory.iconSize(
+                        40.0f / 30.0f
+                ),
+                PropertyFactory.iconAllowOverlap(
+                        true
+                ),
+                PropertyFactory.iconIgnorePlacement(
+                        true
+                )
+        );
+
+        style.addLayer(
+                selectedStageShell
+        );
+
+        CircleLayer selectedStage =
+                new CircleLayer(
+                        SELECTED_STAGE_LAYER,
+                        SELECTED_STAGE_SOURCE
+                );
+
+        selectedStage.setProperties(
+                PropertyFactory.circleRadius(
+                        18.5f
+                ),
+                PropertyFactory.circleColor(
+                        Color.TRANSPARENT
+                ),
+                PropertyFactory.circleStrokeColor(
+                        Expression.get(
+                                "highlight_color"
+                        )
+                ),
+                PropertyFactory.circleStrokeWidth(
+                        3.5f
+                ),
+                PropertyFactory.circleOpacity(
+                        1.0f
+                )
+        );
+
+        /*
+         * Transparent centre: the shell remains completely visible. Only a
+         * strong route-coloured frame is drawn around the tapped start shell.
+         */
+        style.addLayer(
+                selectedStage
+        );
     }
 
     boolean isMeasurementRouteReady() {
@@ -498,6 +590,43 @@ final class CaminoInteractionRenderer {
                 )
         );
     }
+
+    void updateSelectedStage(
+            LatLng stagePoint,
+            String highlightColor
+    ) {
+        if (selectedStageSource == null) {
+            return;
+        }
+
+        if (stagePoint == null
+                || highlightColor == null) {
+
+            selectedStageSource.setGeoJson(
+                    emptyFeatures()
+            );
+
+            return;
+        }
+
+        Feature feature =
+                Feature.fromGeometry(
+                        Point.fromLngLat(
+                                stagePoint.getLongitude(),
+                                stagePoint.getLatitude()
+                        )
+                );
+
+        feature.addStringProperty(
+                "highlight_color",
+                highlightColor
+        );
+
+        selectedStageSource.setGeoJson(
+                feature
+        );
+    }
+
 
     void renderMeasurementPath(
             MeasurementPath path

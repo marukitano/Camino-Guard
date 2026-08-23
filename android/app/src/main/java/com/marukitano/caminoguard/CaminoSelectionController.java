@@ -104,6 +104,40 @@ final class CaminoSelectionController {
         return true;
     }
 
+    void selectStage(
+            CaminoRoute route,
+            ProjectionHit startHit,
+            ProjectionHit endHit
+    ) {
+        if (route == null
+                || startHit == null
+                || endHit == null) {
+
+            return;
+        }
+
+        /*
+         * A shell tap is deliberately represented as the same two-point
+         * selection as two manual Camino taps. Measurement, route halo,
+         * elevation profile and ETA therefore stay on the single established
+         * code path.
+         */
+        selectedRoute =
+                route;
+
+        selectedHit =
+                startHit;
+
+        secondSelectedRoute =
+                route;
+
+        secondTapHit =
+                endHit;
+
+        refreshAction.refresh();
+    }
+
+
     CaminoRoute selectedRoute() {
         return selectedRoute;
     }

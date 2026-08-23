@@ -1,0 +1,396 @@
+package com.marukitano.caminoguard;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.view.Gravity;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+
+import org.maplibre.android.maps.MapLibreMap;
+import org.maplibre.android.maps.MapView;
+
+import java.util.List;
+import java.util.Locale;
+
+final class CaminoInfoController {
+
+    private final Activity activity;
+    private final MapView mapView;
+    private final CaminoInfoPresenter presenter;
+
+    private MapLibreMap map;
+    private CaminoInfoPanel panel;
+
+    private Runnable navigationAction;
+    private boolean navigationFollowEnabled;
+
+    CaminoInfoController(
+            Activity activity,
+            MapView mapView,
+            CaminoInfoPresenter presenter
+    ) {
+        this.activity = activity;
+        this.mapView = mapView;
+        this.presenter = presenter;
+    }
+
+    void attachMap(
+            MapLibreMap map
+    ) {
+        this.map = map;
+
+        if (panel != null) {
+            configureCompass();
+        }
+    }
+
+    void setNavigationAction(
+            Runnable action
+    ) {
+        navigationAction = action;
+
+        if (panel != null) {
+            panel.setNavigationAction(
+                    action
+            );
+        }
+    }
+
+    void setNavigationFollowEnabled(
+            boolean enabled
+    ) {
+        navigationFollowEnabled = enabled;
+
+        if (panel != null) {
+            panel.setNavigationFollowEnabled(
+                    enabled
+            );
+        }
+    }
+
+    void ensureView() {
+        if (panel != null) {
+            return;
+        }
+
+        panel =
+                new CaminoInfoPanel(
+                        activity
+                );
+
+        presenter.attach(
+                panel
+        );
+
+        if (navigationAction != null) {
+            panel.setNavigationAction(
+                    navigationAction
+            );
+        }
+
+        panel.setNavigationFollowEnabled(
+                navigationFollowEnabled
+        );
+
+        panel.setAttributionAction(
+                this::showAttributionDialog
+        );
+
+        if (map != null) {
+            configureCompass();
+        }
+
+        ViewGroup parent =
+                (ViewGroup)
+                        mapView.getParent();
+
+        /*
+         * The former bottom info card is currently disabled. Its remaining
+         * compass + navigation/recenter + attribution controls live as a compact vertical
+         * stack at the left screen edge.
+         */
+        FrameLayout.LayoutParams params =
+                new FrameLayout.LayoutParams(
+                        dp(
+                                48
+                        ),
+                        dp(
+                                144
+                        ),
+                        Gravity.START
+                                | Gravity.BOTTOM
+                );
+
+        params.leftMargin =
+                dp(
+                        2
+                );
+
+        /*
+         * Anchor the three controls at the bottom-left and let the stack grow
+         * upward: recenter/navigation at the bottom, compass above it.
+         */
+        params.bottomMargin =
+                dp(
+                        18
+                );
+
+        parent.addView(
+                panel,
+                params
+        );
+
+        panel.setElevation(
+                dp(
+                        1000
+                )
+        );
+
+        panel.bringToFront();
+
+        presenter.refresh();
+    }
+
+    void updateCompass() {
+        if (panel == null
+                || map == null) {
+            return;
+        }
+
+        panel.setBearing(
+                map.getCameraPosition()
+                        .bearing
+        );
+    }
+
+    void updateMeasurementSummary(
+            List<CaminoRoute> routes,
+            CaminoSelectionController selectionController,
+            RouteHit startRouteHit,
+            MeasurementPath currentMeasurementPath
+    ) {
+        if (routes.isEmpty()) {
+            presenter.setInfoTitle(
+                    ""
+            );
+
+            presenter.setSummaryTexts(
+                    "Lade Caminos …",
+                    ""
+            );
+
+            return;
+        }
+
+        if (selectionController.selectedRoute() == null
+                || selectionController.selectedHit() == null) {
+
+            if (startRouteHit == null) {
+                presenter.setInfoTitle(
+                        ""
+                );
+
+                presenter.setSummaryTexts(
+                        "Kein Camino gefunden",
+                        ""
+                );
+
+                return;
+            }
+
+            presenter.setInfoTitle(
+                    startRouteHit.route.name
+            );
+
+            double offRouteM =
+                    startRouteHit.hit.distanceFromQueryM;
+
+            presenter.setSummaryTexts(
+                    offRouteM < 3.0
+                            ? "Auf dem Camino"
+                            : formatDistance(
+                                    offRouteM
+                            )
+                            + " bis Camino",
+                    ""
+            );
+
+            return;
+        }
+
+        RouteHit measurementStart;
+        RouteHit measurementEnd;
+
+        if (selectionController.secondTapHit() != null) {
+            if (selectionController.secondSelectedRoute() == null) {
+                presenter.setInfoTitle(
+                        selectionController.selectedRoute().name
+                );
+
+                presenter.setSummaryTexts(
+                        "Zweiter Camino fehlt",
+                        ""
+                );
+
+                return;
+            }
+
+            measurementStart =
+                    new RouteHit(
+                            selectionController.selectedRoute(),
+                            selectionController.selectedHit()
+                    );
+
+            measurementEnd =
+                    new RouteHit(
+                            selectionController.secondSelectedRoute(),
+                            selectionController.secondTapHit()
+                    );
+
+        } else {
+            if (startRouteHit == null) {
+                presenter.setInfoTitle(
+                        selectionController.selectedRoute().name
+                );
+
+                presenter.setSummaryTexts(
+                        "Startpunkt konnte nicht projiziert werden",
+                        ""
+                );
+
+                return;
+            }
+
+            measurementStart =
+                    startRouteHit;
+
+            measurementEnd =
+                    new RouteHit(
+                            selectionController.selectedRoute(),
+                            selectionController.selectedHit()
+                    );
+        }
+
+        presenter.setInfoTitle(
+                measurementRouteLabel(
+                        measurementStart,
+                        measurementEnd
+                )
+        );
+
+        if (currentMeasurementPath == null) {
+            presenter.setSummaryTexts(
+                    "Keine Camino-Verbindung",
+                    ""
+            );
+
+            return;
+        }
+
+        String leftText =
+                "";
+
+        if (selectionController.secondTapHit() == null) {
+            leftText =
+                    startRouteHit.hit.distanceFromQueryM < 3.0
+                            ? "Auf dem Camino"
+                            : formatDistance(
+                                    startRouteHit.hit.distanceFromQueryM
+                            )
+                            + " bis Camino";
+        }
+
+        String rightText =
+                formatDistance(
+                        currentMeasurementPath.distanceM
+                )
+                        + " Etappenlänge";
+
+        presenter.setSummaryTexts(
+                leftText,
+                rightText
+        );
+    }
+
+    private void showAttributionDialog() {
+        new AlertDialog.Builder(
+                activity
+        )
+                .setTitle(
+                        "Kartendaten & Lizenzen"
+                )
+                .setMessage(
+                        "© OpenStreetMap-Mitwirkende\n"
+                                + "Basiskarte: Protomaps\n"
+                                + "Terrain/Höhendaten: Mapterhorn open-data sources\n"
+                                + "Weltübersicht: MapLibre Demo Tiles / Natural Earth\n"
+                                + "Camino-Routen: CNIG / FEAACS, CC BY 4.0"
+                )
+                .setPositiveButton(
+                        "OK",
+                        null
+                )
+                .show();
+    }
+
+    private void configureCompass() {
+        panel.setCompassDrawable(
+                map.getUiSettings()
+                        .getCompassImage()
+        );
+
+        map.getUiSettings()
+                .setCompassEnabled(
+                        false
+                );
+
+        updateCompass();
+    }
+
+    private String measurementRouteLabel(
+            RouteHit start,
+            RouteHit end
+    ) {
+        if (start.route
+                == end.route) {
+            return end.route.name;
+        }
+
+        return start.route.name
+                + " → "
+                + end.route.name;
+    }
+
+    private String formatDistance(
+            double distanceM
+    ) {
+        if (distanceM
+                >= 1000.0) {
+
+            return String.format(
+                    Locale.GERMANY,
+                    "%.2fkm",
+                    distanceM
+                            / 1000.0
+            );
+        }
+
+        return String.format(
+                Locale.GERMANY,
+                "%.0fm",
+                distanceM
+        );
+    }
+
+    private int dp(
+            int value
+    ) {
+        return Math.round(
+                value
+                        * activity
+                        .getResources()
+                        .getDisplayMetrics()
+                        .density
+        );
+    }
+}

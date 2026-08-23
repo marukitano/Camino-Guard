@@ -117,6 +117,50 @@ final class CaminoProjectionEngine {
         return best;
     }
 
+    ProjectionHit projectToTrackEndpoint(
+            CaminoRoute route,
+            int trackIndex,
+            boolean firstEndpoint
+    ) {
+        if (route == null
+                || trackIndex < 0
+                || trackIndex >= route.tracks.size()) {
+
+            return null;
+        }
+
+        RouteTrack track =
+                route.tracks.get(
+                        trackIndex
+                );
+
+        if (track.points.size() < 2) {
+            return null;
+        }
+
+        LatLng endpoint =
+                firstEndpoint
+                        ? track.points.get(
+                                0
+                        )
+                        : track.points.get(
+                                track.points.size() - 1
+                        );
+
+        /*
+         * Force the projection onto this exact primary track. At a stage
+         * junction several tracks can share one coordinate; using the global
+         * nearest-hit search there could otherwise choose the neighbouring
+         * stage and give the measurement the wrong chainage.
+         */
+        return projectToTrack(
+                route,
+                trackIndex,
+                endpoint
+        );
+    }
+
+
     ProjectionHit projectToRoute(
             CaminoRoute route,
             LatLng query

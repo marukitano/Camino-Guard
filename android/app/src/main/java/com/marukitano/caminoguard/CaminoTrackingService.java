@@ -20,12 +20,18 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.os.SystemClock;
+import android.util.Log;
+
+import org.maplibre.android.geometry.LatLng;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Camino Guard tracking service.
@@ -131,6 +137,24 @@ public final class CaminoTrackingService extends Service
 
     private long lastSensorPublishMs;
 
+    /*
+     * The foreground service owns recording. Activity listeners are allowed to
+     * disappear on screen-off/onPause without stopping statistics.
+     */
+    private PowerManager.WakeLock trackingWakeLock;
+
+    private final ExecutorService performanceExecutor =
+            Executors.newSingleThreadExecutor();
+
+    private final Object performanceLock =
+            new Object();
+
+    private final List<PerformanceEvent> pendingPerformanceEvents =
+            new ArrayList<>();
+
+    private volatile WalkingPerformanceModel
+            backgroundWalkingPerformanceModel;
+
     public static void addListener(Listener listener) {
         if (listener == null) {
             return;
@@ -199,6 +223,8 @@ public final class CaminoTrackingService extends Service
             );
         }
 
+        acquireTrackingWakeLock();
+
         locationManager =
                 (LocationManager)
                         getSystemService(
@@ -253,7 +279,12 @@ public final class CaminoTrackingService extends Service
             );
         } catch (SecurityException error) {
             stopSelf();
+            return;
         }
+
+        performanceExecutor.execute(
+                this::initializeWalkingPerformanceRecorder
+        );
     }
 
     @Override
@@ -282,6 +313,10 @@ public final class CaminoTrackingService extends Service
             } catch (SecurityException ignored) {
             }
         }
+
+        performanceExecutor.shutdownNow();
+
+        releaseTrackingWakeLock();
 
         super.onDestroy();
     }
@@ -336,6 +371,10 @@ public final class CaminoTrackingService extends Service
     ) {
         acceptedLocation =
                 new Location(location);
+
+        recordPerformanceMoving(
+                location
+        );
 
         if (lastTrackLocation == null
                 || lastTrackLocation.distanceTo(location)
@@ -426,6 +465,10 @@ public final class CaminoTrackingService extends Service
     private void enterStationary() {
         directionTracker.enterStationary();
 
+        recordPerformanceStationary(
+                acceptedLocation
+        );
+
         publish();
     }
 
@@ -481,6 +524,261 @@ public final class CaminoTrackingService extends Service
         publishedTrackDirty = false;
 
         return publishedTrack;
+    }
+
+    private void acquireTrackingWakeLock() {
+        PowerManager powerManager =
+                (PowerManager)
+                        getSystemService(
+                                Context.POWER_SERVICE
+                        );
+
+        if (powerManager == null) {
+            return;
+        }
+
+        trackingWakeLock =
+                powerManager.newWakeLock(
+                        PowerManager.PARTIAL_WAKE_LOCK,
+                        "CaminoGuard:background-tracking"
+                );
+
+        trackingWakeLock.setReferenceCounted(
+                false
+        );
+
+        trackingWakeLock.acquire();
+    }
+
+    private void releaseTrackingWakeLock() {
+        if (trackingWakeLock != null
+                && trackingWakeLock.isHeld()) {
+
+            trackingWakeLock.release();
+        }
+    }
+
+    private void initializeWalkingPerformanceRecorder() {
+        Exception lastError =
+                null;
+
+        for (int attempt = 1;
+                attempt <= 3;
+                attempt++) {
+
+            if (Thread.currentThread()
+                    .isInterrupted()) {
+
+                return;
+            }
+
+            try {
+                CaminoConfig.initialize(
+                        getApplicationContext()
+                );
+
+                List<CaminoRoute> routes =
+                        new CaminoRepository(
+                                getApplicationContext()
+                        ).load();
+
+                CaminoNetwork network =
+                        new CaminoNetwork();
+
+                network.rebuild(
+                        routes
+                );
+
+                MeasurementEngine measurementEngine =
+                        new MeasurementEngine(
+                                network
+                        );
+
+                CaminoProjectionEngine projectionEngine =
+                        new CaminoProjectionEngine(
+                                network
+                        );
+
+                WalkingPerformanceModel model =
+                        new WalkingPerformanceModel(
+                                getApplicationContext(),
+                                projectionEngine,
+                                measurementEngine
+                        );
+
+                activateWalkingPerformanceRecorder(
+                        model
+                );
+
+                Log.i(
+                        "CaminoTrackingService",
+                        "Background walking recorder ready"
+                );
+
+                return;
+
+            } catch (Exception error) {
+                lastError =
+                        error;
+
+                Log.e(
+                        "CaminoTrackingService",
+                        "Background recorder init attempt "
+                                + attempt
+                                + " failed",
+                        error
+                );
+
+                if (attempt < 3) {
+                    try {
+                        Thread.sleep(
+                                2_000L
+                        );
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread()
+                                .interrupt();
+
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (lastError != null) {
+            Log.e(
+                    "CaminoTrackingService",
+                    "Background walking recorder unavailable",
+                    lastError
+            );
+        }
+    }
+
+    private void activateWalkingPerformanceRecorder(
+            WalkingPerformanceModel model
+    ) {
+        synchronized (performanceLock) {
+            for (PerformanceEvent event
+                    : pendingPerformanceEvents) {
+
+                applyPerformanceEvent(
+                        model,
+                        event
+                );
+            }
+
+            pendingPerformanceEvents.clear();
+
+            backgroundWalkingPerformanceModel =
+                    model;
+        }
+    }
+
+    private void recordPerformanceMoving(
+            Location location
+    ) {
+        if (location == null) {
+            return;
+        }
+
+        long elapsedMs =
+                location.getElapsedRealtimeNanos()
+                        > 0L
+                        ? location.getElapsedRealtimeNanos()
+                        / 1_000_000L
+                        : SystemClock.elapsedRealtime();
+
+        queueOrApplyPerformanceEvent(
+                new PerformanceEvent(
+                        location,
+                        elapsedMs,
+                        false
+                )
+        );
+    }
+
+    private void recordPerformanceStationary(
+            Location location
+    ) {
+        if (location == null) {
+            return;
+        }
+
+        queueOrApplyPerformanceEvent(
+                new PerformanceEvent(
+                        location,
+                        SystemClock.elapsedRealtime(),
+                        true
+                )
+        );
+    }
+
+    private void queueOrApplyPerformanceEvent(
+            PerformanceEvent event
+    ) {
+        synchronized (performanceLock) {
+            WalkingPerformanceModel model =
+                    backgroundWalkingPerformanceModel;
+
+            if (model == null) {
+                pendingPerformanceEvents.add(
+                        event
+                );
+
+                return;
+            }
+
+            applyPerformanceEvent(
+                    model,
+                    event
+            );
+        }
+    }
+
+    private void applyPerformanceEvent(
+            WalkingPerformanceModel model,
+            PerformanceEvent event
+    ) {
+        LatLng position =
+                new LatLng(
+                        event.location.getLatitude(),
+                        event.location.getLongitude()
+                );
+
+        if (event.stationary) {
+            model.noteStationary(
+                    position
+            );
+
+        } else {
+            model.noteMovingSample(
+                    position,
+                    event.elapsedMs
+            );
+        }
+    }
+
+    private static final class PerformanceEvent {
+
+        final Location location;
+        final long elapsedMs;
+        final boolean stationary;
+
+        PerformanceEvent(
+                Location location,
+                long elapsedMs,
+                boolean stationary
+        ) {
+            this.location =
+                    new Location(
+                            location
+                    );
+
+            this.elapsedMs =
+                    elapsedMs;
+
+            this.stationary =
+                    stationary;
+        }
     }
 
     private void createNotificationChannel() {

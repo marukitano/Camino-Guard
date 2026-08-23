@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Camino Guard</string>
+    <string name="offline_map_preparing">Offline-Karte wird eingerichtet…</string>
+    <string name="offline_map_progress">Offline-Karte wird eingerichtet… %1$d%%</string>
+    <string name="offline_map_loading">Offline-Karte wird geladen…</string>
+    <string name="offline_map_error">Offline-Karte konnte nicht geladen werden:\n%1$s</string>
+    <string name="map_attribution">© OSM · Protomaps · Mapterhorn · CNIG/FEAACS</string>
+</resources>

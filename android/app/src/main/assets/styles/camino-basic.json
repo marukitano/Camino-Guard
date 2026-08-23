@@ -12413,6 +12413,35 @@
             "zoom"
           ],
           4,
+          3.3,
+          8,
+          4.5,
+          13,
+          7.5,
+          15,
+          10.5
+        ],
+        "circle-color": [
+          "get",
+          "marker_color"
+        ],
+        "circle-opacity": 1.0
+      }
+    },
+    {
+      "id": "camino-settlement-points-inner",
+      "type": "circle",
+      "source": "camino-settlements",
+      "paint": {
+        "circle-radius": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
           2.2,
           8,
           3.0,
@@ -12423,7 +12452,7 @@
         ],
         "circle-color": [
           "get",
-          "marker_color"
+          "marker_inner_color"
         ],
         "circle-opacity": 1.0
       }

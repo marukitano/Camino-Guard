@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.FrameLayout;
@@ -39,8 +40,10 @@ final class CaminoInfoPanel extends FrameLayout {
     private final TextView statsRightView;
     private final CaminoChevronView panelToggleView;
     private final CaminoNavigationButton navigationButton;
+    private final TextView attributionButton;
 
     private Runnable navigationAction;
+    private Runnable attributionAction;
     private boolean hidden;
 
     CaminoInfoPanel(Context context) {
@@ -53,7 +56,7 @@ final class CaminoInfoPanel extends FrameLayout {
          */
         setClickable(false);
         setMinimumWidth(dpInt(48));
-        setMinimumHeight(dpInt(96));
+        setMinimumHeight(dpInt(144));
 
         setBackground(
                 null
@@ -263,11 +266,11 @@ final class CaminoInfoPanel extends FrameLayout {
                 new FrameLayout.LayoutParams(
                         dpInt(40),
                         dpInt(40),
-                        Gravity.TOP | Gravity.CENTER_HORIZONTAL
+                        Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
                 );
 
-        compassParams.topMargin =
-                dpInt(4);
+        compassParams.bottomMargin =
+                dpInt(100);
 
         addView(
                 compassView,
@@ -291,7 +294,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 );
 
         navigationParams.bottomMargin =
-                dpInt(4);
+                dpInt(52);
 
         addView(
                 navigationButton,
@@ -302,6 +305,89 @@ final class CaminoInfoPanel extends FrameLayout {
                 view -> {
                     if (navigationAction != null) {
                         navigationAction.run();
+                    }
+                }
+        );
+
+        attributionButton =
+                new TextView(
+                        context
+                );
+
+        attributionButton.setText(
+                "i"
+        );
+
+        attributionButton.setTextColor(
+                Color.WHITE
+        );
+
+        attributionButton.setTextSize(
+                21.0f
+        );
+
+        attributionButton.setTypeface(
+                Typeface.DEFAULT,
+                Typeface.BOLD
+        );
+
+        attributionButton.setGravity(
+                Gravity.CENTER
+        );
+
+        attributionButton.setClickable(
+                true
+        );
+
+        GradientDrawable attributionBackground =
+                new GradientDrawable();
+
+        attributionBackground.setShape(
+                GradientDrawable.OVAL
+        );
+
+        attributionBackground.setColor(
+                Color.argb(
+                        165,
+                        35,
+                        39,
+                        43
+                )
+        );
+
+        attributionBackground.setStroke(
+                dpInt(1),
+                Color.argb(
+                        185,
+                        255,
+                        255,
+                        255
+                )
+        );
+
+        attributionButton.setBackground(
+                attributionBackground
+        );
+
+        FrameLayout.LayoutParams attributionParams =
+                new FrameLayout.LayoutParams(
+                        dpInt(40),
+                        dpInt(40),
+                        Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
+                );
+
+        attributionParams.bottomMargin =
+                dpInt(4);
+
+        addView(
+                attributionButton,
+                attributionParams
+        );
+
+        attributionButton.setOnClickListener(
+                view -> {
+                    if (attributionAction != null) {
+                        attributionAction.run();
                     }
                 }
         );
@@ -535,6 +621,13 @@ final class CaminoInfoPanel extends FrameLayout {
             Runnable action
     ) {
         navigationAction =
+                action;
+    }
+
+    void setAttributionAction(
+            Runnable action
+    ) {
+        attributionAction =
                 action;
     }
 

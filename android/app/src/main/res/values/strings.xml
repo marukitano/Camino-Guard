@@ -5,5 +5,5 @@
     <string name="offline_map_progress">Offline-Karte wird eingerichtet… %1$d%%</string>
     <string name="offline_map_loading">Offline-Karte wird geladen…</string>
     <string name="offline_map_error">Offline-Karte konnte nicht geladen werden:\n%1$s</string>
-    <string name="map_attribution">© OSM · Protomaps · Mapterhorn · CNIG/FEAACS</string>
+    <string name="map_attribution"></string>
 </resources>
