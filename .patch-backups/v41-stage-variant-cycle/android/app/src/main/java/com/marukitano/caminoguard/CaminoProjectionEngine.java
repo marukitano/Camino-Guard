@@ -117,24 +117,6 @@ final class CaminoProjectionEngine {
         return best;
     }
 
-    ProjectionHit projectToPrimaryTrack(
-            CaminoRoute route,
-            int trackIndex,
-            LatLng query
-    ) {
-        /*
-         * Exact projection onto one routing-primary track. Stage variants are
-         * render-only and must not enter the global CaminoNetwork merely to
-         * find their rejoin point.
-         */
-        return projectToTrack(
-                route,
-                trackIndex,
-                query
-        );
-    }
-
-
     ProjectionHit projectToTrackEndpoint(
             CaminoRoute route,
             int trackIndex,

@@ -11,7 +11,6 @@ import org.maplibre.geojson.Feature;
 import org.maplibre.geojson.Point;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -66,9 +65,6 @@ public final class CaminoController {
      */
     private LatLng selectedStagePoint;
     private String selectedStageHighlightColor;
-    private String selectedStagePlaceKey;
-    private int selectedStageChoiceIndex;
-    private StageRouteSelection selectedStageSelection;
 
     public CaminoController(
             Activity activity,
@@ -718,6 +714,10 @@ public final class CaminoController {
             return false;
         }
 
+        /*
+         * The stage source is a Point source carrying its semantic place_key.
+         * Normally there is exactly one rendered feature under the shell.
+         */
         for (Feature feature
                 : stageFeatures) {
 
@@ -746,49 +746,26 @@ public final class CaminoController {
                             geometry.longitude()
                     );
 
-            List<StageRouteSelection> choices =
-                    findOutgoingStages(
+            StageRouteSelection stageSelection =
+                    findOutgoingStage(
                             placeKey,
                             stagePoint
                     );
 
             /*
-             * A real shell was tapped. Consume it even if this is the final
-             * shell without an outgoing stage.
+             * A real shell was tapped. Consume the tap even at a final route
+             * endpoint where no outgoing official stage exists, otherwise the
+             * same touch would unexpectedly become a normal Camino tap.
              */
-            if (choices.isEmpty()) {
+            if (stageSelection == null) {
                 return true;
             }
-
-            int choiceIndex =
-                    placeKey.equals(
-                            selectedStagePlaceKey
-                    )
-                            ? (
-                            selectedStageChoiceIndex
-                                    + 1
-                    ) % choices.size()
-                            : 0;
-
-            StageRouteSelection stageSelection =
-                    choices.get(
-                            choiceIndex
-                    );
 
             selectedStagePoint =
                     stagePoint;
 
             selectedStageHighlightColor =
                     stageSelection.route.highlightColor;
-
-            selectedStagePlaceKey =
-                    placeKey;
-
-            selectedStageChoiceIndex =
-                    choiceIndex;
-
-            selectedStageSelection =
-                    stageSelection;
 
             selectionController.selectStage(
                     stageSelection.route,
@@ -803,149 +780,7 @@ public final class CaminoController {
     }
 
 
-    private List<StageRouteSelection> findOutgoingStages(
-            String placeKey,
-            LatLng stagePoint
-    ) {
-        List<StageRouteSelection> result =
-                new ArrayList<>();
-
-        StageRouteSelection primary =
-                findPrimaryOutgoingStage(
-                        placeKey,
-                        stagePoint
-                );
-
-        if (primary == null) {
-            return result;
-        }
-
-        result.add(
-                primary
-        );
-
-        RouteTrack primaryTrack =
-                primary.route.tracks.get(
-                        primary.primaryTrackIndex
-                );
-
-        List<RouteTrack> variants =
-                new ArrayList<>();
-
-        for (RouteTrack candidate
-                : primary.route.renderTracks) {
-
-            /*
-             * Primary tracks are the same object instances inside renderTracks.
-             * Everything else with the same stage number and semantic FROM
-             * place is an official b/c/d/... alternative beginning at this
-             * shell.
-             */
-            if (candidate == primaryTrack
-                    || candidate.points.size() < 2
-                    || candidate.pseudoFrom
-                    || candidate.fromKey == null
-                    || !placeKey.equals(
-                    candidate.fromKey
-            )
-                    || candidate.order
-                    != primaryTrack.order) {
-
-                continue;
-            }
-
-            variants.add(
-                    candidate
-            );
-        }
-
-        variants.sort(
-                Comparator.comparing(
-                        track ->
-                                track.sectionId
-                )
-        );
-
-        for (RouteTrack variant
-                : variants) {
-
-            LatLng first =
-                    variant.points.get(
-                            0
-                    );
-
-            LatLng last =
-                    variant.points.get(
-                            variant.points.size() - 1
-                    );
-
-            double firstDistanceM =
-                    GeoMath.distanceMeters(
-                            stagePoint,
-                            first
-                    );
-
-            double lastDistanceM =
-                    GeoMath.distanceMeters(
-                            stagePoint,
-                            last
-                    );
-
-            boolean variantStartIsFirst =
-                    firstDistanceM
-                            <= lastDistanceM;
-
-            double startDistanceM =
-                    Math.min(
-                            firstDistanceM,
-                            lastDistanceM
-                    );
-
-            /*
-             * Guard against an unrelated same-number render track whose
-             * metadata happens to reuse the place key far away.
-             */
-            if (startDistanceM > 750.0) {
-                continue;
-            }
-
-            LatLng mergePoint =
-                    variantStartIsFirst
-                            ? last
-                            : first;
-
-            ProjectionHit mergeHit =
-                    projectionEngine.projectToPrimaryTrack(
-                            primary.route,
-                            primary.primaryTrackIndex,
-                            mergePoint
-                    );
-
-            if (mergeHit == null
-                    || mergeHit.distanceFromQueryM
-                    > 750.0) {
-
-                continue;
-            }
-
-            result.add(
-                    new StageRouteSelection(
-                            primary.route,
-                            primary.startHit,
-                            primary.endHit,
-                            primary.primaryTrackIndex,
-                            variant,
-                            variantStartIsFirst,
-                            mergeHit
-                    )
-            );
-        }
-
-        return result;
-    }
-
-
-    private StageRouteSelection findPrimaryOutgoingStage(
+    private StageRouteSelection findOutgoingStage(
             String placeKey,
             LatLng stagePoint
     ) {
@@ -974,6 +809,11 @@ public final class CaminoController {
                                 trackIndex
                         );
 
+                /*
+                 * route.tracks contains only routing_primary tracks. Therefore
+                 * a shell selects the official primary day stage, never a b/c/d
+                 * rendering variant.
+                 */
                 if (track.pseudoFrom
                         || track.pseudoTo
                         || track.fromKey == null
@@ -1009,9 +849,10 @@ public final class CaminoController {
                         );
 
                 /*
-                 * Primary geometry can be reversed internally without swapping
-                 * fromKey/toKey. The shell coordinate establishes the semantic
-                 * stage start.
+                 * CaminoRepository is allowed to reverse geometry for route
+                 * continuity without swapping fromKey/toKey. The actual shell
+                 * coordinate therefore decides which physical track endpoint
+                 * is the semantic FROM endpoint.
                  */
                 boolean startIsFirst =
                         firstDistanceM
@@ -1056,11 +897,7 @@ public final class CaminoController {
                         new StageRouteSelection(
                                 route,
                                 startHit,
-                                endHit,
-                                trackIndex,
-                                null,
-                                true,
-                                null
+                                endHit
                         );
             }
         }
@@ -1075,15 +912,6 @@ public final class CaminoController {
 
         selectedStageHighlightColor =
                 null;
-
-        selectedStagePlaceKey =
-                null;
-
-        selectedStageChoiceIndex =
-                0;
-
-        selectedStageSelection =
-                null;
     }
 
 
@@ -1092,19 +920,11 @@ public final class CaminoController {
         final CaminoRoute route;
         final ProjectionHit startHit;
         final ProjectionHit endHit;
-        final int primaryTrackIndex;
-        final RouteTrack variantTrack;
-        final boolean variantStartIsFirst;
-        final ProjectionHit mergeHit;
 
         StageRouteSelection(
                 CaminoRoute route,
                 ProjectionHit startHit,
-                ProjectionHit endHit,
-                int primaryTrackIndex,
-                RouteTrack variantTrack,
-                boolean variantStartIsFirst,
-                ProjectionHit mergeHit
+                ProjectionHit endHit
         ) {
             this.route =
                     route;
@@ -1114,23 +934,6 @@ public final class CaminoController {
 
             this.endHit =
                     endHit;
-
-            this.primaryTrackIndex =
-                    primaryTrackIndex;
-
-            this.variantTrack =
-                    variantTrack;
-
-            this.variantStartIsFirst =
-                    variantStartIsFirst;
-
-            this.mergeHit =
-                    mergeHit;
-        }
-
-        boolean usesVariant() {
-            return variantTrack != null
-                    && mergeHit != null;
         }
     }
 
@@ -1230,27 +1033,11 @@ public final class CaminoController {
                     );
         }
 
-        if (selectedStageSelection != null
-                && selectedStageSelection.usesVariant()
-                && selectionController.secondTapHit()
-                != null) {
-
-            currentMeasurementPath =
-                    measurementEngine.buildStageVariantMeasurementPath(
-                            selectedStageSelection.route,
-                            selectedStageSelection.variantTrack,
-                            selectedStageSelection.variantStartIsFirst,
-                            selectedStageSelection.mergeHit,
-                            selectedStageSelection.endHit
-                    );
-
-        } else {
-            currentMeasurementPath =
-                    measurementEngine.buildMeasurementPath(
-                            routeStart,
-                            routeEnd
-                    );
-        }
+        currentMeasurementPath =
+                measurementEngine.buildMeasurementPath(
+                        routeStart,
+                        routeEnd
+                );
 
         interactionRenderer.renderMeasurementPath(
                 currentMeasurementPath

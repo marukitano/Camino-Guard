@@ -40,9 +40,6 @@ final class CaminoMapRenderer {
     private static final String STAGE_IMAGE =
             "camino-stage-shell";
 
-    static final String STAGE_SELECTED_IMAGE =
-            "camino-stage-shell-selected-40";
-
     private static final float STAGE_ICON_FIXED_DIAMETER_PX =
             30.0f;
 
@@ -193,59 +190,6 @@ CaminoMapRenderer(
         style.addImage(
                 STAGE_IMAGE,
                 stageIcon
-        );
-
-        /*
-         * The normal shell is rendered at exactly 30 logical/style pixels via
-         * fixedStageIconSize(). The selected shell must be exactly 40 logical
-         * pixels, not 1.333 times the raw source bitmap.
-         *
-         * Build a second bitmap whose logical size is 40 px at the current
-         * display density, then MapLibre can render it with iconSize(1.0).
-         */
-        float selectedScale =
-                (
-                        40.0f
-                                * density
-                )
-                        / Math.max(
-                        stageIcon.getWidth(),
-                        stageIcon.getHeight()
-                );
-
-        int selectedWidth =
-                Math.max(
-                        1,
-                        Math.round(
-                                stageIcon.getWidth()
-                                        * selectedScale
-                        )
-                );
-
-        int selectedHeight =
-                Math.max(
-                        1,
-                        Math.round(
-                                stageIcon.getHeight()
-                                        * selectedScale
-                        )
-                );
-
-        Bitmap selectedStageIcon =
-                Bitmap.createScaledBitmap(
-                        stageIcon,
-                        selectedWidth,
-                        selectedHeight,
-                        true
-                );
-
-        selectedStageIcon.setDensity(
-                densityDpi
-        );
-
-        style.addImage(
-                STAGE_SELECTED_IMAGE,
-                selectedStageIcon
         );
 
         if (style.getLayer(

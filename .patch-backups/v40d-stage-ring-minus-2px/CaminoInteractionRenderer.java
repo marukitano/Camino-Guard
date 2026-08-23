@@ -403,12 +403,8 @@ final class CaminoInteractionRenderer {
                 );
 
         selectedStage.setProperties(
-                /*
-                 * 2 px kleinerer Durchmesser:
-                 * 18.5 -> 17.5 Radius
-                 */
                 PropertyFactory.circleRadius(
-                        17.5f
+                        18.5f
                 ),
                 PropertyFactory.circleColor(
                         Color.TRANSPARENT

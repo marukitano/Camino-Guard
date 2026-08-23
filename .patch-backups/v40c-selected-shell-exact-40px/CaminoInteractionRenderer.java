@@ -363,13 +363,16 @@ final class CaminoInteractionRenderer {
         );
 
         /*
-         * The normal stage shell is 30 px. CaminoMapRenderer registers a
-         * second density-correct copy at exactly 40 logical/style pixels for
-         * the active day-stage selection.
+         * The normal stage shell is 30 px. For an active day-stage selection
+         * draw the same shell at 40 px on the same point:
+         *
+         *     40 / 30 = 1.333333...
          *
          * The existing selection ring is created immediately afterwards and
          * therefore remains visible on top. The original 30 px stage marker
-         * stays underneath the identical, centred 40 px selected copy.
+         * may still be rendered by CaminoMapRenderer; because both icons are
+         * identical and perfectly centred it simply sits inside this larger
+         * selected copy.
          */
         SymbolLayer selectedStageShell =
                 new SymbolLayer(
@@ -379,10 +382,10 @@ final class CaminoInteractionRenderer {
 
         selectedStageShell.setProperties(
                 PropertyFactory.iconImage(
-                        CaminoMapRenderer.STAGE_SELECTED_IMAGE
+                        "camino-stage-shell"
                 ),
                 PropertyFactory.iconSize(
-                        1.0f
+                        40.0f / 30.0f
                 ),
                 PropertyFactory.iconAllowOverlap(
                         true
@@ -403,12 +406,8 @@ final class CaminoInteractionRenderer {
                 );
 
         selectedStage.setProperties(
-                /*
-                 * 2 px kleinerer Durchmesser:
-                 * 18.5 -> 17.5 Radius
-                 */
                 PropertyFactory.circleRadius(
-                        17.5f
+                        18.5f
                 ),
                 PropertyFactory.circleColor(
                         Color.TRANSPARENT
