@@ -83,9 +83,6 @@ public final class CaminoController {
     private final CaminoStageTopology stageTopology =
             new CaminoStageTopology();
 
-    private final CaminoStagePathResolver stagePathResolver =
-            new CaminoStagePathResolver();
-
     private CaminoRoute stageRouteConstraint;
     private int stagePrimaryTrackConstraint =
             -1;
@@ -633,11 +630,6 @@ public final class CaminoController {
                 routes
         );
 
-        stagePathResolver.rebuild(
-                routes,
-                stageTopology
-        );
-
         caminoNetwork.rebuild(
                 routes
         );
@@ -952,11 +944,12 @@ public final class CaminoController {
             return false;
         }
 
-        /*
-         * The offset snail collider overlaps nearby shell colliders. A shell is
-         * the stage selector, so it must get first refusal. Snails remain
-         * tappable where no shell is under the tap.
-         */
+        if (handleVariantTap(
+                tap
+        )) {
+            return true;
+        }
+
         PointF screenPoint =
                 map.getProjection()
                         .toScreenLocation(tap);
@@ -967,15 +960,13 @@ public final class CaminoController {
                         screenPoint.y
                 );
 
-        if (target != null) {
-            return handleStagePlaceTap(
-                    target.placeKey,
-                    target.point
-            );
+        if (target == null) {
+            return false;
         }
 
-        return handleVariantTap(
-                tap
+        return handleStagePlaceTap(
+                target.placeKey,
+                target.point
         );
     }
 
@@ -1305,7 +1296,6 @@ public final class CaminoController {
 
 
         if (selectedStageSelection != null
-                && selectedStageSelection.resolvedPath == null
                 && selectedStagePlaceKey != null
                 && !placeKey.equals(selectedStagePlaceKey)
                 && placeKey.equals(
@@ -1459,36 +1449,6 @@ public final class CaminoController {
             result.add(
                     primary
             );
-        }
-
-        if (stageRouteConstraint != null
-                && stagePrimaryTrackConstraint >= 0) {
-
-            List<CaminoResolvedStagePath> alternatives =
-                    stagePathResolver.findAlternatives(
-                            stageRouteConstraint,
-                            stagePrimaryTrackConstraint,
-                            placeKey
-                    );
-
-            for (CaminoResolvedStagePath resolved
-                    : alternatives) {
-
-                result.add(
-                        new StageRouteSelection(
-                                resolved.route,
-                                resolved.startHit,
-                                resolved.endHit,
-                                stagePrimaryTrackConstraint,
-                                null,
-                                true,
-                                null,
-                                null,
-                                resolved.destinationPlaceKey,
-                                resolved
-                        )
-                );
-            }
         }
 
         return result;
@@ -1655,8 +1615,7 @@ public final class CaminoController {
                                 true,
                                 null,
                                 null,
-                                track.toKey,
-                                null
+                                track.toKey
                         );
             }
         }
@@ -1735,7 +1694,6 @@ public final class CaminoController {
         final ProjectionHit variantEntryHit;
         final ProjectionHit mergeHit;
         final String destinationPlaceKey;
-        final CaminoResolvedStagePath resolvedPath;
 
         StageRouteSelection(
                 CaminoRoute route,
@@ -1746,8 +1704,7 @@ public final class CaminoController {
                 boolean variantStartIsFirst,
                 ProjectionHit variantEntryHit,
                 ProjectionHit mergeHit,
-                String destinationPlaceKey,
-                CaminoResolvedStagePath resolvedPath
+                String destinationPlaceKey
         ) {
             this.route = route;
             this.startHit = startHit;
@@ -1758,7 +1715,6 @@ public final class CaminoController {
             this.variantEntryHit = variantEntryHit;
             this.mergeHit = mergeHit;
             this.destinationPlaceKey = destinationPlaceKey;
-            this.resolvedPath = resolvedPath;
         }
 
         boolean usesVariant() {
@@ -1780,8 +1736,7 @@ public final class CaminoController {
                     variantStartIsFirst,
                     variantEntryHit,
                     mergeHit,
-                    extendedDestinationPlaceKey,
-                    resolvedPath
+                    extendedDestinationPlaceKey
             );
         }
     }
@@ -1896,16 +1851,6 @@ public final class CaminoController {
         }
 
         if (selectedStageSelection != null
-                && selectedStageSelection.resolvedPath != null
-                && selectionController.secondTapHit()
-                != null) {
-
-            currentMeasurementPath =
-                    measurementEngine.buildResolvedStagePath(
-                            selectedStageSelection.resolvedPath
-                    );
-
-        } else if (selectedStageSelection != null
                 && selectedStageSelection.usesVariant()
                 && selectionController.secondTapHit()
                 != null) {
