@@ -700,32 +700,6 @@ public final class CaminoController {
             return false;
         }
 
-        /*
-         * IMPORTANT:
-         *
-         * The selected shell is visually larger than the normal 30 px stage
-         * symbol. On a repeated tap the finger can therefore hit the visible
-         * selected shell while being a few pixels outside the original
-         * STAGE_LAYER geometry.
-         *
-         * Treat the whole normal Camino tap tolerance around the active shell
-         * as a stage tap BEFORE querying the original stage layer. Otherwise
-         * the event falls through to the generic Camino tap handler and moves
-         * the small blue selection marker instead of cycling the variant.
-         */
-        if (selectedStagePoint != null
-                && selectedStagePlaceKey != null
-                && isTapCloseEnough(
-                        tap,
-                        selectedStagePoint
-                )) {
-
-            return handleStagePlaceTap(
-                    selectedStagePlaceKey,
-                    selectedStagePoint
-            );
-        }
-
         PointF screenPoint =
                 map.getProjection()
                         .toScreenLocation(
@@ -772,72 +746,60 @@ public final class CaminoController {
                             geometry.longitude()
                     );
 
-            return handleStagePlaceTap(
-                    placeKey,
-                    stagePoint
+            List<StageRouteSelection> choices =
+                    findOutgoingStages(
+                            placeKey,
+                            stagePoint
+                    );
+
+            /*
+             * A real shell was tapped. Consume it even if this is the final
+             * shell without an outgoing stage.
+             */
+            if (choices.isEmpty()) {
+                return true;
+            }
+
+            int choiceIndex =
+                    placeKey.equals(
+                            selectedStagePlaceKey
+                    )
+                            ? (
+                            selectedStageChoiceIndex
+                                    + 1
+                    ) % choices.size()
+                            : 0;
+
+            StageRouteSelection stageSelection =
+                    choices.get(
+                            choiceIndex
+                    );
+
+            selectedStagePoint =
+                    stagePoint;
+
+            selectedStageHighlightColor =
+                    stageSelection.route.highlightColor;
+
+            selectedStagePlaceKey =
+                    placeKey;
+
+            selectedStageChoiceIndex =
+                    choiceIndex;
+
+            selectedStageSelection =
+                    stageSelection;
+
+            selectionController.selectStage(
+                    stageSelection.route,
+                    stageSelection.startHit,
+                    stageSelection.endHit
             );
-        }
 
-        return false;
-    }
-
-
-    private boolean handleStagePlaceTap(
-            String placeKey,
-            LatLng stagePoint
-    ) {
-        List<StageRouteSelection> choices =
-                findOutgoingStages(
-                        placeKey,
-                        stagePoint
-                );
-
-        /*
-         * A real shell was tapped. Consume it even if this is the final shell
-         * without an outgoing stage, otherwise the same touch would become a
-         * generic Camino tap.
-         */
-        if (choices.isEmpty()) {
             return true;
         }
 
-        int choiceIndex =
-                placeKey.equals(
-                        selectedStagePlaceKey
-                )
-                        ? (
-                        selectedStageChoiceIndex
-                                + 1
-                ) % choices.size()
-                        : 0;
-
-        StageRouteSelection stageSelection =
-                choices.get(
-                        choiceIndex
-                );
-
-        selectedStagePoint =
-                stagePoint;
-
-        selectedStageHighlightColor =
-                stageSelection.route.highlightColor;
-
-        selectedStagePlaceKey =
-                placeKey;
-
-        selectedStageChoiceIndex =
-                choiceIndex;
-
-        selectedStageSelection =
-                stageSelection;
-
-        selectionController.selectStage(
-                stageSelection.route,
-                stageSelection.startHit,
-                stageSelection.endHit
-        );
-
-        return true;
+        return false;
     }
 
 
