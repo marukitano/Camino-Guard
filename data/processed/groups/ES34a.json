@@ -1973,14 +1973,14 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "variante-los_yebenes",
-      "length_m": 31297.738,
+      "length_m": 31304.583,
       "points_count": 174,
       "raw_path": "data/raw/cnig/ES34a/ES34a_02b_variante-los_yebenes.kml",
       "coordinates": [
         [
-          39.18066256,
-          -3.85317145,
-          630.004
+          39.18064831,
+          -3.85323666,
+          629.637
         ],
         [
           39.18189554,
@@ -2843,13 +2843,13 @@
           773.525
         ],
         [
-          39.44143496,
-          -3.80965445,
-          773.702
+          39.44147151,
+          -3.80972302,
+          773.799
         ]
       ],
       "elevation": {
-        "min_m": 629.827,
+        "min_m": 629.637,
         "max_m": 846.685
       },
       "from_key": "variante",

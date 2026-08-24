@@ -14308,7 +14308,7 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "variante-pedreiras",
-      "length_m": 2623.864,
+      "length_m": 2622.651,
       "points_count": 100,
       "raw_path": "data/raw/cnig/ES06a/ES06a_02b_variante-pedreiras.kml",
       "coordinates": [
@@ -14808,9 +14808,9 @@
           115.811
         ],
         [
-          43.42489757,
-          -8.1633085,
-          111.442
+          43.42487192,
+          -8.1633137,
+          111.136
         ]
       ],
       "elevation": {
@@ -14830,7 +14830,7 @@
       "section_id": "02c",
       "variant_suffix": "c",
       "raw_label": "sergude-hospital_de_bruma",
-      "length_m": 12603.005,
+      "length_m": 12603.004,
       "points_count": 570,
       "raw_path": "data/raw/cnig/ES06a/ES06a_02c_sergude-hospital_de_bruma.kml",
       "coordinates": [

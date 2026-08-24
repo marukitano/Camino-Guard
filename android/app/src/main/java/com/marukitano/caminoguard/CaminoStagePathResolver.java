@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -13,14 +14,19 @@ import java.util.Set;
 
 
 /**
- * Stage-only resolver for real Muschel -> Muschel alternatives.
+ * Resolves the interactive day-stage graph.
  *
- * The primary StageTopology owns the shells. Official CaminoVariantPath runs
- * are branches inside the physical GPS network between those shells.
+ * One selectable section ALWAYS ends at the next shell.
  *
- * Automatic physical joins are deliberately strict: <= 25 m, same route
- * group, and only between already-existing official track geometries.
- * No long connector geometry is invented.
+ * A shell exists at:
+ * - every established primary stage endpoint, and
+ * - every proven physical fork where an official alternative starts.
+ *
+ * A pure merge does not create a shell. After a merge traversal simply keeps
+ * following the physically attached official track until the next shell.
+ *
+ * Physical automatic joins are deliberately strict: <= 25 m, same Camino
+ * route group, and only between already-existing official GPS geometries.
  */
 final class CaminoStagePathResolver {
 
@@ -30,17 +36,26 @@ final class CaminoStagePathResolver {
     private static final double SHELL_ON_VARIANT_TOLERANCE_M =
             10.0;
 
+    private static final double EXISTING_SHELL_REUSE_M =
+            10.0;
+
     private static final double EVENT_EPSILON_M =
             0.25;
 
-    private static final int MAX_DEPTH =
-            24;
-
-    private static final int MAX_RESULTS_PER_STAGE =
-            64;
+    private static final int MAX_TRACE_DEPTH =
+            32;
 
 
     private final Map<CaminoRoute, RouteState> states =
+            new IdentityHashMap<>();
+
+    private final Map<String, List<DecisionPoint>> decisionsByKey =
+            new LinkedHashMap<>();
+
+    private final List<DecisionPoint> allDecisions =
+            new ArrayList<>();
+
+    private final Map<PathAttachment, DecisionPoint> decisionByAttachment =
             new IdentityHashMap<>();
 
 
@@ -49,6 +64,9 @@ final class CaminoStagePathResolver {
             CaminoStageTopology topology
     ) {
         states.clear();
+        decisionsByKey.clear();
+        allDecisions.clear();
+        decisionByAttachment.clear();
 
         for (CaminoRoute route
                 : routes) {
@@ -67,10 +85,9 @@ final class CaminoStagePathResolver {
         }
 
         /*
-         * Use the already-established StageTopology to learn which physical
-         * endpoint of every prepared primary track is FROM and which is TO.
-         * This is important because CaminoRepository may reverse geometry
-         * without swapping fromKey/toKey.
+         * Learn the physical forward direction of every already-established
+         * primary stage from StageTopology. CaminoRepository can reverse a
+         * primary geometry without swapping fromKey/toKey.
          */
         if (topology != null) {
             for (CaminoStageTopology.StageNode node
@@ -104,10 +121,126 @@ final class CaminoStagePathResolver {
 
             state.finishBuild();
         }
+
+        /*
+         * Only after all strict physical variant attachments are known do we
+         * create additional shells at actual forks.
+         */
+        if (topology != null) {
+            installDecisionShells(
+                    topology
+            );
+        }
     }
 
 
-    List<CaminoResolvedStagePath> findAlternatives(
+    /**
+     * Choices from an established primary shell.
+     *
+     * If a fork is further down the primary stage, this returns ONE path only:
+     * shell -> fork shell. The alternatives are deliberately not exposed until
+     * the user taps that fork shell.
+     *
+     * If the established shell itself is already a fork, all choices from that
+     * fork are returned immediately.
+     */
+    boolean isDecisionShell(
+            String placeKey,
+            LatLng point
+    ) {
+        if (!meaningful(
+                placeKey
+        )
+                || point == null) {
+
+            return false;
+        }
+
+        List<DecisionPoint> candidates =
+                decisionsByKey.get(
+                        placeKey
+                );
+
+        if (candidates == null
+                || candidates.isEmpty()) {
+
+            return false;
+        }
+
+        for (DecisionPoint candidate
+                : candidates) {
+
+            if (GeoMath.distanceMeters(
+                    point,
+                    candidate.point
+            ) <= JOIN_TOLERANCE_M * 2.0) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    CaminoResolvedStagePath append(
+            CaminoResolvedStagePath first,
+            CaminoResolvedStagePath second
+    ) {
+        if (first == null
+                || second == null
+                || first.route == null
+                || first.route != second.route
+                || first.endHit == null
+                || second.startHit == null
+                || first.legs.isEmpty()
+                || second.legs.isEmpty()) {
+
+            return null;
+        }
+
+        if (GeoMath.distanceMeters(
+                first.endHit.point,
+                second.startHit.point
+        ) > JOIN_TOLERANCE_M * 2.0) {
+
+            return null;
+        }
+
+        List<CaminoResolvedStageLeg> legs =
+                new ArrayList<>(
+                        first.legs
+                );
+
+        legs.addAll(
+                second.legs
+        );
+
+        LinkedHashSet<String> variants =
+                new LinkedHashSet<>(
+                        first.variantPathIds
+                );
+
+        variants.addAll(
+                second.variantPathIds
+        );
+
+        return new CaminoResolvedStagePath(
+                first.id
+                        + "++"
+                        + second.id,
+                first.route,
+                first.startPlaceKey,
+                second.destinationPlaceKey,
+                first.startHit,
+                second.endHit,
+                legs,
+                variants
+        );
+    }
+
+
+    List<CaminoResolvedStagePath> findChoices(
             CaminoRoute route,
             int primaryTrackIndex,
             String startPlaceKey
@@ -139,6 +272,21 @@ final class CaminoStagePathResolver {
             return Collections.emptyList();
         }
 
+        DecisionPoint atStart =
+                decisionAt(
+                        state,
+                        primary,
+                        stage.start,
+                        startPlaceKey
+                );
+
+        if (atStart != null) {
+            return choicesFromDecision(
+                    atStart,
+                    primary
+            );
+        }
+
         Cursor start =
                 Cursor.primary(
                         primary,
@@ -147,168 +295,200 @@ final class CaminoStagePathResolver {
                         stage.direction
                 );
 
-        List<CompletedPath> completed =
-                new ArrayList<>();
+        CompletedPath completed =
+                traceUntilNextShell(
+                        state,
+                        start,
+                        new ArrayList<>(),
+                        new LinkedHashSet<>(),
+                        null,
+                        0
+                );
 
-        walk(
-                state,
-                start,
-                new ArrayList<>(),
-                new LinkedHashSet<>(),
-                completed,
-                0
+        if (completed == null) {
+            return Collections.emptyList();
+        }
+
+        CaminoResolvedStagePath path =
+                resolved(
+                        route,
+                        startPlaceKey,
+                        stage.start.toHit(
+                                primaryTrackIndex
+                        ),
+                        completed
+                );
+
+        if (path == null) {
+            return Collections.emptyList();
+        }
+
+        return Collections.singletonList(
+                path
         );
+    }
 
+
+    /**
+     * Choices from a synthetic fork shell. This is used when the shell has no
+     * primary StageTopology outgoing edge because it lies in the middle of an
+     * official track.
+     */
+    List<CaminoResolvedStagePath> findDecisionChoices(
+            String placeKey,
+            LatLng point
+    ) {
+        List<DecisionPoint> candidates =
+                decisionsByKey.get(
+                        placeKey
+                );
+
+        if (candidates == null
+                || candidates.isEmpty()
+                || point == null) {
+
+            return Collections.emptyList();
+        }
+
+        DecisionPoint best =
+                null;
+
+        double bestDistanceM =
+                Double.POSITIVE_INFINITY;
+
+        for (DecisionPoint candidate
+                : candidates) {
+
+            double distanceM =
+                    GeoMath.distanceMeters(
+                            point,
+                            candidate.point
+                    );
+
+            if (distanceM
+                    < bestDistanceM) {
+
+                best =
+                        candidate;
+
+                bestDistanceM =
+                        distanceM;
+            }
+        }
+
+        if (best == null
+                || bestDistanceM
+                > JOIN_TOLERANCE_M * 2.0) {
+
+            return Collections.emptyList();
+        }
+
+        return choicesFromDecision(
+                best,
+                null
+        );
+    }
+
+
+    private List<CaminoResolvedStagePath> choicesFromDecision(
+            DecisionPoint decision,
+            RouteTrack preferredStraightTrack
+    ) {
         List<CaminoResolvedStagePath> result =
                 new ArrayList<>();
 
         Set<String> seen =
                 new LinkedHashSet<>();
 
-        for (CompletedPath item
-                : completed) {
+        /*
+         * Straight continuation(s). Normally there is exactly one. At an
+         * existing primary shell shared by multiple Camino edges the caller
+         * passes preferredStraightTrack so each topology edge contributes only
+         * its own corridor.
+         */
+        Set<RouteTrack> straightTracks =
+                Collections.newSetFromMap(
+                        new IdentityHashMap<>()
+                );
 
-            /*
-             * The ordinary primary choice is already inserted by
-             * CaminoController. Only paths that actually used at least one
-             * official variant belong here.
-             */
-            if (item.usedVariantIds.isEmpty()
-                    || item.shellHit == null
-                    || !meaningful(
-                    item.destinationPlaceKey
-            )) {
+        for (BranchEvent event
+                : decision.events) {
+
+            if (preferredStraightTrack != null
+                    && event.target.track
+                    != preferredStraightTrack) {
 
                 continue;
             }
 
-            String id =
-                    signature(
-                            route,
-                            startPlaceKey,
-                            item
+            if (!straightTracks.add(
+                    event.target.track
+            )) {
+                continue;
+            }
+
+            Cursor straight =
+                    cursorAtAttachment(
+                            decision.state,
+                            event.target
                     );
 
-            if (!seen.add(
-                    id
-            )) {
+            if (straight == null) {
                 continue;
             }
 
-            result.add(
-                    new CaminoResolvedStagePath(
-                            id,
-                            route,
-                            startPlaceKey,
-                            item.destinationPlaceKey,
-                            stage.start.toHit(
-                                    primaryTrackIndex
+            CompletedPath completed =
+                    traceUntilNextShell(
+                            decision.state,
+                            straight,
+                            new ArrayList<>(),
+                            new LinkedHashSet<>(),
+                            decision.placeKey,
+                            0
+                    );
+
+            CaminoResolvedStagePath path =
+                    resolved(
+                            decision.state.route,
+                            decision.placeKey,
+                            event.target.toHit(
+                                    straight.primaryTrackIndex
                             ),
-                            item.shellHit,
-                            item.legs,
-                            item.usedVariantIds
-                    )
-            );
-        }
+                            completed
+                    );
 
-        result.sort(
-                Comparator
-                        .comparing(
-                                (CaminoResolvedStagePath path) ->
-                                        path.destinationPlaceKey
-                        )
-                        .thenComparing(
-                                path ->
-                                        path.id
-                        )
-        );
+            if (path != null
+                    && seen.add(
+                    path.id
+            )) {
 
-        return result;
-    }
-
-
-    private void walk(
-            RouteState state,
-            Cursor cursor,
-            List<CaminoResolvedStageLeg> prefix,
-            LinkedHashSet<String> usedVariantIds,
-            List<CompletedPath> completed,
-            int depth
-    ) {
-        if (cursor == null
-                || cursor.track == null
-                || depth > MAX_DEPTH
-                || completed.size()
-                >= MAX_RESULTS_PER_STAGE) {
-
-            return;
-        }
-
-        double physicalEndChainage =
-                cursor.direction > 0
-                        ? cursor.trackLengthM
-                        : 0.0;
-
-        ShellEvent shell =
-                nearestShellAhead(
-                        state,
-                        cursor
+                result.add(
+                        path
                 );
-
-        double terminalChainage =
-                shell == null
-                        ? physicalEndChainage
-                        : shell.trackProjection.chainageM;
-
-        List<BranchEvent> branches =
-                branchesAhead(
-                        state,
-                        cursor,
-                        terminalChainage
-                );
+            }
+        }
 
         /*
-         * Each branch encountered before the next shell becomes a separate
-         * route possibility. The recursive traversal can encounter further
-         * branches on the variant or after it rejoins another official track.
+         * Alternative continuations. The branch choice starts here; no piece
+         * before this fork is included in the highlighted selection.
          */
-        for (BranchEvent branch
-                : branches) {
+        for (BranchEvent event
+                : decision.events) {
 
-            if (completed.size()
-                    >= MAX_RESULTS_PER_STAGE) {
-                break;
-            }
+            if (preferredStraightTrack != null
+                    && event.target.track
+                    != preferredStraightTrack) {
 
-            String branchId =
-                    branch.attachment.path.id;
-
-            if (usedVariantIds.contains(
-                    branchId
-            )) {
                 continue;
             }
 
-            List<CaminoResolvedStageLeg> branchPrefix =
-                    copyWithSlice(
-                            prefix,
-                            cursor,
-                            branch.target
-                    );
-
-            LinkedHashSet<String> branchUsed =
-                    new LinkedHashSet<>(
-                            usedVariantIds
-                    );
-
-            branchUsed.add(
-                    branchId
-            );
+            CaminoVariantPath variant =
+                    event.attachment.path;
 
             Cursor variantStart =
                     variantPartStartCursor(
-                            state,
-                            branch.attachment.path,
+                            decision.state,
+                            variant,
                             0
                     );
 
@@ -316,72 +496,204 @@ final class CaminoStagePathResolver {
                 continue;
             }
 
-            walk(
-                    state,
-                    variantStart,
-                    branchPrefix,
-                    branchUsed,
-                    completed,
-                    depth + 1
-            );
-        }
+            LinkedHashSet<String> used =
+                    new LinkedHashSet<>();
 
-        List<CaminoResolvedStageLeg> straight =
-                copyWithSliceToChainage(
-                        prefix,
-                        cursor,
-                        terminalChainage
+            used.add(
+                    variant.id
+            );
+
+            CompletedPath completed =
+                    traceUntilNextShell(
+                            decision.state,
+                            variantStart,
+                            new ArrayList<>(),
+                            used,
+                            decision.placeKey,
+                            0
+                    );
+
+            CaminoResolvedStagePath path =
+                    resolved(
+                            decision.state.route,
+                            decision.placeKey,
+                            event.target.toHit(
+                                    decision.state.primaryIndex(
+                                            event.target.track
+                                    )
+                            ),
+                            completed
+                    );
+
+            if (path != null
+                    && seen.add(
+                    path.id
+            )) {
+
+                result.add(
+                        path
                 );
-
-        if (shell != null) {
-            completed.add(
-                    new CompletedPath(
-                            straight,
-                            shell.placeKey,
-                            shell.shellHit,
-                            usedVariantIds
-                    )
-            );
-
-            return;
+            }
         }
 
-        if (cursor.primaryTrackIndex >= 0) {
-            continueAfterPrimaryBoundary(
-                    state,
-                    cursor,
-                    straight,
-                    usedVariantIds,
-                    completed,
-                    depth
-            );
-
-        } else {
-            continueAfterVariantBoundary(
-                    state,
-                    cursor,
-                    straight,
-                    usedVariantIds,
-                    completed,
-                    depth
-            );
-        }
+        return result;
     }
 
 
-    private void continueAfterPrimaryBoundary(
+    /**
+     * Linear traversal only. Forks are STOP events, not recursive choices.
+     * Merges remain transparent and traversal continues through them.
+     */
+    private CompletedPath traceUntilNextShell(
             RouteState state,
             Cursor cursor,
             List<CaminoResolvedStageLeg> prefix,
             LinkedHashSet<String> usedVariantIds,
-            List<CompletedPath> completed,
+            String ignoredDecisionKey,
             int depth
     ) {
+        if (cursor == null
+                || cursor.track == null
+                || depth > MAX_TRACE_DEPTH) {
+
+            return null;
+        }
+
+        double physicalEndChainage =
+                cursor.direction > 0
+                        ? cursor.trackLengthM
+                        : 0.0;
+
+        ShellEvent stageShell =
+                nearestEstablishedShellAhead(
+                        state,
+                        cursor,
+                        ignoredDecisionKey
+                );
+
+        DecisionHit decision =
+                nearestDecisionAhead(
+                        state,
+                        cursor,
+                        ignoredDecisionKey
+                );
+
+        double stageAhead =
+                stageShell == null
+                        ? Double.POSITIVE_INFINITY
+                        : forwardDistance(
+                                cursor,
+                                stageShell.trackProjection.chainageM
+                        );
+
+        double decisionAhead =
+                decision == null
+                        ? Double.POSITIVE_INFINITY
+                        : decision.aheadM;
+
         /*
-         * A registered primary StageEdge has a real shell at its logical end,
-         * so nearestShellAhead() normally stops there. This fallback is only
-         * for primary technical pieces that have no registered shell edge.
+         * A fork shell wins when it lies before the established stage shell.
+         * If both are the same physical shell, both keys are already unified
+         * by installDecisionShells(), so either result means the same stop.
          */
+        if (decision != null
+                && decisionAhead
+                <= stageAhead + EVENT_EPSILON_M) {
+
+            List<CaminoResolvedStageLeg> legs =
+                    copyWithSlice(
+                            prefix,
+                            cursor,
+                            decision.projection
+                    );
+
+            ProjectionHit endHit =
+                    decision.projection.toHit(
+                            cursor.primaryTrackIndex
+                    );
+
+            return new CompletedPath(
+                    legs,
+                    decision.decision.placeKey,
+                    endHit,
+                    usedVariantIds
+            );
+        }
+
+        if (stageShell != null) {
+            List<CaminoResolvedStageLeg> legs =
+                    copyWithSlice(
+                            prefix,
+                            cursor,
+                            stageShell.trackProjection
+                    );
+
+            return new CompletedPath(
+                    legs,
+                    stageShell.placeKey,
+                    stageShell.shellHit,
+                    usedVariantIds
+            );
+        }
+
+        List<CaminoResolvedStageLeg> advanced =
+                copyWithSliceToChainage(
+                        prefix,
+                        cursor,
+                        physicalEndChainage
+                );
+
+        /*
+         * No shell before this technical track boundary. Continue through the
+         * proven physical connection. Pure merges therefore stay invisible.
+         */
+        if (cursor.primaryTrackIndex >= 0) {
+            Cursor next =
+                    nextPrimaryCursor(
+                            state,
+                            cursor
+                    );
+
+            if (next == null) {
+                return null;
+            }
+
+            return traceUntilNextShell(
+                    state,
+                    next,
+                    advanced,
+                    usedVariantIds,
+                    ignoredDecisionKey,
+                    depth + 1
+            );
+        }
+
+        VariantContinuation continuation =
+                nextVariantContinuation(
+                        state,
+                        cursor,
+                        usedVariantIds
+                );
+
+        if (continuation == null) {
+            return null;
+        }
+
+        return traceUntilNextShell(
+                state,
+                continuation.cursor,
+                advanced,
+                continuation.usedVariantIds,
+                ignoredDecisionKey,
+                depth + 1
+        );
+    }
+
+
+    private Cursor nextPrimaryCursor(
+            RouteState state,
+            Cursor cursor
+    ) {
         int nextIndex =
                 cursor.direction > 0
                         ? cursor.primaryTrackIndex + 1
@@ -391,7 +703,7 @@ final class CaminoStagePathResolver {
                 || nextIndex
                 >= state.route.tracks.size()) {
 
-            return;
+            return null;
         }
 
         RouteTrack next =
@@ -400,7 +712,7 @@ final class CaminoStagePathResolver {
                 );
 
         if (next.points.size() < 2) {
-            return;
+            return null;
         }
 
         LatLng currentEnd =
@@ -425,13 +737,13 @@ final class CaminoStagePathResolver {
         TrackProjection nextStart =
                 nextDirection > 0
                         ? endpointProjection(
-                        next,
-                        true
-                )
+                                next,
+                                true
+                        )
                         : endpointProjection(
-                        next,
-                        false
-                );
+                                next,
+                                false
+                        );
 
         if (nextStart == null
                 || GeoMath.distanceMeters(
@@ -439,32 +751,22 @@ final class CaminoStagePathResolver {
                 nextStart.point
         ) > JOIN_TOLERANCE_M) {
 
-            return;
+            return null;
         }
 
-        walk(
-                state,
-                Cursor.primary(
-                        next,
-                        nextIndex,
-                        nextStart,
-                        nextDirection
-                ),
-                prefix,
-                usedVariantIds,
-                completed,
-                depth + 1
+        return Cursor.primary(
+                next,
+                nextIndex,
+                nextStart,
+                nextDirection
         );
     }
 
 
-    private void continueAfterVariantBoundary(
+    private VariantContinuation nextVariantContinuation(
             RouteState state,
             Cursor cursor,
-            List<CaminoResolvedStageLeg> prefix,
-            LinkedHashSet<String> usedVariantIds,
-            List<CompletedPath> completed,
-            int depth
+            LinkedHashSet<String> usedVariantIds
     ) {
         VariantOwner owner =
                 state.variantOwnerByTrack.get(
@@ -472,7 +774,7 @@ final class CaminoStagePathResolver {
                 );
 
         if (owner == null) {
-            return;
+            return null;
         }
 
         CaminoVariantPath path =
@@ -494,17 +796,12 @@ final class CaminoStagePathResolver {
                             nextPartIndex
                     );
 
-            /*
-             * v53 already established the source-truth semantic chain.
-             * For selectable routing we additionally require the two actual
-             * GPS geometries to touch within the strict snap tolerance.
-             */
             if (GeoMath.distanceMeters(
                     currentPart.endPoint(),
                     nextPart.startPoint()
             ) > JOIN_TOLERANCE_M) {
 
-                return;
+                return null;
             }
 
             Cursor next =
@@ -514,16 +811,12 @@ final class CaminoStagePathResolver {
                             nextPartIndex
                     );
 
-            walk(
-                    state,
-                    next,
-                    prefix,
-                    usedVariantIds,
-                    completed,
-                    depth + 1
-            );
-
-            return;
+            return next == null
+                    ? null
+                    : new VariantContinuation(
+                            next,
+                            usedVariantIds
+                    );
         }
 
         PathAttachment attachment =
@@ -534,56 +827,20 @@ final class CaminoStagePathResolver {
         if (attachment == null
                 || !attachment.valid()) {
 
-            return;
+            return null;
         }
 
         TrackProjection target =
                 attachment.endTarget;
 
-        int primaryIndex =
-                state.primaryIndex(
-                        target.track
+        Cursor next =
+                cursorAtAttachment(
+                        state,
+                        target
                 );
 
-        if (primaryIndex >= 0) {
-            PrimaryStageInfo targetStage =
-                    state.primaryStages.get(
-                            target.track
-                    );
-
-            int direction =
-                    targetStage == null
-                            ? 1
-                            : targetStage.direction;
-
-            walk(
-                    state,
-                    Cursor.primary(
-                            target.track,
-                            primaryIndex,
-                            target,
-                            direction
-                    ),
-                    prefix,
-                    usedVariantIds,
-                    completed,
-                    depth + 1
-            );
-
-            return;
-        }
-
-        VariantOwner targetOwner =
-                state.variantOwnerByTrack.get(
-                        target.track
-                );
-
-        if (targetOwner == null
-                || usedVariantIds.contains(
-                targetOwner.path.id
-        )) {
-
-            return;
+        if (next == null) {
+            return null;
         }
 
         LinkedHashSet<String> continuedUsed =
@@ -591,31 +848,82 @@ final class CaminoStagePathResolver {
                         usedVariantIds
                 );
 
-        /*
-         * This is not an invented branch choice: the first variant physically
-         * ended on an already-existing second variant corridor, so following
-         * that corridor is the only proven continuation.
-         */
-        continuedUsed.add(
+        VariantOwner targetOwner =
+                state.variantOwnerByTrack.get(
+                        target.track
+                );
+
+        if (targetOwner != null
+                && !continuedUsed.contains(
                 targetOwner.path.id
+        )) {
+
+            /*
+             * A variant ending on another official variant is a proven
+             * continuation, not a new choice. The next fork on that corridor
+             * will still stop traversal normally.
+             */
+            continuedUsed.add(
+                    targetOwner.path.id
+            );
+        }
+
+        return new VariantContinuation(
+                next,
+                continuedUsed
         );
+    }
 
-        int direction =
-                targetOwner.part.reversed
+
+    private Cursor cursorAtAttachment(
+            RouteState state,
+            TrackProjection projection
+    ) {
+        if (projection == null
+                || projection.track == null) {
+
+            return null;
+        }
+
+        int primaryIndex =
+                state.primaryIndex(
+                        projection.track
+                );
+
+        if (primaryIndex >= 0) {
+            PrimaryStageInfo stage =
+                    state.primaryStages.get(
+                            projection.track
+                    );
+
+            int direction =
+                    stage == null
+                            ? 1
+                            : stage.direction;
+
+            return Cursor.primary(
+                    projection.track,
+                    primaryIndex,
+                    projection,
+                    direction
+            );
+        }
+
+        VariantOwner owner =
+                state.variantOwnerByTrack.get(
+                        projection.track
+                );
+
+        if (owner == null) {
+            return null;
+        }
+
+        return Cursor.variant(
+                projection.track,
+                projection,
+                owner.part.reversed
                         ? -1
-                        : 1;
-
-        walk(
-                state,
-                Cursor.variant(
-                        target.track,
-                        target,
-                        direction
-                ),
-                prefix,
-                continuedUsed,
-                completed,
-                depth + 1
+                        : 1
         );
     }
 
@@ -645,13 +953,10 @@ final class CaminoStagePathResolver {
             return null;
         }
 
-        boolean firstEndpoint =
-                !part.reversed;
-
         TrackProjection start =
                 endpointProjection(
                         part.track,
-                        firstEndpoint
+                        !part.reversed
                 );
 
         if (start == null) {
@@ -668,75 +973,125 @@ final class CaminoStagePathResolver {
     }
 
 
-    private List<BranchEvent> branchesAhead(
+    private DecisionPoint decisionAt(
             RouteState state,
-            Cursor cursor,
-            double terminalChainage
+            RouteTrack track,
+            TrackProjection projection,
+            String placeKey
     ) {
-        List<BranchEvent> all =
+        List<BranchEvent> events =
                 state.branchStartsByTrack.get(
-                        cursor.track
+                        track
                 );
 
-        if (all == null
-                || all.isEmpty()) {
-
-            return Collections.emptyList();
+        if (events == null) {
+            return null;
         }
-
-        double available =
-                cursor.direction > 0
-                        ? terminalChainage
-                        - cursor.position.chainageM
-                        : cursor.position.chainageM
-                        - terminalChainage;
-
-        if (available < -EVENT_EPSILON_M) {
-            return Collections.emptyList();
-        }
-
-        List<BranchEvent> result =
-                new ArrayList<>();
 
         for (BranchEvent event
-                : all) {
+                : events) {
 
-            double ahead =
-                    cursor.direction > 0
-                            ? event.target.chainageM
-                            - cursor.position.chainageM
-                            : cursor.position.chainageM
-                            - event.target.chainageM;
+            DecisionPoint decision =
+                    decisionByAttachment.get(
+                            event.attachment
+                    );
 
-            if (ahead < -EVENT_EPSILON_M
-                    || ahead
-                    > available + EVENT_EPSILON_M) {
+            if (decision == null
+                    || !decision.placeKey.equals(
+                    placeKey
+            )) {
 
                 continue;
             }
 
-            result.add(
-                    event
-            );
+            if (Math.abs(
+                    event.target.chainageM
+                            - projection.chainageM
+            ) <= JOIN_TOLERANCE_M) {
+
+                return decision;
+            }
         }
 
-        result.sort(
-                Comparator.comparingDouble(
-                        event ->
-                                Math.abs(
-                                        event.target.chainageM
-                                                - cursor.position.chainageM
-                                )
-                )
-        );
-
-        return result;
+        return null;
     }
 
 
-    private ShellEvent nearestShellAhead(
+    private DecisionHit nearestDecisionAhead(
             RouteState state,
-            Cursor cursor
+            Cursor cursor,
+            String ignoredDecisionKey
+    ) {
+        List<BranchEvent> events =
+                state.branchStartsByTrack.get(
+                        cursor.track
+                );
+
+        if (events == null
+                || events.isEmpty()) {
+
+            return null;
+        }
+
+        DecisionHit best =
+                null;
+
+        for (BranchEvent event
+                : events) {
+
+            DecisionPoint decision =
+                    decisionByAttachment.get(
+                            event.attachment
+                    );
+
+            if (decision == null) {
+                continue;
+            }
+
+            double ahead =
+                    forwardDistance(
+                            cursor,
+                            event.target.chainageM
+                    );
+
+            if (ahead < -EVENT_EPSILON_M) {
+                continue;
+            }
+
+            if (ignoredDecisionKey != null
+                    && ignoredDecisionKey.equals(
+                    decision.placeKey
+            )
+                    && ahead
+                    <= JOIN_TOLERANCE_M) {
+
+                continue;
+            }
+
+            if (best == null
+                    || ahead
+                    < best.aheadM) {
+
+                best =
+                        new DecisionHit(
+                                decision,
+                                event.target,
+                                Math.max(
+                                        0.0,
+                                        ahead
+                                )
+                        );
+            }
+        }
+
+        return best;
+    }
+
+
+    private ShellEvent nearestEstablishedShellAhead(
+            RouteState state,
+            Cursor cursor,
+            String ignoredPlaceKey
     ) {
         ShellEvent best =
                 null;
@@ -755,20 +1110,19 @@ final class CaminoStagePathResolver {
                 == primaryStage.direction) {
 
             double ahead =
-                    cursor.direction > 0
-                            ? primaryStage.end.chainageM
-                            - cursor.position.chainageM
-                            : cursor.position.chainageM
-                            - primaryStage.end.chainageM;
+                    forwardDistance(
+                            cursor,
+                            primaryStage.end.chainageM
+                    );
 
-            if (ahead >= -EVENT_EPSILON_M) {
+            if (ahead
+                    >= -EVENT_EPSILON_M) {
+
                 best =
                         new ShellEvent(
                                 primaryStage.destinationPlaceKey,
                                 primaryStage.end,
-                                primaryStage.end.toHit(
-                                        primaryStage.primaryTrackIndex
-                                )
+                                primaryStage.destinationShellHit
                         );
 
                 bestAhead =
@@ -780,8 +1134,8 @@ final class CaminoStagePathResolver {
         }
 
         /*
-         * A variant can physically pass through a primary shell before its KML
-         * file ends. That is still a stage boundary and must stop traversal.
+         * A variant may physically pass an established primary shell before
+         * its technical KML endpoint. That shell still ends the section.
          */
         List<ShellEvent> events =
                 state.shellsOnTrack.get(
@@ -793,19 +1147,24 @@ final class CaminoStagePathResolver {
                     : events) {
 
                 double ahead =
-                        cursor.direction > 0
-                                ? event.trackProjection.chainageM
-                                - cursor.position.chainageM
-                                : cursor.position.chainageM
-                                - event.trackProjection.chainageM;
+                        forwardDistance(
+                                cursor,
+                                event.trackProjection.chainageM
+                        );
 
-                /*
-                 * Ignore a shell exactly under the current variant cursor.
-                 * That is commonly the shell we just departed from when a
-                 * variant starts directly at a stage point.
-                 */
-                if (ahead <= EVENT_EPSILON_M
-                        || ahead >= bestAhead) {
+                if (ahead < -EVENT_EPSILON_M
+                        || ahead
+                        >= bestAhead) {
+
+                    continue;
+                }
+
+                if (ignoredPlaceKey != null
+                        && ignoredPlaceKey.equals(
+                        event.placeKey
+                )
+                        && ahead
+                        <= JOIN_TOLERANCE_M) {
 
                     continue;
                 }
@@ -822,6 +1181,18 @@ final class CaminoStagePathResolver {
         }
 
         return best;
+    }
+
+
+    private double forwardDistance(
+            Cursor cursor,
+            double chainageM
+    ) {
+        return cursor.direction > 0
+                ? chainageM
+                - cursor.position.chainageM
+                : cursor.position.chainageM
+                - chainageM;
     }
 
 
@@ -879,6 +1250,44 @@ final class CaminoStagePathResolver {
     }
 
 
+    private CaminoResolvedStagePath resolved(
+            CaminoRoute route,
+            String startPlaceKey,
+            ProjectionHit startHit,
+            CompletedPath completed
+    ) {
+        if (route == null
+                || startHit == null
+                || completed == null
+                || completed.shellHit == null
+                || !meaningful(
+                completed.destinationPlaceKey
+        )
+                || completed.legs.isEmpty()) {
+
+            return null;
+        }
+
+        String id =
+                signature(
+                        route,
+                        startPlaceKey,
+                        completed
+                );
+
+        return new CaminoResolvedStagePath(
+                id,
+                route,
+                startPlaceKey,
+                completed.destinationPlaceKey,
+                startHit,
+                completed.shellHit,
+                completed.legs,
+                completed.usedVariantIds
+        );
+    }
+
+
     private String signature(
             CaminoRoute route,
             String startPlaceKey,
@@ -913,27 +1322,168 @@ final class CaminoStagePathResolver {
                 "|"
         );
 
-        boolean first =
-                true;
-
-        for (String id
-                : item.usedVariantIds) {
-
-            if (!first) {
-                result.append(
-                        "+"
-                );
-            }
-
+        if (item.usedVariantIds.isEmpty()) {
             result.append(
-                    id
+                    "straight"
             );
 
-            first =
-                    false;
+        } else {
+            boolean first =
+                    true;
+
+            for (String id
+                    : item.usedVariantIds) {
+
+                if (!first) {
+                    result.append(
+                            "+"
+                    );
+                }
+
+                result.append(
+                        id
+                );
+
+                first =
+                        false;
+            }
         }
 
         return result.toString();
+    }
+
+
+    private void installDecisionShells(
+            CaminoStageTopology topology
+    ) {
+        int syntheticIndex =
+                1;
+
+        for (RouteState state
+                : states.values()) {
+
+            for (List<BranchEvent> events
+                    : state.branchStartsByTrack.values()) {
+
+                for (BranchEvent event
+                        : events) {
+
+                    if (!event.attachment.valid()) {
+                        continue;
+                    }
+
+                    DecisionPoint existing =
+                            existingDecisionNear(
+                                    state,
+                                    event
+                            );
+
+                    if (existing == null) {
+                        CaminoStageTopology.StageNode established =
+                                topology.nearestPrimaryNode(
+                                        state.route,
+                                        event.target.point,
+                                        EXISTING_SHELL_REUSE_M
+                                );
+
+                        String placeKey;
+                        LatLng point;
+
+                        if (established != null) {
+                            placeKey =
+                                    established.placeKey;
+
+                            point =
+                                    established.point;
+
+                        } else {
+                            placeKey =
+                                    "@branch:"
+                                            + state.route.id
+                                            + ":"
+                                            + syntheticIndex++;
+
+                            point =
+                                    event.target.point;
+
+                            topology.addDecisionNode(
+                                    placeKey,
+                                    point,
+                                    state.route.color
+                            );
+                        }
+
+                        existing =
+                                new DecisionPoint(
+                                        state,
+                                        placeKey,
+                                        point
+                                );
+
+                        allDecisions.add(
+                                existing
+                        );
+
+                        decisionsByKey
+                                .computeIfAbsent(
+                                        placeKey,
+                                        ignored ->
+                                                new ArrayList<>()
+                                )
+                                .add(
+                                        existing
+                                );
+                    }
+
+                    existing.events.add(
+                            event
+                    );
+
+                    decisionByAttachment.put(
+                            event.attachment,
+                            existing
+                    );
+                }
+            }
+        }
+    }
+
+
+    private DecisionPoint existingDecisionNear(
+            RouteState state,
+            BranchEvent event
+    ) {
+        for (DecisionPoint decision
+                : allDecisions) {
+
+            if (decision.state != state) {
+                continue;
+            }
+
+            for (BranchEvent existing
+                    : decision.events) {
+
+                if (existing.target.track
+                        == event.target.track
+                        && Math.abs(
+                        existing.target.chainageM
+                                - event.target.chainageM
+                ) <= JOIN_TOLERANCE_M) {
+
+                    return decision;
+                }
+            }
+
+            if (GeoMath.distanceMeters(
+                    decision.point,
+                    event.target.point
+            ) <= 5.0) {
+
+                return decision;
+            }
+        }
+
+        return null;
     }
 
 
@@ -1420,6 +1970,42 @@ final class CaminoStagePathResolver {
                             ? last
                             : first;
 
+            /*
+             * The visible destination shell is the START of the next master
+             * track. Geometry still follows this track to its technical end.
+             */
+            ProjectionHit destinationShellHit =
+                    end.toHit(
+                            primaryTrackIndex
+                    );
+
+            int nextTrackIndex =
+                    primaryTrackIndex + 1;
+
+            if (nextTrackIndex
+                    < route.tracks.size()) {
+
+                RouteTrack nextTrack =
+                        route.tracks.get(
+                                nextTrackIndex
+                        );
+
+                if (nextTrack.points.size() >= 2) {
+                    TrackProjection nextStart =
+                            endpointProjection(
+                                    nextTrack,
+                                    true
+                            );
+
+                    if (nextStart != null) {
+                        destinationShellHit =
+                                nextStart.toHit(
+                                        nextTrackIndex
+                                );
+                    }
+                }
+            }
+
             primaryStages.put(
                     track,
                     new PrimaryStageInfo(
@@ -1429,6 +2015,7 @@ final class CaminoStagePathResolver {
                             destinationPlaceKey,
                             start,
                             end,
+                            destinationShellHit,
                             startIsFirst
                                     ? 1
                                     : -1
@@ -1478,7 +2065,7 @@ final class CaminoStagePathResolver {
                 );
             }
 
-            buildShellEventsOnVariants();
+            buildEstablishedShellEventsOnVariants();
         }
 
 
@@ -1486,7 +2073,7 @@ final class CaminoStagePathResolver {
                 CaminoVariantPath path
         ) {
             TrackProjection start =
-                    nearestOtherTrack(
+                    nearestBranchStartTrack(
                             path.startPoint(),
                             path
                     );
@@ -1501,6 +2088,67 @@ final class CaminoStagePathResolver {
                     path,
                     start,
                     end
+            );
+        }
+
+
+        private TrackProjection nearestBranchStartTrack(
+                LatLng point,
+                CaminoVariantPath ownPath
+        ) {
+            Set<RouteTrack> excluded =
+                    Collections.newSetFromMap(
+                            new IdentityHashMap<>()
+                    );
+
+            for (CaminoVariantPathPart part
+                    : ownPath.parts) {
+
+                excluded.add(
+                        part.track
+                );
+            }
+
+            TrackProjection bestPrimary =
+                    null;
+
+            for (RouteTrack primary
+                    : route.tracks) {
+
+                if (excluded.contains(
+                        primary
+                )) {
+                    continue;
+                }
+
+                TrackProjection hit =
+                        project(
+                                primary,
+                                point
+                        );
+
+                if (hit != null
+                        && (
+                        bestPrimary == null
+                                || hit.distanceM
+                                < bestPrimary.distanceM
+                )) {
+
+                    bestPrimary =
+                            hit;
+                }
+            }
+
+            if (bestPrimary != null
+                    && bestPrimary.distanceM
+                    <= JOIN_TOLERANCE_M) {
+
+                return bestPrimary;
+            }
+
+            return nearestOtherTrack(
+                    point,
+                    ownPath
             );
         }
 
@@ -1574,7 +2222,7 @@ final class CaminoStagePathResolver {
         }
 
 
-        private void buildShellEventsOnVariants() {
+        private void buildEstablishedShellEventsOnVariants() {
             List<ShellAnchor> anchors =
                     new ArrayList<>();
 
@@ -1584,19 +2232,14 @@ final class CaminoStagePathResolver {
             for (PrimaryStageInfo stage
                     : primaryStages.values()) {
 
+                /*
+                 * v60: only track STARTS are shells.
+                 */
                 addShellAnchor(
                         anchors,
                         seen,
                         stage.startPlaceKey,
                         stage.start,
-                        stage.primaryTrackIndex
-                );
-
-                addShellAnchor(
-                        anchors,
-                        seen,
-                        stage.destinationPlaceKey,
-                        stage.end,
                         stage.primaryTrackIndex
                 );
             }
@@ -1735,6 +2378,7 @@ final class CaminoStagePathResolver {
         final String destinationPlaceKey;
         final TrackProjection start;
         final TrackProjection end;
+        final ProjectionHit destinationShellHit;
         final int direction;
 
 
@@ -1745,6 +2389,7 @@ final class CaminoStagePathResolver {
                 String destinationPlaceKey,
                 TrackProjection start,
                 TrackProjection end,
+                ProjectionHit destinationShellHit,
                 int direction
         ) {
             this.track =
@@ -1764,6 +2409,9 @@ final class CaminoStagePathResolver {
 
             this.end =
                     end;
+
+            this.destinationShellHit =
+                    destinationShellHit;
 
             this.direction =
                     direction;
@@ -1995,6 +2643,56 @@ final class CaminoStagePathResolver {
     }
 
 
+    private static final class DecisionPoint {
+
+        final RouteState state;
+        final String placeKey;
+        final LatLng point;
+        final List<BranchEvent> events =
+                new ArrayList<>();
+
+
+        DecisionPoint(
+                RouteState state,
+                String placeKey,
+                LatLng point
+        ) {
+            this.state =
+                    state;
+
+            this.placeKey =
+                    placeKey;
+
+            this.point =
+                    point;
+        }
+    }
+
+
+    private static final class DecisionHit {
+
+        final DecisionPoint decision;
+        final TrackProjection projection;
+        final double aheadM;
+
+
+        DecisionHit(
+                DecisionPoint decision,
+                TrackProjection projection,
+                double aheadM
+        ) {
+            this.decision =
+                    decision;
+
+            this.projection =
+                    projection;
+
+            this.aheadM =
+                    aheadM;
+        }
+    }
+
+
     private static final class ShellAnchor {
 
         final String placeKey;
@@ -2039,6 +2737,25 @@ final class CaminoStagePathResolver {
 
             this.shellHit =
                     shellHit;
+        }
+    }
+
+
+    private static final class VariantContinuation {
+
+        final Cursor cursor;
+        final LinkedHashSet<String> usedVariantIds;
+
+
+        VariantContinuation(
+                Cursor cursor,
+                LinkedHashSet<String> usedVariantIds
+        ) {
+            this.cursor =
+                    cursor;
+
+            this.usedVariantIds =
+                    usedVariantIds;
         }
     }
 

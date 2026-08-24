@@ -7732,14 +7732,14 @@
       "section_id": "04b",
       "variant_suffix": "b",
       "raw_label": "variante-urrasun",
-      "length_m": 4009.909,
+      "length_m": 4007.775,
       "points_count": 87,
       "raw_path": "data/raw/cnig/ES33a/ES33a_04b_variante-urrasun.kml",
       "coordinates": [
         [
-          43.19992192,
-          -1.48032255,
-          286.43
+          43.19992578,
+          -1.48032322,
+          286.457
         ],
         [
           43.19985922,
@@ -8167,9 +8167,9 @@
           276.383
         ],
         [
-          43.17382604,
-          -1.48434067,
-          276.616
+          43.17383878,
+          -1.48430631,
+          276.679
         ]
       ],
       "elevation": {

@@ -4922,7 +4922,7 @@
       "section_id": "03b",
       "variant_suffix": "b",
       "raw_label": "variante-mataelpino",
-      "length_m": 1940.64,
+      "length_m": 1935.036,
       "points_count": 30,
       "raw_path": "data/raw/cnig/ES12a/ES12a_03b_variante-mataelpino.kml",
       "coordinates": [
@@ -5072,14 +5072,14 @@
           1143.819
         ],
         [
-          40.7329477,
-          -3.9593663,
-          1150.043
+          40.73292222,
+          -3.95925817,
+          1149.625
         ]
       ],
       "elevation": {
         "min_m": 1028.999,
-        "max_m": 1150.043
+        "max_m": 1149.625
       },
       "from_key": "variante",
       "from": "Variante",
@@ -6141,7 +6141,7 @@
       "section_id": "04b",
       "variant_suffix": "b",
       "raw_label": "bicicletas-carretera_de_la_republica",
-      "length_m": 16610.728,
+      "length_m": 16614.5,
       "points_count": 159,
       "raw_path": "data/raw/cnig/ES12a/ES12a_04b_bicicletas-carretera_de_la_republica.kml",
       "coordinates": [
@@ -6681,9 +6681,9 @@
           1640.217
         ],
         [
-          40.81318304,
-          -4.05522745,
-          1637.119
+          40.81318086,
+          -4.0552075,
+          1636.9
         ],
         [
           40.81358001,
@@ -6696,14 +6696,14 @@
           1632.317
         ],
         [
-          40.81520559,
-          -4.05359231,
-          1628.664
+          40.81515564,
+          -4.05352861,
+          1629.624
         ],
         [
-          40.81607899,
-          -4.05399079,
-          1632.158
+          40.81611034,
+          -4.0539363,
+          1632.666
         ],
         [
           40.81704978,
@@ -6958,7 +6958,7 @@
       "section_id": "04c",
       "variant_suffix": "c",
       "raw_label": "valsain-la_granja",
-      "length_m": 16402.064,
+      "length_m": 16402.062,
       "points_count": 154,
       "raw_path": "data/raw/cnig/ES12a/ES12a_04c_valsain-la_granja.kml",
       "coordinates": [
@@ -10178,7 +10178,7 @@
       "section_id": "07c",
       "variant_suffix": "c",
       "raw_label": "llanos-olmedo",
-      "length_m": 15737.877,
+      "length_m": 15737.875,
       "points_count": 210,
       "raw_path": "data/raw/cnig/ES12a/ES12a_07c_llanos-olmedo.kml",
       "coordinates": [
@@ -12047,7 +12047,7 @@
       "section_id": "08b",
       "variant_suffix": "b",
       "raw_label": "variante-valladolid",
-      "length_m": 25995.916,
+      "length_m": 25995.915,
       "points_count": 284,
       "raw_path": "data/raw/cnig/ES12a/ES12a_08b_variante-valladolid.kml",
       "coordinates": [
@@ -15632,14 +15632,14 @@
       "section_id": "11b",
       "variant_suffix": "b",
       "raw_label": "berrueces-moral_de_la_reina",
-      "length_m": 24022.068,
+      "length_m": 24015.088,
       "points_count": 74,
       "raw_path": "data/raw/cnig/ES12a/ES12a_11b_berrueces-moral_de_la_reina.kml",
       "coordinates": [
         [
-          41.88636873,
-          -5.04678011,
-          741.034
+          41.88631844,
+          -5.04677927,
+          741.0
         ],
         [
           41.88572466,
@@ -15972,9 +15972,9 @@
           776.68
         ],
         [
-          42.05309585,
-          -5.05337868,
-          776.683
+          42.05306835,
+          -5.05344372,
+          775.654
         ],
         [
           42.05562551,
@@ -15997,18 +15997,18 @@
           773.205
         ],
         [
-          42.05894373,
-          -5.05547952,
-          770.95
+          42.05902034,
+          -5.05544633,
+          770.694
         ],
         [
-          42.05935998,
-          -5.05562084,
-          770.868
+          42.0593573,
+          -5.05559117,
+          770.86
         ]
       ],
       "elevation": {
-        "min_m": 741.034,
+        "min_m": 741.0,
         "max_m": 786.697
       },
       "from_key": "berrueces",
@@ -17775,14 +17775,14 @@
       "section_id": "13c",
       "variant_suffix": "c",
       "raw_label": "variante-san_pedro_de_las_duenas",
-      "length_m": 5560.343,
+      "length_m": 5560.138,
       "points_count": 36,
       "raw_path": "data/raw/cnig/ES12a/ES12a_13c_variante-san_pedro_de_las_duenas.kml",
       "coordinates": [
         [
-          42.31985863,
-          -5.02202315,
-          793.194
+          42.31988093,
+          -5.02201594,
+          793.315
         ],
         [
           42.32011981,

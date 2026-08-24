@@ -1553,14 +1553,14 @@
       "section_id": "01b",
       "variant_suffix": "b",
       "raw_label": "variante-vertedero_municipal",
-      "length_m": 5651.33,
+      "length_m": 5657.042,
       "points_count": 80,
       "raw_path": "data/raw/cnig/ES09a/ES09a_01b_variante-vertedero_municipal.kml",
       "coordinates": [
         [
-          38.36024456,
-          -0.55057403,
-          62.634
+          38.36027255,
+          -0.5504892,
+          62.361
         ],
         [
           38.36042359,
@@ -1959,7 +1959,7 @@
         ]
       ],
       "elevation": {
-        "min_m": 62.634,
+        "min_m": 62.361,
         "max_m": 211.278
       },
       "from_key": "variante",
@@ -1975,7 +1975,7 @@
       "section_id": "01c",
       "variant_suffix": "c",
       "raw_label": "variante-cueva_de_san_pascual",
-      "length_m": 2237.376,
+      "length_m": 2237.375,
       "points_count": 30,
       "raw_path": "data/raw/cnig/ES09a/ES09a_01c_variante-cueva_de_san_pascual.kml",
       "coordinates": [
@@ -2659,7 +2659,7 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "novelda-petrer",
-      "length_m": 17844.206,
+      "length_m": 17844.207,
       "points_count": 123,
       "raw_path": "data/raw/cnig/ES09a/ES09a_02b_novelda-petrer.kml",
       "coordinates": [
@@ -4630,14 +4630,14 @@
       "section_id": "04b",
       "variant_suffix": "b",
       "raw_label": "villena-yecla",
-      "length_m": 23117.47,
+      "length_m": 23120.276,
       "points_count": 85,
       "raw_path": "data/raw/cnig/ES09a/ES09a_04b_villena-yecla.kml",
       "coordinates": [
         [
-          38.63614311,
-          -0.86558523,
-          515.141
+          38.63621402,
+          -0.86558221,
+          515.421
         ],
         [
           38.63608612,
@@ -5454,7 +5454,7 @@
       "section_id": "05b",
       "variant_suffix": "b",
       "raw_label": "yecla-montealegre_del_castillo",
-      "length_m": 29144.475,
+      "length_m": 29153.61,
       "points_count": 158,
       "raw_path": "data/raw/cnig/ES09a/ES09a_05b_yecla-montealegre_del_castillo.kml",
       "coordinates": [
@@ -6244,14 +6244,14 @@
           801.768
         ],
         [
-          38.78692349,
-          -1.32521611,
-          807.699
+          38.78695669,
+          -1.32511971,
+          808.217
         ]
       ],
       "elevation": {
         "min_m": 587.757,
-        "max_m": 807.699
+        "max_m": 808.217
       },
       "from_key": "yecla",
       "from": "Yecla",
@@ -7665,7 +7665,7 @@
       "section_id": "07b",
       "variant_suffix": "b",
       "raw_label": "variante-chinchilla_de_montearagon",
-      "length_m": 8880.844,
+      "length_m": 8882.912,
       "points_count": 58,
       "raw_path": "data/raw/cnig/ES09a/ES09a_07b_variante-chinchilla_de_montearagon.kml",
       "coordinates": [
@@ -7955,13 +7955,13 @@
           781.838
         ],
         [
-          38.91588092,
-          -1.75305476,
-          778.251
+          38.91589852,
+          -1.75308377,
+          778.303
         ]
       ],
       "elevation": {
-        "min_m": 778.251,
+        "min_m": 778.303,
         "max_m": 868.042
       },
       "from_key": "variante",
@@ -19203,7 +19203,7 @@
       "section_id": "20b",
       "variant_suffix": "b",
       "raw_label": "tiemblo-avila",
-      "length_m": 49831.533,
+      "length_m": 49828.778,
       "points_count": 375,
       "raw_path": "data/raw/cnig/ES09a/ES09a_20b_tiemblo-avila.kml",
       "coordinates": [
@@ -21078,9 +21078,9 @@
           1095.649
         ],
         [
-          40.65318374,
-          -4.69874572,
-          1099.618
+          40.65317519,
+          -4.69877673,
+          1099.429
         ]
       ],
       "elevation": {

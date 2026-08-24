@@ -14628,7 +14628,7 @@
       "section_id": "04b",
       "variant_suffix": "b",
       "raw_label": "variante-abrucena",
-      "length_m": 6348.956,
+      "length_m": 6349.014,
       "points_count": 307,
       "raw_path": "data/raw/cnig/ES10a/ES10a_04b_variante-abrucena.kml",
       "coordinates": [
@@ -16163,9 +16163,9 @@
           857.998
         ],
         [
-          37.16150399,
-          -2.80751495,
-          861.205
+          37.1615045,
+          -2.80751461,
+          861.21
         ]
       ],
       "elevation": {

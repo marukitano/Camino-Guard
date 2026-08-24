@@ -114,6 +114,16 @@ final class CaminoStageTopology {
         for (CaminoRoute route
                 : routes) {
 
+            /*
+             * v60 topology contract:
+             * ONE shell per track START. Track ends never create a shell.
+             */
+            List<StageNode> routeStartNodes =
+                    new ArrayList<>();
+
+            List<StageNode> starts =
+                    new ArrayList<>();
+
             for (int trackIndex = 0;
                     trackIndex < route.tracks.size();
                     trackIndex++) {
@@ -123,52 +133,86 @@ final class CaminoStageTopology {
                                 trackIndex
                         );
 
-                if (track.points.size()
-                        < 2) {
+                if (track.points.size() < 2) {
+                    starts.add(
+                            null
+                    );
+
                     continue;
                 }
 
+                String startKey =
+                        !track.pseudoFrom
+                                && meaningful(
+                                track.fromKey
+                        )
+                                ? track.fromKey
+                                : "@trackstart:"
+                                + route.id
+                                + ":"
+                                + track.sectionId;
+
+                StageNode startNode =
+                        getOrCreateRouteStartNode(
+                                routeStartNodes,
+                                startKey,
+                                track.points.get(
+                                        0
+                                ),
+                                track.color
+                        );
+
+                starts.add(
+                        startNode
+                );
+            }
+
+            for (int trackIndex = 0;
+                    trackIndex < route.tracks.size();
+                    trackIndex++) {
+
                 StageNode fromNode =
-                        null;
+                        starts.get(
+                                trackIndex
+                        );
 
-                StageNode toNode =
-                        null;
-
-                if (!track.pseudoFrom
-                        && meaningful(
-                        track.fromKey
-                )) {
-
-                    fromNode =
-                            getOrCreateNode(
-                                    track.fromKey,
-                                    track.points.get(
-                                            0
-                                    ),
-                                    track.color
-                            );
+                if (fromNode == null) {
+                    continue;
                 }
 
-                if (!track.pseudoTo
+                RouteTrack track =
+                        route.tracks.get(
+                                trackIndex
+                        );
+
+                StageNode nextNode =
+                        trackIndex + 1
+                        < starts.size()
+                                ? starts.get(
+                                trackIndex + 1
+                        )
+                                : null;
+
+                String destinationKey;
+
+                if (nextNode != null) {
+                    destinationKey =
+                            nextNode.placeKey;
+
+                } else if (!track.pseudoTo
                         && meaningful(
                         track.toKey
                 )) {
 
-                    toNode =
-                            getOrCreateNode(
-                                    track.toKey,
-                                    track.points.get(
-                                            track.points.size()
-                                                    - 1
-                                    ),
-                                    track.color
-                            );
-                }
+                    destinationKey =
+                            track.toKey;
 
-                if (fromNode == null
-                        || toNode == null) {
-
-                    continue;
+                } else {
+                    destinationKey =
+                            "@trackend:"
+                                    + route.id
+                                    + ":"
+                                    + track.sectionId;
                 }
 
                 StageEdge edge =
@@ -176,17 +220,19 @@ final class CaminoStageTopology {
                                 route,
                                 trackIndex,
                                 track,
-                                track.fromKey,
-                                track.toKey
+                                fromNode.placeKey,
+                                destinationKey
                         );
 
                 fromNode.outgoing.add(
                         edge
                 );
 
-                toNode.incoming.add(
-                        edge
-                );
+                if (nextNode != null) {
+                    nextNode.incoming.add(
+                            edge
+                    );
+                }
             }
         }
     }
@@ -249,6 +295,181 @@ final class CaminoStageTopology {
         return Collections.unmodifiableList(
                 allNodes
         );
+    }
+
+
+
+    StageNode addDecisionNode(
+            String placeKey,
+            LatLng point,
+            String markerColor
+    ) {
+        if (!meaningful(
+                placeKey
+        )
+                || point == null) {
+
+            return null;
+        }
+
+        return getOrCreateNode(
+                placeKey,
+                point,
+                markerColor
+        );
+    }
+
+
+    StageNode nearestPrimaryNode(
+            CaminoRoute route,
+            LatLng point,
+            double maxDistanceM
+    ) {
+        if (route == null
+                || point == null
+                || maxDistanceM < 0.0) {
+
+            return null;
+        }
+
+        StageNode best =
+                null;
+
+        double bestDistanceM =
+                maxDistanceM;
+
+        for (StageNode candidate
+                : allNodes) {
+
+            boolean belongsToRoute =
+                    false;
+
+            for (StageEdge edge
+                    : candidate.outgoing) {
+
+                if (edge.route == route) {
+                    belongsToRoute =
+                            true;
+                    break;
+                }
+            }
+
+            if (!belongsToRoute) {
+                for (StageEdge edge
+                        : candidate.incoming) {
+
+                    if (edge.route == route) {
+                        belongsToRoute =
+                                true;
+                        break;
+                    }
+                }
+            }
+
+            if (!belongsToRoute) {
+                continue;
+            }
+
+            double distanceM =
+                    GeoMath.distanceMeters(
+                            point,
+                            candidate.point
+                    );
+
+            if (distanceM
+                    <= bestDistanceM) {
+
+                best =
+                        candidate;
+
+                bestDistanceM =
+                        distanceM;
+            }
+        }
+
+        return best;
+    }
+
+
+    private static final double START_NODE_MERGE_M =
+            10.0;
+
+
+    private StageNode getOrCreateRouteStartNode(
+            List<StageNode> routeStartNodes,
+            String placeKey,
+            LatLng point,
+            String markerColor
+    ) {
+        for (StageNode candidate
+                : routeStartNodes) {
+
+            if (GeoMath.distanceMeters(
+                    candidate.point,
+                    point
+            ) <= START_NODE_MERGE_M) {
+
+                addPlaceKeyAlias(
+                        placeKey,
+                        candidate
+                );
+
+                return candidate;
+            }
+        }
+
+        StageNode created =
+                getOrCreateNode(
+                        placeKey,
+                        point,
+                        markerColor
+                );
+
+        if (!routeStartNodes.contains(
+                created
+        )) {
+
+            routeStartNodes.add(
+                    created
+            );
+        }
+
+        addPlaceKeyAlias(
+                placeKey,
+                created
+        );
+
+        return created;
+    }
+
+
+    private void addPlaceKeyAlias(
+            String placeKey,
+            StageNode node
+    ) {
+        if (!meaningful(
+                placeKey
+        )
+                || node == null) {
+
+            return;
+        }
+
+        List<StageNode> aliases =
+                nodesByPlaceKey.computeIfAbsent(
+                        placeKey,
+                        ignored ->
+                                new ArrayList<>()
+                );
+
+        if (!aliases.contains(
+                node
+        )) {
+
+            aliases.add(
+                    node
+            );
+        }
     }
 
 

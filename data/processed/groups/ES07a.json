@@ -4588,14 +4588,14 @@
       "section_id": "03b",
       "variant_suffix": "b",
       "raw_label": "dumbria-muxia",
-      "length_m": 26437.926,
+      "length_m": 26437.1,
       "points_count": 398,
       "raw_path": "data/raw/cnig/ES07a/ES07a_03b_dumbria-muxia.kml",
       "coordinates": [
         [
-          42.98601827,
-          -9.08550326,
-          372.133
+          42.9860243,
+          -9.08548783,
+          372.235
         ],
         [
           42.98627073,
@@ -6600,7 +6600,7 @@
       "section_id": "03c",
       "variant_suffix": "c",
       "raw_label": "muxia-lires",
-      "length_m": 14906.115,
+      "length_m": 14906.116,
       "points_count": 153,
       "raw_path": "data/raw/cnig/ES07a/ES07a_03c_muxia-lires.kml",
       "coordinates": [
@@ -7387,7 +7387,7 @@
       "section_id": "03d",
       "variant_suffix": "d",
       "raw_label": "lires-fisterra",
-      "length_m": 12441.017,
+      "length_m": 12441.02,
       "points_count": 171,
       "raw_path": "data/raw/cnig/ES07a/ES07a_03d_lires-fisterra.kml",
       "coordinates": [

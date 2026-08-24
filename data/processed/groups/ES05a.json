@@ -9502,7 +9502,7 @@
       "section_id": "04b",
       "variant_suffix": "b",
       "raw_label": "variante-hospitales",
-      "length_m": 12465.09,
+      "length_m": 12472.806,
       "points_count": 153,
       "raw_path": "data/raw/cnig/ES05a/ES05a_04b_variante-hospitales.kml",
       "coordinates": [
@@ -10267,9 +10267,9 @@
           1145.913
         ],
         [
-          43.27249277,
-          -6.67814205,
-          1145.0
+          43.27246713,
+          -6.67802587,
+          1146.0
         ]
       ],
       "elevation": {
@@ -19962,7 +19962,7 @@
       "section_id": "08b",
       "variant_suffix": "b",
       "raw_label": "variante-o_proba_do_buron",
-      "length_m": 11296.952,
+      "length_m": 11296.95,
       "points_count": 396,
       "raw_path": "data/raw/cnig/ES05a/ES05a_08b_variante-o_proba_do_buron.kml",
       "coordinates": [
@@ -30213,19 +30213,14 @@
       "section_id": "10b",
       "variant_suffix": "b",
       "raw_label": "variante-salida_puerta_de_santiago",
-      "length_m": 755.93,
-      "points_count": 32,
+      "length_m": 755.9,
+      "points_count": 31,
       "raw_path": "data/raw/cnig/ES05a/ES05a_10b_variante-salida_puerta_de_santiago.kml",
       "coordinates": [
         [
           43.00932515,
           -7.55863868,
           450.774
-        ],
-        [
-          43.00929699,
-          -7.55873758,
-          450.143
         ],
         [
           43.00927553,

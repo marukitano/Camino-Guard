@@ -30,6 +30,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from camino_master_snap import normalize_route
+
 PSEUDO_PLACE_KEYS = {
     "variante",
     "variant",
@@ -443,6 +445,15 @@ def make_route_record(route_code: str, tracks: list[Any], official_name: str | N
     else:
         display_name = friendly_name
 
+    track_records = [
+        make_track_record(track, analyzer)
+        for track in tracks
+    ]
+
+    # V59: Master (*a) bleibt unverändert; Varianten snappen
+    # innerhalb derselben Camino-Familie auf Masterpunkte <=10 m.
+    normalize_route(route_code, track_records)
+
     return {
         "route_group_id": route_code,
         "source_id": route_code,
@@ -456,7 +467,7 @@ def make_route_record(route_code: str, tracks: list[Any], official_name: str | N
         "parallel_pairs": topology.parallel_pairs,
         "cyclic_components": topology.cyclic_sccs,
         "components": components,
-        "tracks": [make_track_record(track, analyzer) for track in tracks],
+        "tracks": track_records,
     }
 
 

@@ -5225,13 +5225,13 @@
       "section_id": "01b",
       "variant_suffix": "b",
       "raw_label": "variante-as_gandaras",
-      "length_m": 6512.796,
+      "length_m": 6512.801,
       "points_count": 863,
       "raw_path": "data/raw/cnig/ES02a/ES02a_01b_variante-as_gandaras.kml",
       "coordinates": [
         [
-          42.10222879,
-          -8.63340786,
+          42.10222872,
+          -8.63340788,
           32.695
         ],
         [
@@ -9540,9 +9540,9 @@
           24.637
         ],
         [
-          42.1459691,
-          -8.6227281,
-          24.832
+          42.14596918,
+          -8.62272816,
+          24.831
         ]
       ],
       "elevation": {
@@ -20366,13 +20366,13 @@
       "section_id": "03b",
       "variant_suffix": "b",
       "raw_label": "variante-bergunde",
-      "length_m": 3414.367,
+      "length_m": 3414.371,
       "points_count": 218,
       "raw_path": "data/raw/cnig/ES02a/ES02a_03b_variante-bergunde.kml",
       "coordinates": [
         [
-          42.39687931,
-          -8.62985832,
+          42.39687927,
+          -8.62985831,
           33.493
         ],
         [
@@ -21457,7 +21457,7 @@
         ],
         [
           42.41872871,
-          -8.63612396,
+          -8.63612395,
           19.04
         ]
       ],
@@ -37742,14 +37742,14 @@
       "section_id": "05b",
       "variant_suffix": "b",
       "raw_label": "puentecesures-herbon",
-      "length_m": 5335.976,
+      "length_m": 5333.487,
       "points_count": 60,
       "raw_path": "data/raw/cnig/ES02a/ES02a_05b_puentecesures-herbon.kml",
       "coordinates": [
         [
-          42.72609143,
-          -8.65109487,
-          9.673
+          42.72608874,
+          -8.65101105,
+          10.258
         ],
         [
           42.72738928,
@@ -45941,13 +45941,13 @@
       "section_id": "06b",
       "variant_suffix": "b",
       "raw_label": "variante-conxo",
-      "length_m": 2270.785,
+      "length_m": 2270.795,
       "points_count": 107,
       "raw_path": "data/raw/cnig/ES02a/ES02a_06b_variante-conxo.kml",
       "coordinates": [
         [
-          42.86335138,
-          -8.56574179,
+          42.86335146,
+          -8.56574178,
           188.54
         ],
         [
@@ -46476,9 +46476,9 @@
           240.747
         ],
         [
-          42.87387959,
-          -8.55236071,
-          240.071
+          42.87387963,
+          -8.55236074,
+          240.07
         ]
       ],
       "elevation": {

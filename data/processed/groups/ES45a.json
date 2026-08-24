@@ -6340,14 +6340,14 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "variante-canal_de_francos",
-      "length_m": 3746.617,
+      "length_m": 3750.86,
       "points_count": 111,
       "raw_path": "data/raw/cnig/ES45a/ES45a_02b_variante-canal_de_francos.kml",
       "coordinates": [
         [
-          43.23562983,
-          -4.54965848,
-          498.517
+          43.23566923,
+          -4.54961155,
+          499.867
         ],
         [
           43.23581155,
@@ -6895,9 +6895,9 @@
           804.254
         ],
         [
-          43.22206842,
-          -4.56076618,
-          803.76
+          43.22202181,
+          -4.56073953,
+          803.94
         ]
       ],
       "elevation": {

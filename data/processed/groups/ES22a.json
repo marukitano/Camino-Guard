@@ -39564,8 +39564,8 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "variante-terrassa",
-      "length_m": 10239.262,
-      "points_count": 2086,
+      "length_m": 10241.505,
+      "points_count": 2085,
       "raw_path": "data/raw/cnig/ES22a/ES22a_02b_variante-terrassa.kml",
       "coordinates": [
         [
@@ -49984,19 +49984,14 @@
           373.0
         ],
         [
-          41.541871,
-          1.99053688,
-          373.048
+          41.54178701,
+          1.99057594,
+          372.743
         ],
         [
-          41.54180545,
-          1.99050821,
-          373.0
-        ],
-        [
-          41.54176505,
-          1.99052565,
-          372.206
+          41.54174996,
+          1.99052967,
+          372.0
         ]
       ],
       "elevation": {

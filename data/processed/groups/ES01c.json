@@ -2326,7 +2326,7 @@
       "section_id": "05b",
       "variant_suffix": "b",
       "raw_label": "villatuerta-luquin",
-      "length_m": 22881.882,
+      "length_m": 22880.12,
       "points_count": 278,
       "raw_path": "data/raw/cnig/ES01c/ES01c_05b_villatuerta-luquin.kml",
       "coordinates": [
@@ -3716,9 +3716,9 @@
           457.727
         ],
         [
-          42.57378319,
-          -2.19316587,
-          455.028
+          42.57384019,
+          -2.19314793,
+          454.55
         ]
       ],
       "elevation": {
@@ -10776,14 +10776,14 @@
       "section_id": "09b",
       "variant_suffix": "b",
       "raw_label": "variante-monasterio_de_suso_y_yuso",
-      "length_m": 34152.591,
+      "length_m": 34162.406,
       "points_count": 324,
       "raw_path": "data/raw/cnig/ES01c/ES01c_09b_variante-monasterio_de_suso_y_yuso.kml",
       "coordinates": [
         [
-          42.41777318,
-          -2.72849573,
-          492.127
+          42.41783822,
+          -2.72846589,
+          492.219
         ],
         [
           42.41744327,
@@ -12396,9 +12396,9 @@
           744.939
         ],
         [
-          42.41319833,
-          -2.89635289,
-          741.061
+          42.41322029,
+          -2.89635792,
+          740.919
         ]
       ],
       "elevation": {
@@ -12418,14 +12418,14 @@
       "section_id": "09c",
       "variant_suffix": "c",
       "raw_label": "variante-norte_de_azofra",
-      "length_m": 5809.872,
+      "length_m": 5811.944,
       "points_count": 54,
       "raw_path": "data/raw/cnig/ES01c/ES01c_09c_variante-norte_de_azofra.kml",
       "coordinates": [
         [
-          42.42614133,
-          -2.80704489,
-          542.546
+          42.4262042,
+          -2.80695889,
+          541.917
         ],
         [
           42.42695522,
@@ -12688,14 +12688,14 @@
           608.178
         ],
         [
-          42.42577421,
-          -2.86942368,
-          618.961
+          42.42579231,
+          -2.8694029,
+          618.752
         ]
       ],
       "elevation": {
-        "min_m": 542.546,
-        "max_m": 618.961
+        "min_m": 541.917,
+        "max_m": 618.752
       },
       "from_key": "variante",
       "from": "Variante",
@@ -15329,14 +15329,14 @@
       "section_id": "11b",
       "variant_suffix": "b",
       "raw_label": "santovenia_de_oca-burgos",
-      "length_m": 22896.23,
+      "length_m": 22888.749,
       "points_count": 232,
       "raw_path": "data/raw/cnig/ES01c/ES01c_11b_santovenia_de_oca-burgos.kml",
       "coordinates": [
         [
-          42.37572469,
-          -3.43658868,
-          1004.063
+          42.37570927,
+          -3.43650285,
+          1004.22
         ],
         [
           42.37525983,
@@ -16489,9 +16489,9 @@
           864.247
         ],
         [
-          42.3490461,
-          -3.67706297,
-          864.372
+          42.34900721,
+          -3.67702642,
+          864.234
         ]
       ],
       "elevation": {
@@ -16853,14 +16853,14 @@
       "section_id": "11d",
       "variant_suffix": "d",
       "raw_label": "ermita_de_valdefuentes-n-120_andadero",
-      "length_m": 22718.75,
+      "length_m": 22724.03,
       "points_count": 126,
       "raw_path": "data/raw/cnig/ES01c/ES01c_11d_ermita_de_valdefuentes-n-120_andadero.kml",
       "coordinates": [
         [
-          42.36689435,
-          -3.36771274,
-          1141.348
+          42.3669143,
+          -3.36760093,
+          1141.259
         ],
         [
           42.36606538,
@@ -17490,7 +17490,7 @@
       ],
       "elevation": {
         "min_m": 883.009,
-        "max_m": 1141.348
+        "max_m": 1141.259
       },
       "from_key": "ermitadevaldefuentes",
       "from": "Ermita de Valdefuentes",
@@ -19327,14 +19327,14 @@
       "section_id": "12b",
       "variant_suffix": "b",
       "raw_label": "villalbal-cardenuela_de_riopico",
-      "length_m": 1679.062,
+      "length_m": 1687.065,
       "points_count": 24,
       "raw_path": "data/raw/cnig/ES01c/ES01c_12b_villalbal-cardenuela_de_riopico.kml",
       "coordinates": [
         [
-          42.37384128,
-          -3.55423992,
-          983.908
+          42.37391655,
+          -3.55421696,
+          984.538
         ],
         [
           42.37238718,
@@ -19454,7 +19454,7 @@
       ],
       "elevation": {
         "min_m": 926.876,
-        "max_m": 983.908
+        "max_m": 984.538
       },
       "from_key": "villalbal",
       "from": "Villalbal",
@@ -19469,14 +19469,14 @@
       "section_id": "12c",
       "variant_suffix": "c",
       "raw_label": "cardenuela_de_riopico-orbaneja_de_riopico",
-      "length_m": 6432.966,
+      "length_m": 6437.439,
       "points_count": 87,
       "raw_path": "data/raw/cnig/ES01c/ES01c_12c_cardenuela_de_riopico-orbaneja_de_riopico.kml",
       "coordinates": [
         [
-          42.37799032,
-          -3.51676695,
-          970.562
+          42.37799367,
+          -3.51668397,
+          970.369
         ],
         [
           42.37726629,
@@ -19904,9 +19904,9 @@
           908.273
         ],
         [
-          42.36032831,
-          -3.58285289,
-          909.791
+          42.36029361,
+          -3.58286798,
+          909.385
         ]
       ],
       "elevation": {
@@ -19926,14 +19926,14 @@
       "section_id": "12d",
       "variant_suffix": "d",
       "raw_label": "variante-orbaneja_de_riopico",
-      "length_m": 3272.784,
+      "length_m": 3274.08,
       "points_count": 33,
       "raw_path": "data/raw/cnig/ES01c/ES01c_12d_variante-orbaneja_de_riopico.kml",
       "coordinates": [
         [
-          42.36227341,
-          -3.59638397,
-          906.449
+          42.36228464,
+          -3.59643895,
+          906.127
         ],
         [
           42.36183235,
@@ -20113,7 +20113,7 @@
       "section_id": "12e",
       "variant_suffix": "e",
       "raw_label": "variante-atapuerca",
-      "length_m": 5711.456,
+      "length_m": 5710.879,
       "points_count": 57,
       "raw_path": "data/raw/cnig/ES01c/ES01c_12e_variante-atapuerca.kml",
       "coordinates": [
@@ -20398,9 +20398,9 @@
           951.374
         ],
         [
-          42.37619022,
-          -3.50717688,
-          953.117
+          42.37617765,
+          -3.50714285,
+          953.059
         ]
       ],
       "elevation": {
@@ -20420,7 +20420,7 @@
       "section_id": "12f",
       "variant_suffix": "f",
       "raw_label": "villafria-aeropuerto",
-      "length_m": 3516.498,
+      "length_m": 3516.497,
       "points_count": 35,
       "raw_path": "data/raw/cnig/ES01c/ES01c_12f_villafria-aeropuerto.kml",
       "coordinates": [
@@ -24116,7 +24116,7 @@
       "section_id": "14b",
       "variant_suffix": "b",
       "raw_label": "castrillo_mota_de_judios-carretera",
-      "length_m": 6829.581,
+      "length_m": 6826.099,
       "points_count": 10,
       "raw_path": "data/raw/cnig/ES01c/ES01c_14b_castrillo_mota_de_judios-carretera.kml",
       "coordinates": [
@@ -24166,13 +24166,13 @@
           774.304
         ],
         [
-          42.2786594,
-          -4.24459493,
-          770.472
+          42.27869025,
+          -4.24458185,
+          770.617
         ]
       ],
       "elevation": {
-        "min_m": 770.472,
+        "min_m": 770.617,
         "max_m": 820.273
       },
       "from_key": "castrillomotadejudios",
@@ -24188,14 +24188,14 @@
       "section_id": "14c",
       "variant_suffix": "c",
       "raw_label": "variante-castrillo_mota_de_judios",
-      "length_m": 6760.27,
+      "length_m": 6755.695,
       "points_count": 52,
       "raw_path": "data/raw/cnig/ES01c/ES01c_14c_variante-castrillo_mota_de_judios.kml",
       "coordinates": [
         [
-          42.29000129,
-          -4.14596692,
-          798.4
+          42.2899852,
+          -4.14605593,
+          798.495
         ],
         [
           42.29190733,
@@ -24448,14 +24448,14 @@
           827.583
         ],
         [
-          42.28612231,
-          -4.1943818,
-          830.23
+          42.28614025,
+          -4.19438884,
+          830.186
         ]
       ],
       "elevation": {
         "min_m": 776.41,
-        "max_m": 830.23
+        "max_m": 830.186
       },
       "from_key": "variante",
       "from": "Variante",
@@ -24470,14 +24470,14 @@
       "section_id": "14d",
       "variant_suffix": "d",
       "raw_label": "cuesta_de_mostelares-castrillo_mota_de_judios",
-      "length_m": 2233.837,
+      "length_m": 2234.918,
       "points_count": 25,
       "raw_path": "data/raw/cnig/ES01c/ES01c_14d_cuesta_de_mostelares-castrillo_mota_de_judios.kml",
       "coordinates": [
         [
-          42.2911243,
-          -4.1655509,
-          775.617
+          42.29109731,
+          -4.16547496,
+          775.462
         ],
         [
           42.29176032,
@@ -24601,7 +24601,7 @@
         ]
       ],
       "elevation": {
-        "min_m": 775.617,
+        "min_m": 775.462,
         "max_m": 799.095
       },
       "from_key": "cuestademostelares",
@@ -25354,14 +25354,14 @@
       "section_id": "15b",
       "variant_suffix": "b",
       "raw_label": "variante-villovieco",
-      "length_m": 10821.342,
+      "length_m": 10830.793,
       "points_count": 77,
       "raw_path": "data/raw/cnig/ES01c/ES01c_15b_variante-villovieco.kml",
       "coordinates": [
         [
-          42.26947518,
-          -4.44868186,
-          774.783
+          42.26945423,
+          -4.44861598,
+          775.437
         ],
         [
           42.26966931,
@@ -25739,13 +25739,13 @@
           803.184
         ],
         [
-          42.31610723,
-          -4.54595888,
-          802.21
+          42.31614227,
+          -4.54601487,
+          802.031
         ]
       ],
       "elevation": {
-        "min_m": 774.783,
+        "min_m": 775.362,
         "max_m": 806.896
       },
       "from_key": "variante",
@@ -26613,14 +26613,14 @@
       "section_id": "16b",
       "variant_suffix": "b",
       "raw_label": "calzadilla_de_la_cueza-fuente_arriba",
-      "length_m": 3797.497,
+      "length_m": 3802.239,
       "points_count": 45,
       "raw_path": "data/raw/cnig/ES01c/ES01c_16b_calzadilla_de_la_cueza-fuente_arriba.kml",
       "coordinates": [
         [
-          42.3298222,
-          -4.81330287,
-          851.43
+          42.32979219,
+          -4.81324386,
+          851.338
         ],
         [
           42.32975129,
@@ -28487,14 +28487,14 @@
       "section_id": "17b",
       "variant_suffix": "b",
       "raw_label": "bercianos_del_real_camino-calzadilla_de_los_hermanillos",
-      "length_m": 5699.461,
+      "length_m": 5698.84,
       "points_count": 34,
       "raw_path": "data/raw/cnig/ES01c/ES01c_17b_bercianos_del_real_camino-calzadilla_de_los_hermanillos.kml",
       "coordinates": [
         [
-          42.38795824,
-          -5.14236499,
-          850.862
+          42.38797836,
+          -5.14237689,
+          851.065
         ],
         [
           42.38785129,
@@ -28663,7 +28663,7 @@
         ]
       ],
       "elevation": {
-        "min_m": 850.862,
+        "min_m": 850.913,
         "max_m": 891.132
       },
       "from_key": "bercianosdelrealcamino",
@@ -28679,7 +28679,7 @@
       "section_id": "17c",
       "variant_suffix": "c",
       "raw_label": "calzadilla_de_los_hermanillos-mansilla_de_las_mulas",
-      "length_m": 32789.061,
+      "length_m": 32790.607,
       "points_count": 196,
       "raw_path": "data/raw/cnig/ES01c/ES01c_17c_calzadilla_de_los_hermanillos-mansilla_de_las_mulas.kml",
       "coordinates": [
@@ -29659,13 +29659,13 @@
           796.977
         ],
         [
-          42.49770032,
-          -5.41491179,
-          795.906
+          42.49771424,
+          -5.4149599,
+          795.956
         ]
       ],
       "elevation": {
-        "min_m": 795.906,
+        "min_m": 795.956,
         "max_m": 906.389
       },
       "from_key": "calzadilladeloshermanillos",
@@ -33532,14 +33532,14 @@
       "section_id": "20b",
       "variant_suffix": "b",
       "raw_label": "villar_de_mazarife-hospital_de_orbigo",
-      "length_m": 25928.649,
+      "length_m": 25925.783,
       "points_count": 157,
       "raw_path": "data/raw/cnig/ES01c/ES01c_20b_villar_de_mazarife-hospital_de_orbigo.kml",
       "coordinates": [
         [
           42.57673631,
-          -5.64968286,
-          901.814
+          -5.64978696,
+          902.025
         ],
         [
           42.5762862,
@@ -35266,14 +35266,14 @@
       "section_id": "21b",
       "variant_suffix": "b",
       "raw_label": "villares_de_orbigo-santibanez_de_valdeiglesias",
-      "length_m": 11150.877,
+      "length_m": 11157.378,
       "points_count": 118,
       "raw_path": "data/raw/cnig/ES01c/ES01c_21b_villares_de_orbigo-santibanez_de_valdeiglesias.kml",
       "coordinates": [
         [
-          42.46304618,
-          -5.88818287,
-          820.379
+          42.46298717,
+          -5.888175,
+          820.415
         ],
         [
           42.46387817,
@@ -35862,7 +35862,7 @@
         ]
       ],
       "elevation": {
-        "min_m": 820.379,
+        "min_m": 820.415,
         "max_m": 920.487
       },
       "from_key": "villaresdeorbigo",
@@ -39577,14 +39577,14 @@
       "section_id": "23b",
       "variant_suffix": "b",
       "raw_label": "variante_norte-ponferrada",
-      "length_m": 3908.423,
+      "length_m": 3912.412,
       "points_count": 58,
       "raw_path": "data/raw/cnig/ES01c/ES01c_23b_variante_norte-ponferrada.kml",
       "coordinates": [
         [
-          42.54525824,
-          -6.5502689,
-          606.934
+          42.54520828,
+          -6.55024292,
+          606.909
         ],
         [
           42.54518917,
@@ -39867,14 +39867,14 @@
           530.032
         ],
         [
-          42.54345328,
-          -6.59311283,
-          532.022
+          42.54344422,
+          -6.59314385,
+          531.705
         ]
       ],
       "elevation": {
         "min_m": 518.859,
-        "max_m": 606.934
+        "max_m": 606.909
       },
       "from_key": "variantenorte",
       "from": "Variante Norte",
@@ -41556,14 +41556,14 @@
       "section_id": "24b",
       "variant_suffix": "b",
       "raw_label": "variante-cuatro_vientos",
-      "length_m": 6406.849,
+      "length_m": 6412.11,
       "points_count": 48,
       "raw_path": "data/raw/cnig/ES01c/ES01c_24b_variante-cuatro_vientos.kml",
       "coordinates": [
         [
-          42.5472243,
-          -6.59395387,
-          511.694
+          42.54718725,
+          -6.59390593,
+          512.036
         ],
         [
           42.54763132,
@@ -41796,13 +41796,13 @@
           496.349
         ],
         [
-          42.57607631,
-          -6.66074289,
-          495.105
+          42.5760743,
+          -6.66074993,
+          495.114
         ]
       ],
       "elevation": {
-        "min_m": 495.105,
+        "min_m": 495.114,
         "max_m": 519.539
       },
       "from_key": "variante",
@@ -44140,7 +44140,7 @@
       "section_id": "25b",
       "variant_suffix": "b",
       "raw_label": "variante-pradela",
-      "length_m": 10926.079,
+      "length_m": 10926.08,
       "points_count": 206,
       "raw_path": "data/raw/cnig/ES01c/ES01c_25b_variante-pradela.kml",
       "coordinates": [
@@ -45192,14 +45192,14 @@
       "section_id": "25c",
       "variant_suffix": "c",
       "raw_label": "variante-la_faba",
-      "length_m": 4608.831,
+      "length_m": 4603.139,
       "points_count": 55,
       "raw_path": "data/raw/cnig/ES01c/ES01c_25c_variante-la_faba.kml",
       "coordinates": [
         [
-          42.67753104,
-          -7.00015213,
-          764.715
+          42.6775183,
+          -7.00021785,
+          762.916
         ],
         [
           42.67814979,
@@ -45467,13 +45467,13 @@
           1159.934
         ],
         [
-          42.70106725,
-          -7.02123497,
-          1157.596
+          42.70111017,
+          -7.02119892,
+          1158.653
         ]
       ],
       "elevation": {
-        "min_m": 764.715,
+        "min_m": 762.916,
         "max_m": 1159.934
       },
       "from_key": "variante",
@@ -49331,7 +49331,7 @@
       "section_id": "26b",
       "variant_suffix": "b",
       "raw_label": "salida-carretera",
-      "length_m": 2923.504,
+      "length_m": 2917.309,
       "points_count": 31,
       "raw_path": "data/raw/cnig/ES01c/ES01c_26b_salida-carretera.kml",
       "coordinates": [
@@ -49381,9 +49381,9 @@
           1289.4
         ],
         [
-          42.70526323,
-          -7.05212697,
-          1289.953
+          42.70531604,
+          -7.0521548,
+          1286.483
         ],
         [
           42.70495528,
@@ -49396,19 +49396,19 @@
           1270.006
         ],
         [
-          42.70400025,
-          -7.05507589,
-          1265.572
+          42.70398818,
+          -7.05515418,
+          1262.823
         ],
         [
-          42.70346431,
-          -7.05586799,
-          1257.926
+          42.70339826,
+          -7.05585407,
+          1261.316
         ],
         [
-          42.70322425,
-          -7.05689896,
-          1256.401
+          42.70320766,
+          -7.05686275,
+          1257.034
         ],
         [
           42.70341922,
@@ -49416,9 +49416,9 @@
           1250.226
         ],
         [
-          42.70411827,
-          -7.06034794,
-          1256.58
+          42.70403881,
+          -7.06030654,
+          1261.118
         ],
         [
           42.70453518,
@@ -49431,9 +49431,9 @@
           1255.519
         ],
         [
-          42.70482922,
-          -7.063233,
-          1257.454
+          42.70478765,
+          -7.06316594,
+          1260.37
         ],
         [
           42.70443426,
@@ -49446,24 +49446,24 @@
           1249.021
         ],
         [
-          42.70449126,
-          -7.0670419,
-          1255.432
+          42.70448456,
+          -7.06713477,
+          1258.099
         ],
         [
-          42.70471925,
-          -7.06807589,
-          1249.136
+          42.70466091,
+          -7.06804253,
+          1251.755
         ],
         [
-          42.70466225,
-          -7.06909195,
-          1240.742
+          42.7045905,
+          -7.06911307,
+          1243.345
         ],
         [
-          42.70412933,
-          -7.06980189,
-          1240.005
+          42.70412078,
+          -7.06982335,
+          1240.078
         ],
         [
           42.70323129,
@@ -49471,9 +49471,9 @@
           1237.047
         ],
         [
-          42.70219227,
-          -7.07110796,
-          1238.148
+          42.70224609,
+          -7.07115104,
+          1236.221
         ],
         [
           42.70092225,
@@ -49481,18 +49481,18 @@
           1232.982
         ],
         [
-          42.7001092,
-          -7.07251495,
-          1227.166
+          42.70014759,
+          -7.07253523,
+          1227.339
         ],
         [
-          42.6991602,
-          -7.07349999,
-          1223.658
+          42.69919625,
+          -7.07349597,
+          1223.681
         ]
       ],
       "elevation": {
-        "min_m": 1223.658,
+        "min_m": 1223.681,
         "max_m": 1313.518
       },
       "from_key": "salida",
@@ -49508,7 +49508,7 @@
       "section_id": "26c",
       "variant_suffix": "c",
       "raw_label": "variante-fonfria",
-      "length_m": 2836.008,
+      "length_m": 2836.009,
       "points_count": 69,
       "raw_path": "data/raw/cnig/ES01c/ES01c_26c_variante-fonfria.kml",
       "coordinates": [
@@ -52332,7 +52332,7 @@
       "section_id": "27b",
       "variant_suffix": "b",
       "raw_label": "samos-sarria",
-      "length_m": 19428.247,
+      "length_m": 19428.242,
       "points_count": 379,
       "raw_path": "data/raw/cnig/ES01c/ES01c_27b_samos-sarria.kml",
       "coordinates": [
@@ -57726,7 +57726,7 @@
       "section_id": "28b",
       "variant_suffix": "b",
       "raw_label": "variante-ferreiros",
-      "length_m": 5519.992,
+      "length_m": 5519.996,
       "points_count": 212,
       "raw_path": "data/raw/cnig/ES01c/ES01c_28b_variante-ferreiros.kml",
       "coordinates": [
@@ -58808,18 +58808,13 @@
       "section_id": "28c",
       "variant_suffix": "c",
       "raw_label": "variante-corgo_de_santos",
-      "length_m": 1036.883,
-      "points_count": 42,
+      "length_m": 1036.476,
+      "points_count": 40,
       "raw_path": "data/raw/cnig/ES01c/ES01c_28c_variante-corgo_de_santos.kml",
       "coordinates": [
         [
           42.79658256,
           -7.60905918,
-          423.0
-        ],
-        [
-          42.79658441,
-          -7.60897469,
           423.0
         ],
         [
@@ -59011,11 +59006,6 @@
           42.80215468,
           -7.61493405,
           348.182
-        ],
-        [
-          42.80218788,
-          -7.61500932,
-          347.496
         ],
         [
           42.80222191,
@@ -61919,14 +61909,14 @@
       "section_id": "29b",
       "variant_suffix": "b",
       "raw_label": "variante-souto",
-      "length_m": 2036.591,
+      "length_m": 2037.948,
       "points_count": 73,
       "raw_path": "data/raw/cnig/ES01c/ES01c_29b_variante-souto.kml",
       "coordinates": [
         [
           42.80530041,
-          -7.61994476,
-          346.487
+          -7.61994492,
+          346.489
         ],
         [
           42.80532573,
@@ -62284,13 +62274,13 @@
           449.591
         ],
         [
-          42.80733185,
-          -7.64144434,
+          42.80735247,
+          -7.64148289,
           450.0
         ]
       ],
       "elevation": {
-        "min_m": 346.487,
+        "min_m": 346.489,
         "max_m": 450.0
       },
       "from_key": "variante",
@@ -62306,7 +62296,7 @@
       "section_id": "29c",
       "variant_suffix": "c",
       "raw_label": "variante-oglesia_de_gonzar",
-      "length_m": 976.168,
+      "length_m": 981.392,
       "points_count": 41,
       "raw_path": "data/raw/cnig/ES01c/ES01c_29c_variante-oglesia_de_gonzar.kml",
       "coordinates": [
@@ -62511,14 +62501,14 @@
           562.132
         ],
         [
-          42.82730827,
-          -7.69915843,
-          564.056
+          42.82735186,
+          -7.69919313,
+          564.414
         ]
       ],
       "elevation": {
         "min_m": 528.016,
-        "max_m": 564.056
+        "max_m": 564.414
       },
       "from_key": "variante",
       "from": "Variante",
@@ -62533,14 +62523,14 @@
       "section_id": "29d",
       "variant_suffix": "d",
       "raw_label": "variante-yacimiento_de_castromaior",
-      "length_m": 411.058,
+      "length_m": 413.158,
       "points_count": 28,
       "raw_path": "data/raw/cnig/ES01c/ES01c_29d_variante-yacimiento_de_castromaior.kml",
       "coordinates": [
         [
-          42.83351909,
-          -7.71721389,
-          675.556
+          42.83351155,
+          -7.71721004,
+          675.406
         ],
         [
           42.83338264,
@@ -62673,13 +62663,13 @@
           692.066
         ],
         [
-          42.83400206,
-          -7.72134215,
+          42.83399804,
+          -7.7213864,
           691.0
         ]
       ],
       "elevation": {
-        "min_m": 675.556,
+        "min_m": 675.406,
         "max_m": 696.751
       },
       "from_key": "variante",
@@ -67709,7 +67699,7 @@
       "section_id": "31b",
       "variant_suffix": "b",
       "raw_label": "variante_penas-parabispo",
-      "length_m": 2101.198,
+      "length_m": 2102.32,
       "points_count": 43,
       "raw_path": "data/raw/cnig/ES01c/ES01c_31b_variante_penas-parabispo.kml",
       "coordinates": [
@@ -67924,9 +67914,9 @@
           457.0
         ],
         [
-          42.91554205,
-          -8.05666219,
-          457.0
+          42.91554138,
+          -8.05671785,
+          457.129
         ]
       ],
       "elevation": {
@@ -67946,14 +67936,14 @@
       "section_id": "31c",
       "variant_suffix": "c",
       "raw_label": "variante-o_pumarino",
-      "length_m": 1329.96,
+      "length_m": 1335.87,
       "points_count": 59,
       "raw_path": "data/raw/cnig/ES01c/ES01c_31c_variante-o_pumarino.kml",
       "coordinates": [
         [
-          42.92046122,
-          -8.09241202,
-          394.845
+          42.92048737,
+          -8.09234094,
+          393.931
         ],
         [
           42.92046709,

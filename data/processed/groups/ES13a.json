@@ -1603,14 +1603,14 @@
       "section_id": "01b",
       "variant_suffix": "b",
       "raw_label": "variante-vertedero_municipal",
-      "length_m": 5651.33,
+      "length_m": 5657.042,
       "points_count": 80,
       "raw_path": "data/raw/cnig/ES13a/ES13a_01b_variante-vertedero_municipal.kml",
       "coordinates": [
         [
-          38.36024456,
-          -0.55057403,
-          62.634
+          38.36027255,
+          -0.5504892,
+          62.361
         ],
         [
           38.36042359,
@@ -2009,7 +2009,7 @@
         ]
       ],
       "elevation": {
-        "min_m": 62.634,
+        "min_m": 62.361,
         "max_m": 211.278
       },
       "from_key": "variante",
@@ -2709,7 +2709,7 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "novelda-petrer",
-      "length_m": 17844.206,
+      "length_m": 17844.207,
       "points_count": 123,
       "raw_path": "data/raw/cnig/ES13a/ES13a_02b_novelda-petrer.kml",
       "coordinates": [
@@ -28498,14 +28498,14 @@
       "section_id": "18b",
       "variant_suffix": "b",
       "raw_label": "variante-mondejar",
-      "length_m": 2783.076,
+      "length_m": 2783.453,
       "points_count": 93,
       "raw_path": "data/raw/cnig/ES13a/ES13a_18b_variante-mondejar.kml",
       "coordinates": [
         [
-          40.65056456,
-          -2.5623644,
-          863.325
+          40.65054445,
+          -2.56238937,
+          863.448
         ],
         [
           40.65065743,
@@ -28963,14 +28963,14 @@
           984.96
         ],
         [
-          40.66600235,
-          -2.56150743,
-          985.796
+          40.66597536,
+          -2.56147692,
+          985.763
         ]
       ],
       "elevation": {
-        "min_m": 863.325,
-        "max_m": 985.796
+        "min_m": 863.448,
+        "max_m": 985.763
       },
       "from_key": "variante",
       "from": "Variante",
@@ -30882,7 +30882,7 @@
       "section_id": "19b",
       "variant_suffix": "b",
       "raw_label": "cifuentes-mandayona",
-      "length_m": 3292.091,
+      "length_m": 3292.28,
       "points_count": 41,
       "raw_path": "data/raw/cnig/ES13a/ES13a_19b_cifuentes-mandayona.kml",
       "coordinates": [
@@ -31087,9 +31087,9 @@
           889.017
         ],
         [
-          40.95362602,
-          -2.73997592,
-          890.212
+          40.95364613,
+          -2.74001598,
+          889.772
         ]
       ],
       "elevation": {
@@ -34301,7 +34301,7 @@
       "section_id": "20b",
       "variant_suffix": "b",
       "raw_label": "barranco_del_rio_dulce-siguenza",
-      "length_m": 48428.385,
+      "length_m": 48428.384,
       "points_count": 408,
       "raw_path": "data/raw/cnig/ES13a/ES13a_20b_barranco_del_rio_dulce-siguenza.kml",
       "coordinates": [
@@ -38020,14 +38020,14 @@
       "section_id": "21b",
       "variant_suffix": "b",
       "raw_label": "variante-miedes_de_atienza",
-      "length_m": 4198.981,
+      "length_m": 4196.671,
       "points_count": 94,
       "raw_path": "data/raw/cnig/ES13a/ES13a_21b_variante-miedes_de_atienza.kml",
       "coordinates": [
         [
-          41.26708958,
-          -2.9647794,
-          1149.279
+          41.2670983,
+          -2.964796,
+          1149.292
         ],
         [
           41.26719955,
@@ -38490,14 +38490,14 @@
           1371.131
         ],
         [
-          41.28465788,
-          -2.97640426,
-          1372.604
+          41.28465218,
+          -2.97640393,
+          1372.598
         ]
       ],
       "elevation": {
         "min_m": 1147.896,
-        "max_m": 1372.604
+        "max_m": 1372.598
       },
       "from_key": "variante",
       "from": "Variante",
@@ -47430,7 +47430,7 @@
       "section_id": "25b",
       "variant_suffix": "b",
       "raw_label": "variante-mamolar",
-      "length_m": 9392.278,
+      "length_m": 9392.276,
       "points_count": 118,
       "raw_path": "data/raw/cnig/ES13a/ES13a_25b_variante-mamolar.kml",
       "coordinates": [

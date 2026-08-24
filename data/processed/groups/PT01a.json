@@ -3274,14 +3274,14 @@
       "section_id": "01b",
       "variant_suffix": "b",
       "raw_label": "variante-antigoinicio",
-      "length_m": 795.851,
+      "length_m": 800.593,
       "points_count": 35,
       "raw_path": "data/raw/cnig/PT01a/PT01a_01b_variante-antigoinicio.kml",
       "coordinates": [
         [
-          38.70978836,
-          -9.13328832,
-          31.676
+          38.70982876,
+          -9.13329067,
+          32.473
         ],
         [
           38.70966615,
@@ -3449,9 +3449,9 @@
           32.394
         ],
         [
-          38.71278657,
-          -9.126187,
-          34.653
+          38.71278774,
+          -9.12618432,
+          34.651
         ]
       ],
       "elevation": {
@@ -3471,7 +3471,7 @@
       "section_id": "01c",
       "variant_suffix": "c",
       "raw_label": "variante-opcao_alpriate",
-      "length_m": 14549.881,
+      "length_m": 14553.635,
       "points_count": 247,
       "raw_path": "data/raw/cnig/PT01a/PT01a_01c_variante-opcao_alpriate.kml",
       "coordinates": [
@@ -4706,9 +4706,9 @@
           2.235
         ],
         [
-          38.86155864,
-          -9.05628478,
-          2.845
+          38.86153853,
+          -9.05624907,
+          2.781
         ]
       ],
       "elevation": {
@@ -16543,14 +16543,14 @@
       "section_id": "06b",
       "variant_suffix": "b",
       "raw_label": "variante-saida_tomar",
-      "length_m": 2148.881,
+      "length_m": 2151.065,
       "points_count": 56,
       "raw_path": "data/raw/cnig/PT01a/PT01a_06b_variante-saida_tomar.kml",
       "coordinates": [
         [
-          39.60764928,
-          -8.40894671,
-          60.532
+          39.60764157,
+          -8.40894872,
+          60.527
         ],
         [
           39.60766001,
@@ -16823,13 +16823,13 @@
           67.305
         ],
         [
-          39.62168293,
-          -8.40052877,
-          66.506
+          39.62169819,
+          -8.40054134,
+          66.454
         ]
       ],
       "elevation": {
-        "min_m": 60.532,
+        "min_m": 60.527,
         "max_m": 95.294
       },
       "from_key": "variante",

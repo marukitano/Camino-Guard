@@ -3562,7 +3562,7 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "variante-latzubia_a_beniarres",
-      "length_m": 33166.508,
+      "length_m": 33174.199,
       "points_count": 422,
       "raw_path": "data/raw/cnig/ES38a/ES38a_02b_variante-latzubia_a_beniarres.kml",
       "coordinates": [
@@ -5672,9 +5672,9 @@
           381.777
         ],
         [
-          38.81821431,
-          -0.37789643,
-          380.982
+          38.81825974,
+          -0.37796549,
+          380.975
         ]
       ],
       "elevation": {
@@ -7651,14 +7651,14 @@
       "section_id": "03b",
       "variant_suffix": "b",
       "raw_label": "variante-agullent",
-      "length_m": 4991.239,
+      "length_m": 4990.417,
       "points_count": 123,
       "raw_path": "data/raw/cnig/ES38a/ES38a_03b_variante-agullent.kml",
       "coordinates": [
         [
-          38.81520119,
-          -0.53091897,
-          575.348
+          38.81518207,
+          -0.5309369,
+          574.886
         ],
         [
           38.81533747,
@@ -8288,7 +8288,7 @@
       "section_id": "03c",
       "variant_suffix": "c",
       "raw_label": "variante-el_pou_clar",
-      "length_m": 2015.391,
+      "length_m": 2016.084,
       "points_count": 31,
       "raw_path": "data/raw/cnig/ES38a/ES38a_03c_variante-el_pou_clar.kml",
       "coordinates": [
@@ -8443,9 +8443,9 @@
           435.271
         ],
         [
-          38.79578752,
-          -0.63256094,
-          439.462
+          38.79580798,
+          -0.63252976,
+          439.364
         ]
       ],
       "elevation": {
@@ -11357,14 +11357,14 @@
       "section_id": "04b",
       "variant_suffix": "b",
       "raw_label": "variante-fontanars_dels_alfonsins",
-      "length_m": 5439.473,
+      "length_m": 5430.265,
       "points_count": 59,
       "raw_path": "data/raw/cnig/ES38a/ES38a_04b_variante-fontanars_dels_alfonsins.kml",
       "coordinates": [
         [
-          38.7840081,
-          -0.78567686,
-          626.539
+          38.78398932,
+          -0.7857528,
+          626.445
         ],
         [
           38.78390232,
@@ -11652,14 +11652,14 @@
           553.425
         ],
         [
-          38.78576009,
-          -0.83781548,
-          554.545
+          38.78582345,
+          -0.83774406,
+          556.163
         ]
       ],
       "elevation": {
         "min_m": 553.425,
-        "max_m": 626.539
+        "max_m": 626.445
       },
       "from_key": "variante",
       "from": "Variante",

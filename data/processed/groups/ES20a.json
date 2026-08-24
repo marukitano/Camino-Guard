@@ -5233,7 +5233,7 @@
       "section_id": "04b",
       "variant_suffix": "b",
       "raw_label": "variante_zalduondo-salvatierra_agurain",
-      "length_m": 5636.805,
+      "length_m": 5636.804,
       "points_count": 46,
       "raw_path": "data/raw/cnig/ES20a/ES20a_04b_variante_zalduondo-salvatierra_agurain.kml",
       "coordinates": [
@@ -9789,14 +9789,14 @@
       "section_id": "06b",
       "variant_suffix": "b",
       "raw_label": "variante-la_puebla",
-      "length_m": 8926.708,
+      "length_m": 8929.648,
       "points_count": 36,
       "raw_path": "data/raw/cnig/ES20a/ES20a_06b_variante-la_puebla.kml",
       "coordinates": [
         [
-          42.80702122,
-          -2.77548334,
-          566.905
+          42.80704539,
+          -2.77545069,
+          566.93
         ],
         [
           42.80697713,
@@ -9976,7 +9976,7 @@
       ],
       "elevation": {
         "min_m": 476.734,
-        "max_m": 566.905
+        "max_m": 566.93
       },
       "from_key": "variante",
       "from": "Variante",
@@ -11043,7 +11043,7 @@
       "section_id": "07b",
       "variant_suffix": "b",
       "raw_label": "variante-brinas",
-      "length_m": 2239.41,
+      "length_m": 2239.409,
       "points_count": 21,
       "raw_path": "data/raw/cnig/ES20a/ES20a_07b_variante-brinas.kml",
       "coordinates": [

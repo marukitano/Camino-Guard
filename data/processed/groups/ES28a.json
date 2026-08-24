@@ -4685,14 +4685,14 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "buiza-arbas_del_puerto",
-      "length_m": 18084.57,
+      "length_m": 18084.714,
       "points_count": 153,
       "raw_path": "data/raw/cnig/ES28a/ES28a_02b_buiza-arbas_del_puerto.kml",
       "coordinates": [
         [
-          42.8948416,
-          -5.68653524,
-          1129.754
+          42.89489172,
+          -5.68658804,
+          1130.565
         ],
         [
           42.89526774,
@@ -5472,14 +5472,14 @@
       "section_id": "02c",
       "variant_suffix": "c",
       "raw_label": "variante-san_martin_de_tercia",
-      "length_m": 1455.241,
+      "length_m": 1448.566,
       "points_count": 21,
       "raw_path": "data/raw/cnig/ES28a/ES28a_02c_variante-san_martin_de_tercia.kml",
       "coordinates": [
         [
-          42.93975335,
-          -5.71054352,
-          1250.961
+          42.93979023,
+          -5.71053682,
+          1250.35
         ],
         [
           42.94028761,
@@ -5577,14 +5577,14 @@
           1220.787
         ],
         [
-          42.94686774,
-          -5.72199505,
-          1220.812
+          42.94685584,
+          -5.72196621,
+          1220.933
         ]
       ],
       "elevation": {
         "min_m": 1203.977,
-        "max_m": 1250.961
+        "max_m": 1250.35
       },
       "from_key": "variante",
       "from": "Variante",
@@ -5599,14 +5599,14 @@
       "section_id": "02d",
       "variant_suffix": "d",
       "raw_label": "rodiezmo-villanueva_de_la_tercia",
-      "length_m": 6360.603,
+      "length_m": 6368.356,
       "points_count": 74,
       "raw_path": "data/raw/cnig/ES28a/ES28a_02d_rodiezmo-villanueva_de_la_tercia.kml",
       "coordinates": [
         [
-          42.92036299,
-          -5.70147699,
-          1330.526
+          42.92037623,
+          -5.7015712,
+          1331.826
         ],
         [
           42.92029811,
@@ -5976,7 +5976,7 @@
       ],
       "elevation": {
         "min_m": 1155.793,
-        "max_m": 1330.526
+        "max_m": 1331.826
       },
       "from_key": "rodiezmo",
       "from": "Rodiezmo",
@@ -8198,7 +8198,7 @@
       "section_id": "03b",
       "variant_suffix": "b",
       "raw_label": "variante-san_miguel_del_rio",
-      "length_m": 4927.727,
+      "length_m": 4928.037,
       "points_count": 143,
       "raw_path": "data/raw/cnig/ES28a/ES28a_03b_variante-san_miguel_del_rio.kml",
       "coordinates": [
@@ -8913,9 +8913,9 @@
           729.461
         ],
         [
-          43.01541343,
-          -5.78471566,
-          729.141
+          43.01542081,
+          -5.78471197,
+          729.419
         ]
       ],
       "elevation": {

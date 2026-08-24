@@ -73,6 +73,15 @@ public final class CaminoController {
     private int selectedStageChoiceIndex;
     private StageRouteSelection selectedStageSelection;
 
+    /*
+     * Extension carousel: preserve the already-selected prefix while rotating
+     * alternatives at the current destination/fork shell.
+     */
+    private StageRouteSelection stageExtensionBaseSelection;
+    private String stageExtensionPlaceKey;
+    private int stageExtensionChoiceIndex =
+            -1;
+
     private CaminoVariantPath selectedVariantPath;
 
     /*
@@ -85,10 +94,6 @@ public final class CaminoController {
 
     private final CaminoStagePathResolver stagePathResolver =
             new CaminoStagePathResolver();
-
-    private CaminoRoute stageRouteConstraint;
-    private int stagePrimaryTrackConstraint =
-            -1;
 
     private StageTapTarget pendingStageTouch;
     private float stageTouchDownX;
@@ -1303,11 +1308,59 @@ public final class CaminoController {
         selectedVariantPath =
                 null;
 
+        /*
+         * Repeated tap on the same fork while its extension carousel is active.
+         */
+        if (stageExtensionBaseSelection != null
+                && stageExtensionPlaceKey != null
+                && stageExtensionPlaceKey.equals(
+                placeKey
+        )) {
 
+            List<StageRouteSelection> extensionChoices =
+                    findOutgoingStages(
+                            placeKey,
+                            stagePoint
+                    );
+
+            if (!extensionChoices.isEmpty()) {
+                stageExtensionChoiceIndex =
+                        (
+                                stageExtensionChoiceIndex + 1
+                        )
+                                % extensionChoices.size();
+
+                StageRouteSelection combined =
+                        appendStageSelection(
+                                stageExtensionBaseSelection,
+                                extensionChoices.get(
+                                        stageExtensionChoiceIndex
+                                )
+                        );
+
+                if (combined != null) {
+                    applyExtendedStageSelection(
+                            combined
+                    );
+
+                    return true;
+                }
+            }
+
+            clearStageExtensionCarousel();
+        }
+
+        /*
+         * Tap the CURRENT destination shell:
+         * append the next section. At a fork, choice 0 is appended first and
+         * repeated taps on the same fork rotate all alternatives while the
+         * complete prefix stays selected.
+         */
         if (selectedStageSelection != null
-                && selectedStageSelection.resolvedPath == null
                 && selectedStagePlaceKey != null
-                && !placeKey.equals(selectedStagePlaceKey)
+                && !placeKey.equals(
+                selectedStagePlaceKey
+        )
                 && placeKey.equals(
                 selectedStageSelection.destinationPlaceKey
         )) {
@@ -1319,32 +1372,44 @@ public final class CaminoController {
                     );
 
             if (!extensionChoices.isEmpty()) {
-                StageRouteSelection nextStage =
-                        extensionChoices.get(0);
+                StageRouteSelection base =
+                        selectedStageSelection;
 
-                if (nextStage.route
-                        == selectedStageSelection.route
-                        && compareRoutePosition(
-                        nextStage.endHit,
-                        selectedStageSelection.endHit
-                ) > 0) {
+                if (extensionChoices.size() > 1) {
+                    stageExtensionBaseSelection =
+                            base;
 
-                    selectedStageSelection =
-                            selectedStageSelection.withExtendedEnd(
-                                    nextStage.endHit,
-                                    nextStage.destinationPlaceKey
-                            );
+                    stageExtensionPlaceKey =
+                            placeKey;
 
-                    selectionController.selectStage(
-                            selectedStageSelection.route,
-                            selectedStageSelection.startHit,
-                            selectedStageSelection.endHit
+                    stageExtensionChoiceIndex =
+                            0;
+
+                } else {
+                    clearStageExtensionCarousel();
+                }
+
+                StageRouteSelection combined =
+                        appendStageSelection(
+                                base,
+                                extensionChoices.get(
+                                        0
+                                )
+                        );
+
+                if (combined != null) {
+                    applyExtendedStageSelection(
+                            combined
                     );
 
                     return true;
                 }
+
+                clearStageExtensionCarousel();
             }
         }
+
+        clearStageExtensionCarousel();
 
         List<StageRouteSelection> choices =
                 findOutgoingStages(
@@ -1373,11 +1438,20 @@ public final class CaminoController {
                         choiceIndex
                 );
 
-        selectedStagePoint = stagePoint;
-        selectedStageHighlightColor = stageSelection.route.highlightColor;
-        selectedStagePlaceKey = placeKey;
-        selectedStageChoiceIndex = choiceIndex;
-        selectedStageSelection = stageSelection;
+        selectedStagePoint =
+                stagePoint;
+
+        selectedStageHighlightColor =
+                stageSelection.route.highlightColor;
+
+        selectedStagePlaceKey =
+                placeKey;
+
+        selectedStageChoiceIndex =
+                choiceIndex;
+
+        selectedStageSelection =
+                stageSelection;
 
         selectionController.selectStage(
                 stageSelection.route,
@@ -1386,6 +1460,86 @@ public final class CaminoController {
         );
 
         return true;
+    }
+
+
+    private StageRouteSelection appendStageSelection(
+            StageRouteSelection prefix,
+            StageRouteSelection next
+    ) {
+        if (prefix == null
+                || next == null
+                || prefix.route
+                != next.route) {
+
+            return null;
+        }
+
+        if (prefix.resolvedPath != null
+                && next.resolvedPath != null) {
+
+            CaminoResolvedStagePath combined =
+                    stagePathResolver.append(
+                            prefix.resolvedPath,
+                            next.resolvedPath
+                    );
+
+            if (combined == null) {
+                return null;
+            }
+
+            return new StageRouteSelection(
+                    combined.route,
+                    combined.startHit,
+                    combined.endHit,
+                    prefix.primaryTrackIndex,
+                    null,
+                    true,
+                    null,
+                    null,
+                    combined.destinationPlaceKey,
+                    combined
+            );
+        }
+
+        if (compareRoutePosition(
+                next.endHit,
+                prefix.endHit
+        ) <= 0) {
+
+            return null;
+        }
+
+        return prefix.withExtendedEnd(
+                next.endHit,
+                next.destinationPlaceKey
+        );
+    }
+
+
+    private void applyExtendedStageSelection(
+            StageRouteSelection combined
+    ) {
+        selectedStageSelection =
+                combined;
+
+        selectionController.selectStage(
+                combined.route,
+                combined.startHit,
+                combined.endHit
+        );
+    }
+
+
+    private void clearStageExtensionCarousel() {
+        stageExtensionBaseSelection =
+                null;
+
+        stageExtensionPlaceKey =
+                null;
+
+        stageExtensionChoiceIndex =
+                -1;
     }
 
 
@@ -1406,92 +1560,82 @@ public final class CaminoController {
             return result;
         }
 
-        /*
-         * One rendered StageNode may own several outgoing primary StageEdges.
-         * Expand the already-established primary+variant resolver once for
-         * every edge. This preserves all existing variant semantics while
-         * making junctions between Caminos complete.
-         */
         for (CaminoStageTopology.StageEdge edge
                 : node.outgoing()) {
 
-            stageRouteConstraint =
-                    edge.route;
+            appendResolvedStageChoices(
+                    result,
+                    stagePathResolver.findChoices(
+                            edge.route,
+                            edge.primaryTrackIndex,
+                            placeKey
+                    )
+            );
+        }
 
-            stagePrimaryTrackConstraint =
-                    edge.primaryTrackIndex;
-
-            try {
-                result.addAll(
-                        findOutgoingStagesForSinglePrimary(
-                                placeKey,
-                                stagePoint
-                        )
-                );
-
-            } finally {
-                stageRouteConstraint =
-                        null;
-
-                stagePrimaryTrackConstraint =
-                        -1;
-            }
+        if (node.outgoing().isEmpty()) {
+            appendResolvedStageChoices(
+                    result,
+                    stagePathResolver.findDecisionChoices(
+                            placeKey,
+                            stagePoint
+                    )
+            );
         }
 
         return result;
     }
 
 
-    private List<StageRouteSelection> findOutgoingStagesForSinglePrimary(
-            String placeKey,
-            LatLng stagePoint
+    private void appendResolvedStageChoices(
+            List<StageRouteSelection> output,
+            List<CaminoResolvedStagePath> resolvedPaths
     ) {
-        List<StageRouteSelection> result =
-                new ArrayList<>();
+        if (resolvedPaths == null
+                || resolvedPaths.isEmpty()) {
 
-        StageRouteSelection primary =
-                findPrimaryOutgoingStage(
-                        placeKey,
-                        stagePoint
-                );
-
-        if (primary != null) {
-            result.add(
-                    primary
-            );
+            return;
         }
 
-        if (stageRouteConstraint != null
-                && stagePrimaryTrackConstraint >= 0) {
+        java.util.LinkedHashSet<String> existingIds =
+                new java.util.LinkedHashSet<>();
 
-            List<CaminoResolvedStagePath> alternatives =
-                    stagePathResolver.findAlternatives(
-                            stageRouteConstraint,
-                            stagePrimaryTrackConstraint,
-                            placeKey
-                    );
+        for (StageRouteSelection existing
+                : output) {
 
-            for (CaminoResolvedStagePath resolved
-                    : alternatives) {
-
-                result.add(
-                        new StageRouteSelection(
-                                resolved.route,
-                                resolved.startHit,
-                                resolved.endHit,
-                                stagePrimaryTrackConstraint,
-                                null,
-                                true,
-                                null,
-                                null,
-                                resolved.destinationPlaceKey,
-                                resolved
-                        )
+            if (existing.resolvedPath != null) {
+                existingIds.add(
+                        existing.resolvedPath.id
                 );
             }
         }
 
-        return result;
+        for (CaminoResolvedStagePath resolved
+                : resolvedPaths) {
+
+            if (resolved == null
+                    || !existingIds.add(
+                    resolved.id
+            )) {
+
+                continue;
+            }
+
+            output.add(
+                    new StageRouteSelection(
+                            resolved.route,
+                            resolved.startHit,
+                            resolved.endHit,
+                            resolved.startHit.trackIndex,
+                            null,
+                            true,
+                            null,
+                            null,
+                            resolved.destinationPlaceKey,
+                            resolved
+                    )
+            );
+        }
     }
 
 
@@ -1524,147 +1668,6 @@ public final class CaminoController {
     }
 
 
-    private StageRouteSelection findPrimaryOutgoingStage(
-            String placeKey,
-            LatLng stagePoint
-    ) {
-        if (placeKey == null
-                || placeKey.isEmpty()
-                || stagePoint == null) {
-
-            return null;
-        }
-
-        StageRouteSelection best =
-                null;
-
-        double bestDistanceM =
-                Double.POSITIVE_INFINITY;
-
-        for (CaminoRoute route
-                : routes) {
-
-            if (stageRouteConstraint != null
-                    && route
-                    != stageRouteConstraint) {
-
-                continue;
-            }
-
-            for (int trackIndex = 0;
-                    trackIndex < route.tracks.size();
-                    trackIndex++) {
-
-                if (stagePrimaryTrackConstraint >= 0
-                        && trackIndex
-                        != stagePrimaryTrackConstraint) {
-
-                    continue;
-                }
-
-                RouteTrack track =
-                        route.tracks.get(
-                                trackIndex
-                        );
-
-                if (track.pseudoFrom
-                        || track.pseudoTo
-                        || track.fromKey == null
-                        || track.toKey == null
-                        || !placeKey.equals(
-                        track.fromKey
-                )
-                        || track.points.size() < 2) {
-
-                    continue;
-                }
-
-                LatLng first =
-                        track.points.get(
-                                0
-                        );
-
-                LatLng last =
-                        track.points.get(
-                                track.points.size() - 1
-                        );
-
-                double firstDistanceM =
-                        GeoMath.distanceMeters(
-                                stagePoint,
-                                first
-                        );
-
-                double lastDistanceM =
-                        GeoMath.distanceMeters(
-                                stagePoint,
-                                last
-                        );
-
-                /*
-                 * Primary geometry can be reversed internally without swapping
-                 * fromKey/toKey. The shell coordinate establishes the semantic
-                 * stage start.
-                 */
-                boolean startIsFirst =
-                        firstDistanceM
-                                <= lastDistanceM;
-
-                double startDistanceM =
-                        Math.min(
-                                firstDistanceM,
-                                lastDistanceM
-                        );
-
-                if (startDistanceM
-                        >= bestDistanceM) {
-
-                    continue;
-                }
-
-                ProjectionHit startHit =
-                        projectionEngine.projectToTrackEndpoint(
-                                route,
-                                trackIndex,
-                                startIsFirst
-                        );
-
-                ProjectionHit endHit =
-                        projectionEngine.projectToTrackEndpoint(
-                                route,
-                                trackIndex,
-                                !startIsFirst
-                        );
-
-                if (startHit == null
-                        || endHit == null) {
-
-                    continue;
-                }
-
-                bestDistanceM =
-                        startDistanceM;
-
-                best =
-                        new StageRouteSelection(
-                                route,
-                                startHit,
-                                endHit,
-                                trackIndex,
-                                null,
-                                true,
-                                null,
-                                null,
-                                track.toKey,
-                                null
-                        );
-            }
-        }
-
-        return best;
-    }
-
-
     private void clearSelectedStageVisual() {
         selectedStagePoint =
                 null;
@@ -1683,6 +1686,7 @@ public final class CaminoController {
 
         selectedVariantPath =
                 null;
+        clearStageExtensionCarousel();
     }
 
 

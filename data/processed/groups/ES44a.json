@@ -2271,7 +2271,7 @@
       "section_id": "01b",
       "variant_suffix": "b",
       "raw_label": "variante-valladolises",
-      "length_m": 11329.288,
+      "length_m": 11328.309,
       "points_count": 134,
       "raw_path": "data/raw/cnig/ES44a/ES44a_01b_variante-valladolises.kml",
       "coordinates": [
@@ -2941,9 +2941,9 @@
           276.08
         ],
         [
-          37.83351939,
-          -1.15310077,
-          277.263
+          37.83348553,
+          -1.15304276,
+          277.175
         ]
       ],
       "elevation": {
@@ -16013,14 +16013,14 @@
       "section_id": "06b",
       "variant_suffix": "b",
       "raw_label": "variante-convento_de_santa_ana",
-      "length_m": 9579.465,
+      "length_m": 9583.899,
       "points_count": 147,
       "raw_path": "data/raw/cnig/ES44a/ES44a_06b_variante-convento_de_santa_ana.kml",
       "coordinates": [
         [
-          38.43547331,
-          -1.34748951,
-          446.641
+          38.43556099,
+          -1.34749755,
+          446.393
         ],
         [
           38.43471961,
@@ -16748,13 +16748,13 @@
           483.908
         ],
         [
-          38.46463278,
-          -1.32951653,
-          485.013
+          38.46460847,
+          -1.32946758,
+          484.865
         ]
       ],
       "elevation": {
-        "min_m": 446.641,
+        "min_m": 446.393,
         "max_m": 745.34
       },
       "from_key": "variante",

@@ -401,9 +401,11 @@ final class CaminoVariantPathBuilder {
             }
 
             List<CaminoVariantPathPart> parts =
-                    orientKnownChain(
-                            route,
-                            chain
+                    normalizeVariantGeometry(
+                            orientKnownChain(
+                                    route,
+                                    chain
+                            )
                     );
 
             int sectionNumber =
@@ -679,13 +681,62 @@ final class CaminoVariantPathBuilder {
                             )
                     );
 
+            boolean reverseTrack;
+
+            if (Math.abs(
+                    normal - reversed
+            ) > 1.0) {
+
+                reverseTrack =
+                        reversed < normal;
+
+            } else {
+                PrimaryProgress first =
+                        nearestPrimaryProgress(
+                                route,
+                                startPoint(
+                                        track,
+                                        false
+                                )
+                        );
+
+                PrimaryProgress last =
+                        nearestPrimaryProgress(
+                                route,
+                                endPoint(
+                                        track,
+                                        false
+                                )
+                        );
+
+                if (first != null
+                        && last != null
+                        && first.distanceM
+                        <= PRIMARY_ORIENTATION_MAX_DISTANCE_M
+                        && last.distanceM
+                        <= PRIMARY_ORIENTATION_MAX_DISTANCE_M
+                        && Math.abs(
+                        first.progressM
+                                - last.progressM
+                ) > PRIMARY_ORIENTATION_MIN_PROGRESS_M) {
+
+                    reverseTrack =
+                            first.progressM
+                                    > last.progressM;
+
+                } else {
+                    reverseTrack =
+                            reversed < normal;
+                }
+            }
+
             List<CaminoVariantPathPart> single =
                     new ArrayList<>();
 
             single.add(
                     new CaminoVariantPathPart(
                             track,
-                            reversed < normal
+                            reverseTrack
                     )
             );
 
@@ -852,6 +903,258 @@ final class CaminoVariantPathBuilder {
         }
 
         return parts;
+    }
+
+
+    /*
+     * Tie-breaker only: this NEVER invents topology. The primary geometry has
+     * already been oriented by CaminoRepository, so its accumulated chainage
+     * gives a stable forward direction along the Camino.
+     */
+    private static final double PRIMARY_ORIENTATION_MAX_DISTANCE_M =
+            250.0;
+
+    private static final double PRIMARY_ORIENTATION_MIN_PROGRESS_M =
+            50.0;
+
+
+    private static PrimaryProgress nearestPrimaryProgress(
+            CaminoRoute route,
+            LatLng point
+    ) {
+        PrimaryProgress best =
+                null;
+
+        for (RouteTrack primary
+                : route.tracks) {
+
+            if (primary.points.size() < 2) {
+                continue;
+            }
+
+            double chainageAtA =
+                    0.0;
+
+            for (int segmentIndex = 0;
+                    segmentIndex
+                    < primary.points.size() - 1;
+                    segmentIndex++) {
+
+                LatLng a =
+                        primary.points.get(
+                                segmentIndex
+                        );
+
+                LatLng b =
+                        primary.points.get(
+                                segmentIndex + 1
+                        );
+
+                SegmentProgress hit =
+                        projectToSegment(
+                                point,
+                                a,
+                                b
+                        );
+
+                double segmentLength =
+                        GeoMath.distanceMeters(
+                                a,
+                                b
+                        );
+
+                if (best == null
+                        || hit.distanceM
+                        < best.distanceM) {
+
+                    best =
+                            new PrimaryProgress(
+                                    hit.distanceM,
+                                    primary.baseChainageM
+                                            + chainageAtA
+                                            + hit.t
+                                            * segmentLength
+                            );
+                }
+
+                chainageAtA +=
+                        segmentLength;
+            }
+        }
+
+        return best;
+    }
+
+
+    private static SegmentProgress projectToSegment(
+            LatLng query,
+            LatLng a,
+            LatLng b
+    ) {
+        double referenceLatitude =
+                Math.toRadians(
+                        (
+                                query.getLatitude()
+                                        + a.getLatitude()
+                                        + b.getLatitude()
+                        ) / 3.0
+                );
+
+        double cosLatitude =
+                Math.max(
+                        0.20,
+                        Math.cos(
+                                referenceLatitude
+                        )
+                );
+
+        double ax =
+                Math.toRadians(
+                        a.getLongitude()
+                                - query.getLongitude()
+                )
+                        * GeoMath.EARTH_RADIUS_M
+                        * cosLatitude;
+
+        double ay =
+                Math.toRadians(
+                        a.getLatitude()
+                                - query.getLatitude()
+                )
+                        * GeoMath.EARTH_RADIUS_M;
+
+        double bx =
+                Math.toRadians(
+                        b.getLongitude()
+                                - query.getLongitude()
+                )
+                        * GeoMath.EARTH_RADIUS_M
+                        * cosLatitude;
+
+        double by =
+                Math.toRadians(
+                        b.getLatitude()
+                                - query.getLatitude()
+                )
+                        * GeoMath.EARTH_RADIUS_M;
+
+        double vx =
+                bx - ax;
+
+        double vy =
+                by - ay;
+
+        double denominator =
+                vx * vx
+                        + vy * vy;
+
+        double t =
+                0.0;
+
+        if (denominator > 1e-9) {
+            t =
+                    -(ax * vx
+                            + ay * vy)
+                            / denominator;
+
+            t =
+                    Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    t
+                            )
+                    );
+        }
+
+        double px =
+                ax + t * vx;
+
+        double py =
+                ay + t * vy;
+
+        return new SegmentProgress(
+                Math.hypot(
+                        px,
+                        py
+                ),
+                t
+        );
+    }
+
+
+    /*
+     * Once direction is known, normalize the mutable RouteTrack geometry
+     * itself. This makes resolver, measurement and temporary raw endpoint debug
+     * labels all see the same forward direction. fromKey/toKey stay unchanged,
+     * exactly like primary geometry orientation in CaminoRepository.
+     */
+    private static List<CaminoVariantPathPart> normalizeVariantGeometry(
+            List<CaminoVariantPathPart> oriented
+    ) {
+        List<CaminoVariantPathPart> result =
+                new ArrayList<>();
+
+        for (CaminoVariantPathPart part
+                : oriented) {
+
+            if (part.reversed) {
+                Collections.reverse(
+                        part.track.points
+                );
+
+                Collections.reverse(
+                        part.track.elevations
+                );
+            }
+
+            result.add(
+                    new CaminoVariantPathPart(
+                            part.track,
+                            false
+                    )
+            );
+        }
+
+        return result;
+    }
+
+
+    private static final class PrimaryProgress {
+
+        final double distanceM;
+        final double progressM;
+
+
+        PrimaryProgress(
+                double distanceM,
+                double progressM
+        ) {
+            this.distanceM =
+                    distanceM;
+
+            this.progressM =
+                    progressM;
+        }
+    }
+
+
+    private static final class SegmentProgress {
+
+        final double distanceM;
+        final double t;
+
+
+        SegmentProgress(
+                double distanceM,
+                double t
+        ) {
+            this.distanceM =
+                    distanceM;
+
+            this.t =
+                    t;
+        }
     }
 
 

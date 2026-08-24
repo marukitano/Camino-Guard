@@ -13882,14 +13882,14 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "variante-a_gandara",
-      "length_m": 1039.716,
-      "points_count": 42,
+      "length_m": 1041.222,
+      "points_count": 41,
       "raw_path": "data/raw/cnig/ES18a/ES18a_02b_variante-a_gandara.kml",
       "coordinates": [
         [
-          42.13120529,
-          -8.80180266,
-          9.464
+          42.13118736,
+          -8.80173963,
+          9.54
         ],
         [
           42.13140227,
@@ -14085,11 +14085,6 @@
           42.13823687,
           -8.79761959,
           27.837
-        ],
-        [
-          42.13832455,
-          -8.79756879,
-          27.834
         ],
         [
           42.13836947,

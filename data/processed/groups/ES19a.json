@@ -37512,14 +37512,14 @@
       "section_id": "06b",
       "variant_suffix": "b",
       "raw_label": "vera-antas",
-      "length_m": 7905.727,
+      "length_m": 7907.346,
       "points_count": 166,
       "raw_path": "data/raw/cnig/ES19a/ES19a_06b_vera-antas.kml",
       "coordinates": [
         [
-          37.24711658,
-          -1.86830979,
-          98.818
+          37.24710217,
+          -1.86824592,
+          99.0
         ],
         [
           37.24691894,
@@ -38364,7 +38364,7 @@
       "section_id": "06c",
       "variant_suffix": "c",
       "raw_label": "antas-cueva_del_almanzora",
-      "length_m": 8360.756,
+      "length_m": 8360.758,
       "points_count": 223,
       "raw_path": "data/raw/cnig/ES19a/ES19a_06c_antas-cueva_del_almanzora.kml",
       "coordinates": [

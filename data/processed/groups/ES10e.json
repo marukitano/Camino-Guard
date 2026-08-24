@@ -30030,7 +30030,7 @@
       "section_id": "14b",
       "variant_suffix": "b",
       "raw_label": "castro_del_rio-cordoba",
-      "length_m": 16840.076,
+      "length_m": 16837.955,
       "points_count": 564,
       "raw_path": "data/raw/cnig/ES10e/ES10e_14b_castro_del_rio-cordoba.kml",
       "coordinates": [
@@ -32850,9 +32850,9 @@
           277.686
         ],
         [
-          37.77859345,
-          -4.61207969,
-          278.337
+          37.77857719,
+          -4.61203393,
+          278.0
         ]
       ],
       "elevation": {

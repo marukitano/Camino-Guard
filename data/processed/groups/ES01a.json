@@ -2636,14 +2636,14 @@
       "section_id": "01b",
       "variant_suffix": "b",
       "raw_label": "collado_lepoeder-monumento_a_roldan",
-      "length_m": 2890.097,
+      "length_m": 2893.311,
       "points_count": 49,
       "raw_path": "data/raw/cnig/ES01a/ES01a_01b_collado_lepoeder-monumento_a_roldan.kml",
       "coordinates": [
         [
-          43.02628929,
-          -1.29544493,
-          1431.978
+          43.02628912,
+          -1.29540537,
+          1420.0
         ],
         [
           43.0263322,
@@ -2888,7 +2888,7 @@
       ],
       "elevation": {
         "min_m": 1058.754,
-        "max_m": 1431.978
+        "max_m": 1420.0
       },
       "from_key": "colladolepoeder",
       "from": "Collado Lepoeder",
@@ -2903,7 +2903,7 @@
       "section_id": "01c",
       "variant_suffix": "c",
       "raw_label": "valcarlos-puerto_de_ibaneta",
-      "length_m": 22922.62,
+      "length_m": 22919.656,
       "points_count": 531,
       "raw_path": "data/raw/cnig/ES01a/ES01a_01c_valcarlos-puerto_de_ibaneta.kml",
       "coordinates": [
@@ -5558,8 +5558,8 @@
           953.0
         ],
         [
-          43.00906062,
-          -1.31931391,
+          43.00908778,
+          -1.31930888,
           952.0
         ]
       ],
@@ -7727,14 +7727,14 @@
       "section_id": "02b",
       "variant_suffix": "b",
       "raw_label": "puerto_de_erro-larrasoana",
-      "length_m": 10868.767,
+      "length_m": 10870.877,
       "points_count": 176,
       "raw_path": "data/raw/cnig/ES01a/ES01a_02b_puerto_de_erro-larrasoana.kml",
       "coordinates": [
         [
-          42.94158027,
-          -1.47058882,
-          801.692
+          42.9415972,
+          -1.47055797,
+          801.584
         ],
         [
           42.9417122,
@@ -8607,14 +8607,14 @@
           494.642
         ],
         [
-          42.90068127,
-          -1.54053396,
-          497.215
+          42.90067926,
+          -1.54055072,
+          497.135
         ]
       ],
       "elevation": {
         "min_m": 494.642,
-        "max_m": 801.692
+        "max_m": 801.584
       },
       "from_key": "puertodeerro",
       "from": "Puerto de Erro",
@@ -12193,14 +12193,14 @@
       "section_id": "04b",
       "variant_suffix": "b",
       "raw_label": "variante-alto_del_perdon",
-      "length_m": 10561.474,
+      "length_m": 10560.219,
       "points_count": 95,
       "raw_path": "data/raw/cnig/ES01a/ES01a_04b_variante-alto_del_perdon.kml",
       "coordinates": [
         [
-          42.73564026,
-          -1.74261997,
-          765.461
+          42.73565719,
+          -1.74262499,
+          765.481
         ],
         [
           42.73590026,
@@ -12668,14 +12668,14 @@
           356.973
         ],
         [
-          42.67658723,
-          -1.80651974,
-          355.545
+          42.67658824,
+          -1.80651287,
+          355.582
         ]
       ],
       "elevation": {
-        "min_m": 355.545,
-        "max_m": 765.461
+        "min_m": 355.582,
+        "max_m": 765.481
       },
       "from_key": "variante",
       "from": "Variante",

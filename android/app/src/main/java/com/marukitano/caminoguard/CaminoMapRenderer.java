@@ -56,6 +56,12 @@ final class CaminoMapRenderer {
             30.0f;
 
     /*
+     * v60: coloured v50 network-debug circles/labels are disabled.
+     */
+    private static final boolean NETWORK_DEBUG_ENABLED =
+            false;
+
+    /*
      * Stage markers belong directly above the visible Camino route, but below
      * the later political/world overview fills. That way they are hidden by
      * exactly the same overview curtain as the Camino itself.
@@ -136,11 +142,13 @@ CaminoMapRenderer(
                         stageTopology
                 );
 
-        addRawTrackDebugIcons(
-                style,
-                stageFeatures,
-                routes
-        );
+        if (NETWORK_DEBUG_ENABLED) {
+            addRawTrackDebugIcons(
+                    style,
+                    stageFeatures,
+                    routes
+            );
+        }
 
         GeoJsonSource stageSource =
                 style.getSourceAs(
@@ -368,6 +376,9 @@ CaminoMapRenderer(
                     PropertyFactory.iconImage(
                             VARIANT_IMAGE
                     ),
+                    PropertyFactory.visibility(
+                            "none"
+                    ),
                     PropertyFactory.iconAllowOverlap(
                             true
                     ),
@@ -391,10 +402,12 @@ CaminoMapRenderer(
             );
         }
 
-        installNetworkDebugView(
-                style,
-                routes
-        );
+        if (NETWORK_DEBUG_ENABLED) {
+            installNetworkDebugView(
+                    style,
+                    routes
+            );
+        }
 
 }
 

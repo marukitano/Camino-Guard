@@ -1330,7 +1330,7 @@
       "section_id": "01b",
       "variant_suffix": "b",
       "raw_label": "villajoyosa-orxeta",
-      "length_m": 12570.97,
+      "length_m": 12570.831,
       "points_count": 151,
       "raw_path": "data/raw/cnig/ES39a/ES39a_01b_villajoyosa-orxeta.kml",
       "coordinates": [
@@ -2085,9 +2085,9 @@
           248.435
         ],
         [
-          38.57653705,
-          -0.26366651,
-          244.204
+          38.57653202,
+          -0.26367992,
+          244.645
         ]
       ],
       "elevation": {
