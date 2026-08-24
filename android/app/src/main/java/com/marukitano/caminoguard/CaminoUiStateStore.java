@@ -48,6 +48,42 @@ final class CaminoUiStateStore {
     private static final String PREF_CAMERA_TILT =
             "camera_tilt";
 
+    private static final String PREF_SELECTION_LOCKED =
+            "selection_locked";
+
+    private static final String PREF_SELECTION_START_ROUTE =
+            "selection_start_route";
+
+    private static final String PREF_SELECTION_START_LAT =
+            "selection_start_lat";
+
+    private static final String PREF_SELECTION_START_LON =
+            "selection_start_lon";
+
+    private static final String PREF_SELECTION_END_ROUTE =
+            "selection_end_route";
+
+    private static final String PREF_SELECTION_END_LAT =
+            "selection_end_lat";
+
+    private static final String PREF_SELECTION_END_LON =
+            "selection_end_lon";
+
+    private static final String PREF_SELECTION_VARIANT_PATH =
+            "selection_variant_path";
+
+    private static final String PREF_SELECTION_STAGE_PLACE =
+            "selection_stage_place";
+
+    private static final String PREF_SELECTION_STAGE_LAT =
+            "selection_stage_lat";
+
+    private static final String PREF_SELECTION_STAGE_LON =
+            "selection_stage_lon";
+
+    private static final String PREF_SELECTION_RESOLVED_PATH =
+            "selection_resolved_path";
+
     private final SharedPreferences preferences;
 
     CaminoUiStateStore(
@@ -232,6 +268,267 @@ final class CaminoUiStateStore {
                 .apply();
     }
 
+    void saveLockedSelection(
+            String startRouteId,
+            LatLng startPoint,
+            String endRouteId,
+            LatLng endPoint,
+            String variantPathId,
+            String stagePlaceKey,
+            LatLng stagePoint,
+            String resolvedPathId
+    ) {
+        SharedPreferences.Editor editor =
+                preferences
+                        .edit()
+                        .putBoolean(
+                                PREF_SELECTION_LOCKED,
+                                true
+                        );
+
+        putNullableString(
+                editor,
+                PREF_SELECTION_START_ROUTE,
+                startRouteId
+        );
+
+        putNullablePoint(
+                editor,
+                PREF_SELECTION_START_LAT,
+                PREF_SELECTION_START_LON,
+                startPoint
+        );
+
+        putNullableString(
+                editor,
+                PREF_SELECTION_END_ROUTE,
+                endRouteId
+        );
+
+        putNullablePoint(
+                editor,
+                PREF_SELECTION_END_LAT,
+                PREF_SELECTION_END_LON,
+                endPoint
+        );
+
+        putNullableString(
+                editor,
+                PREF_SELECTION_VARIANT_PATH,
+                variantPathId
+        );
+
+        putNullableString(
+                editor,
+                PREF_SELECTION_STAGE_PLACE,
+                stagePlaceKey
+        );
+
+        putNullablePoint(
+                editor,
+                PREF_SELECTION_STAGE_LAT,
+                PREF_SELECTION_STAGE_LON,
+                stagePoint
+        );
+
+        putNullableString(
+                editor,
+                PREF_SELECTION_RESOLVED_PATH,
+                resolvedPathId
+        );
+
+        editor.apply();
+    }
+
+
+    LockedSelectionState restoreLockedSelection() {
+        if (!preferences.getBoolean(
+                PREF_SELECTION_LOCKED,
+                false
+        )) {
+
+            return null;
+        }
+
+        return new LockedSelectionState(
+                preferences.getString(
+                        PREF_SELECTION_START_ROUTE,
+                        null
+                ),
+                restorePoint(
+                        PREF_SELECTION_START_LAT,
+                        PREF_SELECTION_START_LON
+                ),
+                preferences.getString(
+                        PREF_SELECTION_END_ROUTE,
+                        null
+                ),
+                restorePoint(
+                        PREF_SELECTION_END_LAT,
+                        PREF_SELECTION_END_LON
+                ),
+                preferences.getString(
+                        PREF_SELECTION_VARIANT_PATH,
+                        null
+                ),
+                preferences.getString(
+                        PREF_SELECTION_STAGE_PLACE,
+                        null
+                ),
+                restorePoint(
+                        PREF_SELECTION_STAGE_LAT,
+                        PREF_SELECTION_STAGE_LON
+                ),
+                preferences.getString(
+                        PREF_SELECTION_RESOLVED_PATH,
+                        null
+                )
+        );
+    }
+
+
+    void clearLockedSelection() {
+        preferences
+                .edit()
+                .remove(
+                        PREF_SELECTION_LOCKED
+                )
+                .remove(
+                        PREF_SELECTION_START_ROUTE
+                )
+                .remove(
+                        PREF_SELECTION_START_LAT
+                )
+                .remove(
+                        PREF_SELECTION_START_LON
+                )
+                .remove(
+                        PREF_SELECTION_END_ROUTE
+                )
+                .remove(
+                        PREF_SELECTION_END_LAT
+                )
+                .remove(
+                        PREF_SELECTION_END_LON
+                )
+                .remove(
+                        PREF_SELECTION_VARIANT_PATH
+                )
+                .remove(
+                        PREF_SELECTION_STAGE_PLACE
+                )
+                .remove(
+                        PREF_SELECTION_STAGE_LAT
+                )
+                .remove(
+                        PREF_SELECTION_STAGE_LON
+                )
+                .remove(
+                        PREF_SELECTION_RESOLVED_PATH
+                )
+                .apply();
+    }
+
+
+    private void putNullableString(
+            SharedPreferences.Editor editor,
+            String key,
+            String value
+    ) {
+        if (value == null
+                || value.trim().isEmpty()) {
+
+            editor.remove(
+                    key
+            );
+
+        } else {
+            editor.putString(
+                    key,
+                    value
+            );
+        }
+    }
+
+
+    private void putNullablePoint(
+            SharedPreferences.Editor editor,
+            String latKey,
+            String lonKey,
+            LatLng point
+    ) {
+        if (point == null
+                || !Double.isFinite(
+                point.getLatitude()
+        )
+                || !Double.isFinite(
+                point.getLongitude()
+        )) {
+
+            editor.remove(
+                    latKey
+            );
+
+            editor.remove(
+                    lonKey
+            );
+
+            return;
+        }
+
+        editor.putLong(
+                latKey,
+                Double.doubleToRawLongBits(
+                        point.getLatitude()
+                )
+        );
+
+        editor.putLong(
+                lonKey,
+                Double.doubleToRawLongBits(
+                        point.getLongitude()
+                )
+        );
+    }
+
+
+    private LatLng restorePoint(
+            String latKey,
+            String lonKey
+    ) {
+        double latitude =
+                getDouble(
+                        latKey,
+                        Double.NaN
+                );
+
+        double longitude =
+                getDouble(
+                        lonKey,
+                        Double.NaN
+                );
+
+        if (!Double.isFinite(
+                latitude
+        )
+                || latitude < -90.0
+                || latitude > 90.0
+                || !Double.isFinite(
+                longitude
+        )
+                || longitude < -180.0
+                || longitude > 180.0) {
+
+            return null;
+        }
+
+        return new LatLng(
+                latitude,
+                longitude
+        );
+    }
+
+
     private double getDouble(
             String key,
             double fallback
@@ -251,4 +548,52 @@ final class CaminoUiStateStore {
                 )
         );
     }
+
+    static final class LockedSelectionState {
+
+        final String startRouteId;
+        final LatLng startPoint;
+        final String endRouteId;
+        final LatLng endPoint;
+        final String variantPathId;
+        final String stagePlaceKey;
+        final LatLng stagePoint;
+        final String resolvedPathId;
+
+        LockedSelectionState(
+                String startRouteId,
+                LatLng startPoint,
+                String endRouteId,
+                LatLng endPoint,
+                String variantPathId,
+                String stagePlaceKey,
+                LatLng stagePoint,
+                String resolvedPathId
+        ) {
+            this.startRouteId =
+                    startRouteId;
+
+            this.startPoint =
+                    startPoint;
+
+            this.endRouteId =
+                    endRouteId;
+
+            this.endPoint =
+                    endPoint;
+
+            this.variantPathId =
+                    variantPathId;
+
+            this.stagePlaceKey =
+                    stagePlaceKey;
+
+            this.stagePoint =
+                    stagePoint;
+
+            this.resolvedPathId =
+                    resolvedPathId;
+        }
+    }
+
 }

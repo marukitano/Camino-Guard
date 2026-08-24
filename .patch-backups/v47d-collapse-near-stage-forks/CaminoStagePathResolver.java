@@ -41,16 +41,6 @@ final class CaminoStagePathResolver {
     private static final double EXISTING_SHELL_REUSE_M =
             10.0;
 
-    /*
-     * If an official fork occurs only a few walking metres after an established
-     * stage start, rendering a second shell is confusing. Fold such a fork into
-     * the existing start shell while keeping the real shared-prefix geometry.
-     *
-     * Abla is the motivating case: the 04b fork is ~87 m after the 04a start.
-     */
-    private static final double NEAR_STAGE_FORK_COLLAPSE_M =
-            120.0;
-
     private static final double EVENT_EPSILON_M =
             0.25;
 
@@ -308,10 +298,7 @@ final class CaminoStagePathResolver {
                 );
 
         if (atStart != null) {
-            return choicesFromStageStartDecision(
-                    state,
-                    stage,
-                    primaryTrackIndex,
+            return choicesFromDecision(
                     atStart,
                     primary
             );
@@ -528,201 +515,6 @@ final class CaminoStagePathResolver {
                 ),
                 completed
         );
-    }
-
-
-    /**
-     * A fork can be physically a short distance after an established stage
-     * start but still belong to the same user-facing place.
-     *
-     * In that case the visible stage shell owns the carousel. Both the straight
-     * and alternative choices retain the real primary prefix from the shell to
-     * the physical fork before they diverge.
-     */
-    private List<CaminoResolvedStagePath> choicesFromStageStartDecision(
-            RouteState state,
-            PrimaryStageInfo stage,
-            int primaryTrackIndex,
-            DecisionPoint decision,
-            RouteTrack primary
-    ) {
-        if (state == null
-                || stage == null
-                || decision == null
-                || primary == null) {
-
-            return Collections.emptyList();
-        }
-
-        Cursor stageStart =
-                Cursor.primary(
-                        primary,
-                        primaryTrackIndex,
-                        stage.start,
-                        stage.direction
-                );
-
-        List<CaminoResolvedStagePath> result =
-                new ArrayList<>();
-
-        Set<String> seen =
-                new LinkedHashSet<>();
-
-        boolean straightAdded =
-                false;
-
-        for (BranchEvent event
-                : decision.events) {
-
-            if (event == null
-                    || event.target == null
-                    || event.target.track != primary) {
-
-                continue;
-            }
-
-            double prefixLengthM =
-                    Math.abs(
-                            event.target.chainageM
-                                    - stage.start.chainageM
-                    );
-
-            if (prefixLengthM
-                    > NEAR_STAGE_FORK_COLLAPSE_M
-                    + EVENT_EPSILON_M) {
-
-                continue;
-            }
-
-            List<CaminoResolvedStageLeg> commonPrefix =
-                    copyWithSlice(
-                            new ArrayList<>(),
-                            stageStart,
-                            event.target
-                    );
-
-            /*
-             * Straight continuation: include the shared prefix exactly once,
-             * then continue from the real fork while ignoring this folded
-             * decision so we do not immediately stop again.
-             */
-            if (!straightAdded) {
-                Cursor straight =
-                        cursorAtAttachment(
-                                state,
-                                event.target
-                        );
-
-                if (straight != null) {
-                    CompletedPath completed =
-                            traceUntilNextShell(
-                                    state,
-                                    straight,
-                                    commonPrefix,
-                                    new LinkedHashSet<>(),
-                                    decision.placeKey,
-                                    0
-                            );
-
-                    CaminoResolvedStagePath path =
-                            resolved(
-                                    state.route,
-                                    decision.placeKey,
-                                    stage.start.toHit(
-                                            primaryTrackIndex
-                                    ),
-                                    completed
-                            );
-
-                    if (path != null
-                            && seen.add(
-                            path.id
-                    )) {
-
-                        result.add(
-                                path
-                        );
-
-                        straightAdded =
-                                true;
-                    }
-                }
-            }
-
-            /*
-             * Alternative continuation: the same shared prefix is followed by
-             * the official variant beginning at the physical fork.
-             */
-            CaminoVariantPath variant =
-                    event.attachment == null
-                            ? null
-                            : event.attachment.path;
-
-            Cursor variantStart =
-                    variant == null
-                            ? null
-                            : variantPartStartCursor(
-                                    state,
-                                    variant,
-                                    0
-                            );
-
-            if (variantStart == null) {
-                continue;
-            }
-
-            LinkedHashSet<String> used =
-                    new LinkedHashSet<>();
-
-            used.add(
-                    variant.id
-            );
-
-            CompletedPath completed =
-                    traceUntilNextShell(
-                            state,
-                            variantStart,
-                            new ArrayList<>(
-                                    commonPrefix
-                            ),
-                            used,
-                            decision.placeKey,
-                            0
-                    );
-
-            CaminoResolvedStagePath path =
-                    resolved(
-                            state.route,
-                            decision.placeKey,
-                            stage.start.toHit(
-                                    primaryTrackIndex
-                            ),
-                            completed
-                    );
-
-            if (path != null
-                    && seen.add(
-                    path.id
-            )) {
-
-                result.add(
-                        path
-                );
-            }
-        }
-
-        /*
-         * Exact legacy fork-at-shell cases should still work even if malformed
-         * input prevented the folded-prefix path above from producing choices.
-         */
-        if (result.isEmpty()) {
-            return choicesFromDecision(
-                    decision,
-                    primary
-            );
-        }
-
-        return result;
     }
 
 
@@ -1341,17 +1133,10 @@ final class CaminoStagePathResolver {
                 continue;
             }
 
-            double allowedDistanceM =
-                    decision.placeKey.equals(
-                            placeKey
-                    )
-                            ? NEAR_STAGE_FORK_COLLAPSE_M
-                            : JOIN_TOLERANCE_M;
-
             if (Math.abs(
                     event.target.chainageM
                             - projection.chainageM
-            ) <= allowedDistanceM) {
+            ) <= JOIN_TOLERANCE_M) {
 
                 return decision;
             }
@@ -1724,43 +1509,11 @@ final class CaminoStagePathResolver {
 
                     if (existing == null) {
                         CaminoStageTopology.StageNode established =
-                                null;
-
-                        /*
-                         * Special UI collapse only for a fork shortly after the
-                         * START of this exact primary stage. Do not globally
-                         * merge arbitrary nearby shells.
-                         */
-                        PrimaryStageInfo ownerStage =
-                                state.primaryStages.get(
-                                        event.target.track
+                                topology.nearestPrimaryNode(
+                                        state.route,
+                                        event.target.point,
+                                        EXISTING_SHELL_REUSE_M
                                 );
-
-                        if (ownerStage != null
-                                && Math.abs(
-                                event.target.chainageM
-                                        - ownerStage.start.chainageM
-                        ) <= NEAR_STAGE_FORK_COLLAPSE_M) {
-
-                            established =
-                                    topology.node(
-                                            ownerStage.startPlaceKey,
-                                            ownerStage.start.point
-                                    );
-                        }
-
-                        /*
-                         * Preserve the old exact spatial reuse behavior for
-                         * true fork-at-shell cases.
-                         */
-                        if (established == null) {
-                            established =
-                                    topology.nearestPrimaryNode(
-                                            state.route,
-                                            event.target.point,
-                                            EXISTING_SHELL_REUSE_M
-                                    );
-                        }
 
                         String placeKey;
                         LatLng point;

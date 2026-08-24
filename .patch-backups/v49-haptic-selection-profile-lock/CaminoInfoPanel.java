@@ -41,11 +41,9 @@ final class CaminoInfoPanel extends FrameLayout {
     private final CaminoChevronView panelToggleView;
     private final CaminoNavigationButton navigationButton;
     private final TextView attributionButton;
-    private final CaminoSelectionLockButton selectionLockButton;
 
     private Runnable navigationAction;
     private Runnable attributionAction;
-    private Runnable selectionLockAction;
     private boolean hidden;
 
     CaminoInfoPanel(Context context) {
@@ -58,7 +56,7 @@ final class CaminoInfoPanel extends FrameLayout {
          */
         setClickable(false);
         setMinimumWidth(dpInt(48));
-        setMinimumHeight(dpInt(192));
+        setMinimumHeight(dpInt(144));
 
         setBackground(
                 null
@@ -272,7 +270,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 );
 
         compassParams.bottomMargin =
-                dpInt(148);
+                dpInt(100);
 
         addView(
                 compassView,
@@ -296,7 +294,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 );
 
         navigationParams.bottomMargin =
-                dpInt(100);
+                dpInt(52);
 
         addView(
                 navigationButton,
@@ -379,7 +377,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 );
 
         attributionParams.bottomMargin =
-                dpInt(52);
+                dpInt(4);
 
         addView(
                 attributionButton,
@@ -390,38 +388,6 @@ final class CaminoInfoPanel extends FrameLayout {
                 view -> {
                     if (attributionAction != null) {
                         attributionAction.run();
-                    }
-                }
-        );
-
-        selectionLockButton =
-                new CaminoSelectionLockButton(
-                        context
-                );
-
-        selectionLockButton.setClickable(
-                true
-        );
-
-        FrameLayout.LayoutParams lockParams =
-                new FrameLayout.LayoutParams(
-                        dpInt(40),
-                        dpInt(40),
-                        Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
-                );
-
-        lockParams.bottomMargin =
-                dpInt(4);
-
-        addView(
-                selectionLockButton,
-                lockParams
-        );
-
-        selectionLockButton.setOnClickListener(
-                view -> {
-                    if (selectionLockAction != null) {
-                        selectionLockAction.run();
                     }
                 }
         );
@@ -663,29 +629,6 @@ final class CaminoInfoPanel extends FrameLayout {
     ) {
         attributionAction =
                 action;
-    }
-
-    void setSelectionLockAction(
-            Runnable action
-    ) {
-        selectionLockAction =
-                action;
-    }
-
-    void setSelectionLocked(
-            boolean locked
-    ) {
-        selectionLockButton.setLocked(
-                locked
-        );
-    }
-
-    void setSelectionLockAvailable(
-            boolean available
-    ) {
-        selectionLockButton.setAvailable(
-                available
-        );
     }
 
     void setNavigationFollowEnabled(

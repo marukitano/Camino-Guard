@@ -466,11 +466,8 @@ if drag_path.is_file():
           "CaminoDragController does not own drag-target selection")
     check("screenDistanceSq(" in drag,
           "CaminoDragController does not own screen hit-distance")
-    check(
-        "projectionEngine.projectToRoute(" in drag
-        or "projectionEngine.projectToSelectableRoute(" in drag,
-        "CaminoDragController does not own drag snapping"
-    )
+    check("projectionEngine.projectToRoute(" in drag,
+          "CaminoDragController does not own drag snapping")
     check("CaminoTrackingService" not in drag,
           "CaminoDragController incorrectly owns GPS tracking")
     check("NavigationController" not in drag,

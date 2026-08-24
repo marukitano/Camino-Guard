@@ -138,34 +138,6 @@ final class CaminoSelectionController {
     }
 
 
-    void restoreSelection(
-            CaminoRoute startRoute,
-            ProjectionHit startHit,
-            CaminoRoute endRoute,
-            ProjectionHit endHit
-    ) {
-        if (startRoute == null
-                || startHit == null
-                || endRoute == null
-                || endHit == null) {
-
-            return;
-        }
-
-        selectedRoute =
-                startRoute;
-
-        selectedHit =
-                startHit;
-
-        secondSelectedRoute =
-                endRoute;
-
-        secondTapHit =
-                endHit;
-    }
-
-
     CaminoRoute selectedRoute() {
         return selectedRoute;
     }

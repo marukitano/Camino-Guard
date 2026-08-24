@@ -773,13 +773,6 @@ public final class CaminoController {
                         : null
         );
 
-        heightProfileController.setLockedSelectionPosition(
-                selectionLocked && marked
-                        ? dummyPosition
-                        : null,
-                selectionLocked && marked
-        );
-
         infoController.setSelectionLockAvailable(
                 marked
         );
@@ -1745,13 +1738,6 @@ public final class CaminoController {
                     false
             );
 
-            heightProfileController.setLockedSelectionPosition(
-                    null,
-                    false
-            );
-
-            heightProfileController.refresh();
-
             return;
         }
 
@@ -1769,13 +1755,6 @@ public final class CaminoController {
         infoController.setSelectionLocked(
                 true
         );
-
-        heightProfileController.setLockedSelectionPosition(
-                dummyPosition,
-                true
-        );
-
-        heightProfileController.refresh();
     }
 
 

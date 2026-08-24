@@ -3,7 +3,6 @@ package com.marukitano.caminoguard;
 import android.app.Activity;
 import android.graphics.PointF;
 import android.graphics.RectF;
-import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 
@@ -44,9 +43,6 @@ public final class CaminoController {
     private final CaminoDragController dragController;
     private final CaminoSelectionController selectionController;
     private final CaminoSelectionStatsOverlay selectionStatsOverlay;
-    private final CaminoUiStateStore uiStateStore;
-
-    private boolean selectionLocked;
 
     private MapLibreMap map;
 
@@ -117,11 +113,6 @@ public final class CaminoController {
                         activity
                 );
 
-        this.uiStateStore =
-                new CaminoUiStateStore(
-                        activity
-                );
-
         this.caminoNetwork =
                 new CaminoNetwork();
 
@@ -157,10 +148,6 @@ public final class CaminoController {
 
         infoController.setNavigationFollowEnabled(
                 navigationController.isFollowEnabled()
-        );
-
-        infoController.setSelectionLockAction(
-                this::toggleSelectionLock
         );
 
         this.projectionEngine =
@@ -466,15 +453,6 @@ public final class CaminoController {
                     }
 
                     /*
-                     * A locked selection is immutable. Ordinary map gestures
-                     * still work because this only consumes the final map click,
-                     * not pan/zoom touch movement.
-                     */
-                    if (selectionLocked) {
-                        return true;
-                    }
-
-                    /*
                      * Shells sit directly on the Camino, so test them before
                      * the generic route tap. A shell tap consumes one tap and
                      * creates the full two-point day-stage selection.
@@ -668,8 +646,6 @@ public final class CaminoController {
         caminoNetwork.rebuild(
                 routes
         );
-
-        restoreLockedSelectionIfPresent();
     }
 
     private void refresh() {
@@ -764,30 +740,6 @@ public final class CaminoController {
                 currentMeasurementPath
         );
 
-        boolean marked =
-                hasMarkedSelection();
-
-        heightProfileController.setMeasurementPath(
-                marked
-                        ? currentMeasurementPath
-                        : null
-        );
-
-        heightProfileController.setLockedSelectionPosition(
-                selectionLocked && marked
-                        ? dummyPosition
-                        : null,
-                selectionLocked && marked
-        );
-
-        infoController.setSelectionLockAvailable(
-                marked
-        );
-
-        infoController.setSelectionLocked(
-                selectionLocked
-        );
-
         heightProfileController.refresh();
     }
 
@@ -795,10 +747,6 @@ public final class CaminoController {
             MotionEvent event
     ) {
         if (map == null) {
-            return false;
-        }
-
-        if (selectionLocked) {
             return false;
         }
 
@@ -905,14 +853,6 @@ public final class CaminoController {
                     }
 
                     stageTouchLongPressTriggered = true;
-
-                    /*
-                     * Tactile confirmation exactly when shell mode turns into
-                     * editable blue-point mode.
-                     */
-                    mapView.performHapticFeedback(
-                            HapticFeedbackConstants.LONG_PRESS
-                    );
 
                     /*
                      * Explicitly leave shell mode without rebuilding the route:
@@ -1725,298 +1665,6 @@ public final class CaminoController {
                 left.t,
                 right.t
         );
-    }
-
-
-    private boolean hasMarkedSelection() {
-        return selectedVariantPath != null
-                || selectionController.secondTapHit() != null;
-    }
-
-
-    private void toggleSelectionLock() {
-        if (selectionLocked) {
-            selectionLocked =
-                    false;
-
-            uiStateStore.clearLockedSelection();
-
-            infoController.setSelectionLocked(
-                    false
-            );
-
-            heightProfileController.setLockedSelectionPosition(
-                    null,
-                    false
-            );
-
-            heightProfileController.refresh();
-
-            return;
-        }
-
-        if (!hasMarkedSelection()
-                || currentMeasurementPath == null) {
-
-            return;
-        }
-
-        selectionLocked =
-                true;
-
-        persistLockedSelection();
-
-        infoController.setSelectionLocked(
-                true
-        );
-
-        heightProfileController.setLockedSelectionPosition(
-                dummyPosition,
-                true
-        );
-
-        heightProfileController.refresh();
-    }
-
-
-    private void persistLockedSelection() {
-        String startRouteId =
-                null;
-
-        LatLng startPoint =
-                null;
-
-        String endRouteId =
-                null;
-
-        LatLng endPoint =
-                null;
-
-        if (selectionController.selectedRoute() != null
-                && selectionController.selectedHit() != null) {
-
-            startRouteId =
-                    selectionController.selectedRoute().id;
-
-            startPoint =
-                    selectionController.selectedHit().point;
-        }
-
-        if (selectionController.secondSelectedRoute() != null
-                && selectionController.secondTapHit() != null) {
-
-            endRouteId =
-                    selectionController.secondSelectedRoute().id;
-
-            endPoint =
-                    selectionController.secondTapHit().point;
-        }
-
-        String variantPathId =
-                selectedVariantPath == null
-                        ? null
-                        : selectedVariantPath.id;
-
-        String resolvedPathId =
-                selectedStageSelection == null
-                        || selectedStageSelection.resolvedPath == null
-                        ? null
-                        : selectedStageSelection.resolvedPath.id;
-
-        uiStateStore.saveLockedSelection(
-                startRouteId,
-                startPoint,
-                endRouteId,
-                endPoint,
-                variantPathId,
-                selectedStagePlaceKey,
-                selectedStagePoint,
-                resolvedPathId
-        );
-    }
-
-
-    private void restoreLockedSelectionIfPresent() {
-        CaminoUiStateStore.LockedSelectionState saved =
-                uiStateStore.restoreLockedSelection();
-
-        if (saved == null) {
-            selectionLocked =
-                    false;
-
-            return;
-        }
-
-        if (saved.variantPathId != null) {
-            CaminoVariantPath variant =
-                    findVariantPath(
-                            saved.variantPathId
-                    );
-
-            if (variant != null) {
-                selectionController.clearSelectionWithoutRefresh();
-
-                selectedVariantPath =
-                        variant;
-
-                selectionLocked =
-                        true;
-
-                return;
-            }
-        }
-
-        if (saved.stagePlaceKey != null
-                && saved.stagePoint != null
-                && saved.resolvedPathId != null) {
-
-            List<StageRouteSelection> choices =
-                    findOutgoingStages(
-                            saved.stagePlaceKey,
-                            saved.stagePoint
-                    );
-
-            for (int index = 0;
-                    index < choices.size();
-                    index++) {
-
-                StageRouteSelection choice =
-                        choices.get(
-                                index
-                        );
-
-                if (choice.resolvedPath == null
-                        || !saved.resolvedPathId.equals(
-                        choice.resolvedPath.id
-                )) {
-
-                    continue;
-                }
-
-                selectedVariantPath =
-                        null;
-
-                selectedStagePoint =
-                        saved.stagePoint;
-
-                selectedStageHighlightColor =
-                        choice.route.highlightColor;
-
-                selectedStagePlaceKey =
-                        saved.stagePlaceKey;
-
-                selectedStageChoiceIndex =
-                        index;
-
-                selectedStageSelection =
-                        choice;
-
-                selectionController.restoreSelection(
-                        choice.route,
-                        choice.startHit,
-                        choice.route,
-                        choice.endHit
-                );
-
-                selectionLocked =
-                        true;
-
-                return;
-            }
-        }
-
-        if (saved.startRouteId == null
-                || saved.startPoint == null
-                || saved.endRouteId == null
-                || saved.endPoint == null) {
-
-            uiStateStore.clearLockedSelection();
-
-            selectionLocked =
-                    false;
-
-            return;
-        }
-
-        CaminoRoute startRoute =
-                findRouteById(
-                        saved.startRouteId
-                );
-
-        CaminoRoute endRoute =
-                findRouteById(
-                        saved.endRouteId
-                );
-
-        if (startRoute == null
-                || endRoute == null) {
-
-            uiStateStore.clearLockedSelection();
-
-            selectionLocked =
-                    false;
-
-            return;
-        }
-
-        ProjectionHit startHit =
-                projectionEngine.projectToSelectableRoute(
-                        startRoute,
-                        saved.startPoint
-                );
-
-        ProjectionHit endHit =
-                projectionEngine.projectToSelectableRoute(
-                        endRoute,
-                        saved.endPoint
-                );
-
-        if (startHit == null
-                || endHit == null
-                || startHit.distanceFromQueryM > 50.0
-                || endHit.distanceFromQueryM > 50.0) {
-
-            uiStateStore.clearLockedSelection();
-
-            selectionLocked =
-                    false;
-
-            return;
-        }
-
-        clearSelectedStageVisual();
-
-        selectionController.restoreSelection(
-                startRoute,
-                startHit,
-                endRoute,
-                endHit
-        );
-
-        selectionLocked =
-                true;
-    }
-
-
-    private CaminoRoute findRouteById(
-            String routeId
-    ) {
-        if (routeId == null) {
-            return null;
-        }
-
-        for (CaminoRoute route
-                : routes) {
-
-            if (routeId.equals(
-                    route.id
-            )) {
-
-                return route;
-            }
-        }
-
-        return null;
     }
 
 

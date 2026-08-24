@@ -167,21 +167,6 @@ final class CaminoHeightProfileView extends View {
                     Paint.ANTI_ALIAS_FLAG
             );
 
-    private final Paint lockedMarkerOuterPaint =
-            new Paint(
-                    Paint.ANTI_ALIAS_FLAG
-            );
-
-    private final Paint lockedMarkerInnerPaint =
-            new Paint(
-                    Paint.ANTI_ALIAS_FLAG
-            );
-
-    private final Paint lockedMarkerLabelBackgroundPaint =
-            new Paint(
-                    Paint.ANTI_ALIAS_FLAG
-            );
-
     private final CaminoHeightProfileModel model =
             new CaminoHeightProfileModel(
                     MAX_DRAW_SAMPLES
@@ -192,8 +177,6 @@ final class CaminoHeightProfileView extends View {
 
     private int cursorIndex =
             -1;
-
-    private Sample lockedPositionSample;
 
     private int touchMode =
             TOUCH_NONE;
@@ -438,52 +421,6 @@ final class CaminoHeightProfileView extends View {
         toggleBackgroundPaint.setStyle(
                 Paint.Style.FILL
         );
-
-        lockedMarkerOuterPaint.setColor(
-                Color.rgb(
-                        36,
-                        86,
-                        143
-                )
-        );
-
-        lockedMarkerOuterPaint.setStyle(
-                Paint.Style.FILL
-        );
-
-        lockedMarkerInnerPaint.setColor(
-                Color.rgb(
-                        166,
-                        218,
-                        248
-                )
-        );
-
-        lockedMarkerInnerPaint.setStyle(
-                Paint.Style.FILL
-        );
-
-        lockedMarkerLabelBackgroundPaint.setColor(
-                Color.argb(
-                        220,
-                        31,
-                        52,
-                        72
-                )
-        );
-
-        lockedMarkerLabelBackgroundPaint.setStyle(
-                Paint.Style.FILL
-        );
-    }
-
-    void setLockedPositionSample(
-            Sample sample
-    ) {
-        lockedPositionSample =
-                sample;
-
-        invalidate();
     }
 
     void clearProfile() {
@@ -492,9 +429,6 @@ final class CaminoHeightProfileView extends View {
 
         cursorIndex =
                 -1;
-
-        lockedPositionSample =
-                null;
 
         touchMode =
                 TOUCH_NONE;
@@ -1107,23 +1041,6 @@ final class CaminoHeightProfileView extends View {
                 canvas,
                 profileFadeLayer
         );
-
-        if (!profileHidden
-                && reveal > 0.01f
-                && lockedPositionSample != null
-                && Double.isFinite(
-                lockedPositionSample.elevationM
-        )) {
-
-            drawLockedPositionMarker(
-                    canvas,
-                    lockedPositionSample,
-                    left,
-                    right,
-                    displayMin,
-                    elevationSpan
-            );
-        }
 
         if (!profileHidden
                 && reveal > 0.95f
@@ -1863,183 +1780,6 @@ final class CaminoHeightProfileView extends View {
                 togglePaint
         );
     }
-
-    private void drawLockedPositionMarker(
-            Canvas canvas,
-            Sample sample,
-            float profileLeft,
-            float right,
-            double displayMin,
-            double elevationSpan
-    ) {
-        float y =
-                screenY(
-                        sample
-                );
-
-        float x =
-                profileX(
-                        sample,
-                        profileLeft,
-                        right,
-                        displayMin,
-                        elevationSpan
-                );
-
-        canvas.drawCircle(
-                x,
-                y,
-                dp(
-                        5.0f
-                ),
-                lockedMarkerOuterPaint
-        );
-
-        canvas.drawCircle(
-                x,
-                y,
-                dp(
-                        3.25f
-                ),
-                lockedMarkerInnerPaint
-        );
-
-        String text =
-                String.format(
-                        Locale.GERMANY,
-                        "%.0f m",
-                        sample.elevationM
-                );
-
-        float horizontalPadding =
-                dp(
-                        6.0f
-                );
-
-        float verticalPadding =
-                dp(
-                        3.0f
-                );
-
-        float gap =
-                dp(
-                        8.0f
-                );
-
-        float textWidth =
-                cursorLabelTextPaint.measureText(
-                        text
-                );
-
-        Paint.FontMetrics metrics =
-                cursorLabelTextPaint.getFontMetrics();
-
-        float textHeight =
-                metrics.descent
-                        - metrics.ascent;
-
-        float labelRight =
-                x
-                        - gap;
-
-        float labelLeft =
-                labelRight
-                        - textWidth
-                        - horizontalPadding
-                        * 2.0f;
-
-        if (labelLeft
-                < dp(
-                4.0f
-        )) {
-
-            labelLeft =
-                    x
-                            + gap;
-
-            labelRight =
-                    labelLeft
-                            + textWidth
-                            + horizontalPadding
-                            * 2.0f;
-        }
-
-        if (labelRight
-                > getWidth()
-                - dp(
-                4.0f
-        )) {
-
-            labelRight =
-                    getWidth()
-                            - dp(
-                            4.0f
-                    );
-
-            labelLeft =
-                    labelRight
-                            - textWidth
-                            - horizontalPadding
-                            * 2.0f;
-        }
-
-        float labelTop =
-                y
-                        - textHeight
-                        / 2.0f
-                        - verticalPadding;
-
-        labelTop =
-                Math.max(
-                        dp(
-                                2.0f
-                        ),
-                        Math.min(
-                                getHeight()
-                                        - textHeight
-                                        - verticalPadding
-                                        * 2.0f
-                                        - dp(
-                                        2.0f
-                                ),
-                                labelTop
-                        )
-                );
-
-        float labelBottom =
-                labelTop
-                        + textHeight
-                        + verticalPadding
-                        * 2.0f;
-
-        canvas.drawRoundRect(
-                labelLeft,
-                labelTop,
-                labelRight,
-                labelBottom,
-                dp(
-                        7.0f
-                ),
-                dp(
-                        7.0f
-                ),
-                lockedMarkerLabelBackgroundPaint
-        );
-
-        float baseline =
-                labelTop
-                        + verticalPadding
-                        - metrics.ascent;
-
-        canvas.drawText(
-                text,
-                labelLeft
-                        + horizontalPadding,
-                baseline,
-                cursorLabelTextPaint
-        );
-    }
-
 
     private void drawCursor(
             Canvas canvas,

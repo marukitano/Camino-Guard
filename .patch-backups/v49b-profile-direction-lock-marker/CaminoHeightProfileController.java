@@ -70,13 +70,6 @@ final class CaminoHeightProfileController {
      */
     private MeasurementPath selectedMeasurementPath;
 
-    /*
-     * While a marked route is locked, show the current live/dummy position
-     * permanently on that route's elevation profile.
-     */
-    private LatLng lockedSelectionPosition;
-    private boolean lockedSelectionActive;
-
     private final Runnable refreshRunnable =
             () -> {
                 refreshScheduled =
@@ -188,21 +181,6 @@ final class CaminoHeightProfileController {
                         ? path
                         : null;
     }
-
-    void setLockedSelectionPosition(
-            LatLng position,
-            boolean locked
-    ) {
-        lockedSelectionPosition =
-                locked
-                        ? position
-                        : null;
-
-        lockedSelectionActive =
-                locked
-                        && position != null;
-    }
-
 
     private boolean hasUsableMeasurementPath(
             MeasurementPath path
@@ -463,25 +441,12 @@ final class CaminoHeightProfileController {
                     selectedSamples
             );
 
-            view.setLockedPositionSample(
-                    lockedSelectionActive
-                            ? buildLockedPositionSample(
-                            selectedMeasurementPath,
-                            lockedSelectionPosition
-                    )
-                            : null
-            );
-
             infoPresenter.setHeightStats(
                     ""
             );
 
             return;
         }
-
-        view.setLockedPositionSample(
-                null
-        );
 
         int bucketCount =
                 Math.max(
@@ -599,22 +564,9 @@ final class CaminoHeightProfileController {
             return result;
         }
 
-        /*
-         * Walking direction on the vertical diagram:
-         *
-         *   START = physical bottom edge
-         *   GOAL  = physical top edge
-         *
-         * The View fade-mask expects samples in visual top-to-bottom order.
-         * Therefore iterate the route backwards while keeping slope semantics
-         * in the real forward walking direction.
-         */
-        boolean firstVisualSample =
-                true;
-
-        for (int index = points.size() - 1;
-                index >= 0;
-                index--) {
+        for (int index = 0;
+                index < points.size();
+                index++) {
 
             ProfilePoint point =
                     points.get(
@@ -632,37 +584,23 @@ final class CaminoHeightProfileController {
                 continue;
             }
 
-            double progress =
-                    (
-                            point.distanceM
-                                    - firstDistanceM
-                    )
-                            / spanM;
-
-            progress =
-                    Math.max(
-                            0.0,
-                            Math.min(
-                                    1.0,
-                                    progress
-                            )
-                    );
-
             float yFraction =
                     (float)
                             (
-                                    1.0
-                                            - progress
+                                    (
+                                            point.distanceM
+                                                    - firstDistanceM
+                                    )
+                                            / spanM
                             );
 
-            boolean reversedBreakBefore =
-                    firstVisualSample
-                            || (
-                            index + 1
-                                    < points.size()
-                            && points.get(
-                            index + 1
-                    ).breakBefore
+            yFraction =
+                    Math.max(
+                            0.0f,
+                            Math.min(
+                                    1.0f,
+                                    yFraction
+                            )
                     );
 
             result.add(
@@ -676,337 +614,13 @@ final class CaminoHeightProfileController {
                                     points,
                                     index
                             ),
-                            reversedBreakBefore
+                            index == 0
+                                    || point.breakBefore
                     )
             );
-
-            firstVisualSample =
-                    false;
         }
 
         return result;
-    }
-
-
-    private CaminoHeightProfileView.Sample buildLockedPositionSample(
-            MeasurementPath path,
-            LatLng position
-    ) {
-        if (!hasUsableMeasurementPath(
-                path
-        )
-                || position == null) {
-
-            return null;
-        }
-
-        List<ProfilePoint> points =
-                path.profilePoints;
-
-        double firstDistanceM =
-                points.get(
-                        0
-                ).distanceM;
-
-        double lastDistanceM =
-                points.get(
-                        points.size() - 1
-                ).distanceM;
-
-        double spanM =
-                lastDistanceM
-                        - firstDistanceM;
-
-        if (!Double.isFinite(
-                spanM
-        )
-                || spanM <= 0.01) {
-
-            return null;
-        }
-
-        double bestOffsetM =
-                Double.POSITIVE_INFINITY;
-
-        double bestDistanceM =
-                Double.NaN;
-
-        double bestElevationM =
-                Double.NaN;
-
-        for (int index = 1;
-                index < points.size();
-                index++) {
-
-            ProfilePoint a =
-                    points.get(
-                            index - 1
-                    );
-
-            ProfilePoint b =
-                    points.get(
-                            index
-                    );
-
-            if (a == null
-                    || b == null
-                    || a.point == null
-                    || b.point == null
-                    || b.breakBefore
-                    || !Double.isFinite(
-                    a.distanceM
-            )
-                    || !Double.isFinite(
-                    b.distanceM
-            )
-                    || !Double.isFinite(
-                    a.elevationM
-            )
-                    || !Double.isFinite(
-                    b.elevationM
-            )) {
-
-                continue;
-            }
-
-            PositionProjection projection =
-                    projectPositionToSegment(
-                            position,
-                            a.point,
-                            b.point
-                    );
-
-            if (projection == null
-                    || projection.offsetM
-                    >= bestOffsetM) {
-
-                continue;
-            }
-
-            bestOffsetM =
-                    projection.offsetM;
-
-            bestDistanceM =
-                    a.distanceM
-                            + projection.t
-                            * (
-                            b.distanceM
-                                    - a.distanceM
-                    );
-
-            bestElevationM =
-                    a.elevationM
-                            + projection.t
-                            * (
-                            b.elevationM
-                                    - a.elevationM
-                    );
-        }
-
-        if (!Double.isFinite(
-                bestDistanceM
-        )) {
-
-            for (ProfilePoint point
-                    : points) {
-
-                if (point == null
-                        || point.point == null
-                        || !Double.isFinite(
-                        point.distanceM
-                )
-                        || !Double.isFinite(
-                        point.elevationM
-                )) {
-
-                    continue;
-                }
-
-                double offsetM =
-                        GeoMath.distanceMeters(
-                                position,
-                                point.point
-                        );
-
-                if (offsetM
-                        >= bestOffsetM) {
-
-                    continue;
-                }
-
-                bestOffsetM =
-                        offsetM;
-
-                bestDistanceM =
-                        point.distanceM;
-
-                bestElevationM =
-                        point.elevationM;
-            }
-        }
-
-        if (!Double.isFinite(
-                bestDistanceM
-        )
-                || !Double.isFinite(
-                bestElevationM
-        )) {
-
-            return null;
-        }
-
-        double progress =
-                (
-                        bestDistanceM
-                                - firstDistanceM
-                )
-                        / spanM;
-
-        progress =
-                Math.max(
-                        0.0,
-                        Math.min(
-                                1.0,
-                                progress
-                        )
-                );
-
-        return new CaminoHeightProfileView.Sample(
-                1.0f,
-                (float)
-                        (
-                                1.0
-                                        - progress
-                        ),
-                bestElevationM,
-                bestDistanceM
-                        - firstDistanceM,
-                0.0,
-                false
-        );
-    }
-
-
-    private PositionProjection projectPositionToSegment(
-            LatLng query,
-            LatLng a,
-            LatLng b
-    ) {
-        double refLat =
-                Math.toRadians(
-                        (
-                                query.getLatitude()
-                                        + a.getLatitude()
-                                        + b.getLatitude()
-                        )
-                                / 3.0
-                );
-
-        double cosLat =
-                Math.max(
-                        0.20,
-                        Math.cos(
-                                refLat
-                        )
-                );
-
-        double metresPerRad =
-                6_371_000.0;
-
-        double ax =
-                Math.toRadians(
-                        a.getLongitude()
-                                - query.getLongitude()
-                )
-                        * metresPerRad
-                        * cosLat;
-
-        double ay =
-                Math.toRadians(
-                        a.getLatitude()
-                                - query.getLatitude()
-                )
-                        * metresPerRad;
-
-        double bx =
-                Math.toRadians(
-                        b.getLongitude()
-                                - query.getLongitude()
-                )
-                        * metresPerRad
-                        * cosLat;
-
-        double by =
-                Math.toRadians(
-                        b.getLatitude()
-                                - query.getLatitude()
-                )
-                        * metresPerRad;
-
-        double vx =
-                bx - ax;
-
-        double vy =
-                by - ay;
-
-        double lengthSq =
-                vx * vx
-                        + vy * vy;
-
-        double t =
-                0.0;
-
-        if (lengthSq > 1e-9) {
-            t =
-                    -(
-                            ax * vx
-                                    + ay * vy
-                    )
-                            / lengthSq;
-
-            t =
-                    Math.max(
-                            0.0,
-                            Math.min(
-                                    1.0,
-                                    t
-                            )
-                    );
-        }
-
-        double px =
-                ax
-                        + t * vx;
-
-        double py =
-                ay
-                        + t * vy;
-
-        return new PositionProjection(
-                t,
-                Math.hypot(
-                        px,
-                        py
-                )
-        );
-    }
-
-
-    private static final class PositionProjection {
-
-        final double t;
-        final double offsetM;
-
-        PositionProjection(
-                double t,
-                double offsetM
-        ) {
-            this.t =
-                    t;
-
-            this.offsetM =
-                    offsetM;
-        }
     }
 
 

@@ -6,7 +6,13 @@ import org.maplibre.geojson.LineString;
 import org.maplibre.geojson.Point;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 /**
  * Owns route measurement and height-profile geometry.
@@ -842,13 +848,54 @@ final class MeasurementEngine {
             return null;
         }
 
+        RouteTrack startTrack =
+                trackForManualHit(
+                        start.route,
+                        start.hit
+                );
+
+        RouteTrack endTrack =
+                trackForManualHit(
+                        end.route,
+                        end.hit
+                );
+
+        if (startTrack == null
+                || endTrack == null) {
+
+            return null;
+        }
+
         /*
-         * Same named Camino: preserve the current simple behavior and stay on
-         * this Camino instead of looking for a possibly shorter detour through
-         * another route group.
+         * Same named Camino:
+         *
+         * Primary -> primary preserves the old established linear behavior.
+         * As soon as one point lies on an official variant, use a route-local
+         * graph containing primary + variant geometry.
          */
         if (start.route
                 == end.route) {
+
+            boolean startPrimary =
+                    start.route.tracks.contains(
+                            startTrack
+                    );
+
+            boolean endPrimary =
+                    end.route.tracks.contains(
+                            endTrack
+                    );
+
+            if (!startPrimary
+                    || !endPrimary) {
+
+                return buildManualVariantAwareMeasurement(
+                        start.route,
+                        start.hit,
+                        end.hit
+                );
+            }
+
             MeasurementPath result =
                     new MeasurementPath();
 
@@ -888,6 +935,20 @@ final class MeasurementEngine {
                     end.route;
 
             return result;
+        }
+
+        /*
+         * The global cross-Camino graph intentionally remains primary-only.
+         * Do not silently invent cross-route variant transfers here.
+         */
+        if (!start.route.tracks.contains(
+                startTrack
+        )
+                || !end.route.tracks.contains(
+                endTrack
+        )) {
+
+            return null;
         }
 
         NetworkCandidate best =
@@ -1018,6 +1079,1491 @@ final class MeasurementEngine {
 
         return result;
     }
+
+    private static final double MANUAL_VARIANT_JOIN_TOLERANCE_M =
+            25.0;
+
+    private static final double MANUAL_NODE_EPSILON_M =
+            0.05;
+
+
+    private RouteTrack trackForManualHit(
+            CaminoRoute route,
+            ProjectionHit hit
+    ) {
+        if (route == null
+                || hit == null) {
+
+            return null;
+        }
+
+        if (hit.track != null
+                && route.renderTracks.contains(
+                hit.track
+        )) {
+
+            return hit.track;
+        }
+
+        if (hit.trackIndex >= 0
+                && hit.trackIndex
+                < route.tracks.size()) {
+
+            return route.tracks.get(
+                    hit.trackIndex
+            );
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Manual two-point measurement for one Camino when at least one endpoint
+     * lies on an official variant.
+     *
+     * This graph is deliberately separate from CaminoNetwork:
+     * - primary-only global behavior stays unchanged
+     * - all official renderTracks are traversable
+     * - variant paths attach only at proven <=25 m physical junctions
+     * - primary section gaps keep their old measured behavior
+     */
+    private MeasurementPath buildManualVariantAwareMeasurement(
+            CaminoRoute route,
+            ProjectionHit start,
+            ProjectionHit end
+    ) {
+        RouteTrack startTrack =
+                trackForManualHit(
+                        route,
+                        start
+                );
+
+        RouteTrack endTrack =
+                trackForManualHit(
+                        route,
+                        end
+                );
+
+        if (route == null
+                || startTrack == null
+                || endTrack == null) {
+
+            return null;
+        }
+
+        /*
+         * Two points on exactly the same geometry should simply use that
+         * geometry instead of finding a shorter detour through the network.
+         */
+        if (startTrack == endTrack) {
+            ProjectionHit localStart =
+                    manualHitAtChainage(
+                            route,
+                            startTrack,
+                            localChainageM(
+                                    startTrack,
+                                    start
+                            )
+                    );
+
+            ProjectionHit localEnd =
+                    manualHitAtChainage(
+                            route,
+                            endTrack,
+                            localChainageM(
+                                    endTrack,
+                                    end
+                            )
+                    );
+
+            if (localStart == null
+                    || localEnd == null) {
+
+                return null;
+            }
+
+            MeasurementPath direct =
+                    new MeasurementPath();
+
+            addTrackSlice(
+                    direct.routeFeatures,
+                    startTrack,
+                    localStart,
+                    localEnd
+            );
+
+            appendTrackProfileSlice(
+                    direct,
+                    startTrack,
+                    localStart,
+                    localEnd
+            );
+
+            direct.distanceM =
+                    Math.abs(
+                            localChainageM(
+                                    startTrack,
+                                    start
+                            )
+                                    - localChainageM(
+                                    endTrack,
+                                    end
+                            )
+                    );
+
+            direct.startRoute =
+                    route;
+
+            direct.endRoute =
+                    route;
+
+            return direct.routeFeatures.isEmpty()
+                    ? null
+                    : direct;
+        }
+
+        Map<RouteTrack, List<ManualNode>> nodesByTrack =
+                new IdentityHashMap<>();
+
+        for (RouteTrack track
+                : route.renderTracks) {
+
+            if (track == null
+                    || track.points.size() < 2) {
+
+                continue;
+            }
+
+            manualNode(
+                    nodesByTrack,
+                    track,
+                    0.0
+            );
+
+            manualNode(
+                    nodesByTrack,
+                    track,
+                    trackGeometryLength(
+                            track
+                    )
+            );
+        }
+
+        ManualNode startNode =
+                manualNode(
+                        nodesByTrack,
+                        startTrack,
+                        localChainageM(
+                                startTrack,
+                                start
+                        )
+                );
+
+        ManualNode endNode =
+                manualNode(
+                        nodesByTrack,
+                        endTrack,
+                        localChainageM(
+                                endTrack,
+                                end
+                        )
+                );
+
+        if (startNode == null
+                || endNode == null) {
+
+            return null;
+        }
+
+        List<ManualConnection> connections =
+                new ArrayList<>();
+
+        /*
+         * Preserve the old ordered primary-track connection behavior.
+         * A real source gap contributes to distance and is rendered as a gap.
+         */
+        for (int index = 0;
+                index < route.tracks.size() - 1;
+                index++) {
+
+            RouteTrack left =
+                    route.tracks.get(
+                            index
+                    );
+
+            RouteTrack right =
+                    route.tracks.get(
+                            index + 1
+                    );
+
+            ManualNode from =
+                    manualNode(
+                            nodesByTrack,
+                            left,
+                            trackGeometryLength(
+                                    left
+                            )
+                    );
+
+            ManualNode to =
+                    manualNode(
+                            nodesByTrack,
+                            right,
+                            0.0
+                    );
+
+            if (from != null
+                    && to != null) {
+
+                connections.add(
+                        new ManualConnection(
+                                from,
+                                to,
+                                GeoMath.distanceMeters(
+                                        from.point,
+                                        to.point
+                                ),
+                                true
+                        )
+                );
+            }
+        }
+
+        /*
+         * Variant topology comes only from official CaminoVariantPath objects.
+         * Geometry may attach a path only when BOTH outside endpoints are
+         * physically proven within the same <=25 m tolerance as stage routing.
+         */
+        for (CaminoVariantPath path
+                : route.variantPaths) {
+
+            if (path == null
+                    || path.parts.isEmpty()) {
+
+                continue;
+            }
+
+            Set<RouteTrack> ownTracks =
+                    Collections.newSetFromMap(
+                            new IdentityHashMap<>()
+                    );
+
+            for (CaminoVariantPathPart part
+                    : path.parts) {
+
+                ownTracks.add(
+                        part.track
+                );
+            }
+
+            ManualProjection startAttachment =
+                    nearestManualAttachment(
+                            route,
+                            path.startPoint(),
+                            ownTracks,
+                            true
+                    );
+
+            ManualProjection endAttachment =
+                    nearestManualAttachment(
+                            route,
+                            path.endPoint(),
+                            ownTracks,
+                            false
+                    );
+
+            boolean valid =
+                    startAttachment != null
+                            && endAttachment != null
+                            && startAttachment.distanceM
+                            <= MANUAL_VARIANT_JOIN_TOLERANCE_M
+                            && endAttachment.distanceM
+                            <= MANUAL_VARIANT_JOIN_TOLERANCE_M;
+
+            if (valid) {
+                CaminoVariantPathPart firstPart =
+                        path.parts.get(
+                                0
+                        );
+
+                CaminoVariantPathPart lastPart =
+                        path.parts.get(
+                                path.parts.size() - 1
+                        );
+
+                ManualProjection variantStart =
+                        manualProject(
+                                firstPart.track,
+                                path.startPoint()
+                        );
+
+                ManualProjection variantEnd =
+                        manualProject(
+                                lastPart.track,
+                                path.endPoint()
+                        );
+
+                if (variantStart != null
+                        && variantEnd != null) {
+
+                    ManualNode variantStartNode =
+                            manualNode(
+                                    nodesByTrack,
+                                    firstPart.track,
+                                    variantStart.chainageM
+                            );
+
+                    ManualNode startTargetNode =
+                            manualNode(
+                                    nodesByTrack,
+                                    startAttachment.track,
+                                    startAttachment.chainageM
+                            );
+
+                    ManualNode variantEndNode =
+                            manualNode(
+                                    nodesByTrack,
+                                    lastPart.track,
+                                    variantEnd.chainageM
+                            );
+
+                    ManualNode endTargetNode =
+                            manualNode(
+                                    nodesByTrack,
+                                    endAttachment.track,
+                                    endAttachment.chainageM
+                            );
+
+                    if (variantStartNode != null
+                            && startTargetNode != null) {
+
+                        connections.add(
+                                new ManualConnection(
+                                        variantStartNode,
+                                        startTargetNode,
+                                        0.0,
+                                        false
+                                )
+                        );
+                    }
+
+                    if (variantEndNode != null
+                            && endTargetNode != null) {
+
+                        connections.add(
+                                new ManualConnection(
+                                        variantEndNode,
+                                        endTargetNode,
+                                        0.0,
+                                        false
+                                )
+                        );
+                    }
+                }
+            }
+
+            /*
+             * Source-defined pieces in one official variant run may cross
+             * section numbers. Join them only when their real endpoint geometry
+             * is within the strict topology tolerance.
+             */
+            for (int partIndex = 0;
+                    partIndex < path.parts.size() - 1;
+                    partIndex++) {
+
+                CaminoVariantPathPart left =
+                        path.parts.get(
+                                partIndex
+                        );
+
+                CaminoVariantPathPart right =
+                        path.parts.get(
+                                partIndex + 1
+                        );
+
+                if (GeoMath.distanceMeters(
+                        left.endPoint(),
+                        right.startPoint()
+                ) > MANUAL_VARIANT_JOIN_TOLERANCE_M) {
+
+                    continue;
+                }
+
+                ManualProjection leftEnd =
+                        manualProject(
+                                left.track,
+                                left.endPoint()
+                        );
+
+                ManualProjection rightStart =
+                        manualProject(
+                                right.track,
+                                right.startPoint()
+                        );
+
+                if (leftEnd == null
+                        || rightStart == null) {
+
+                    continue;
+                }
+
+                ManualNode leftNode =
+                        manualNode(
+                                nodesByTrack,
+                                left.track,
+                                leftEnd.chainageM
+                        );
+
+                ManualNode rightNode =
+                        manualNode(
+                                nodesByTrack,
+                                right.track,
+                                rightStart.chainageM
+                        );
+
+                if (leftNode != null
+                        && rightNode != null) {
+
+                    connections.add(
+                            new ManualConnection(
+                                    leftNode,
+                                    rightNode,
+                                    0.0,
+                                    false
+                            )
+                    );
+                }
+            }
+        }
+
+        List<ManualNode> allNodes =
+                new ArrayList<>();
+
+        for (Map.Entry<RouteTrack, List<ManualNode>> entry
+                : nodesByTrack.entrySet()) {
+
+            List<ManualNode> nodes =
+                    entry.getValue();
+
+            nodes.sort(
+                    Comparator.comparingDouble(
+                            node ->
+                                    node.chainageM
+                    )
+            );
+
+            for (ManualNode node
+                    : nodes) {
+
+                node.id =
+                        allNodes.size();
+
+                allNodes.add(
+                        node
+                );
+            }
+        }
+
+        List<List<ManualEdge>> graph =
+                new ArrayList<>();
+
+        for (int index = 0;
+                index < allNodes.size();
+                index++) {
+
+            graph.add(
+                    new ArrayList<>()
+            );
+        }
+
+        /*
+         * Split every track at all branch/merge/user nodes.
+         */
+        for (Map.Entry<RouteTrack, List<ManualNode>> entry
+                : nodesByTrack.entrySet()) {
+
+            List<ManualNode> nodes =
+                    entry.getValue();
+
+            for (int index = 0;
+                    index < nodes.size() - 1;
+                    index++) {
+
+                addManualTrackEdge(
+                        graph,
+                        nodes.get(
+                                index
+                        ),
+                        nodes.get(
+                                index + 1
+                        )
+                );
+            }
+        }
+
+        for (ManualConnection connection
+                : connections) {
+
+            addManualConnectionEdge(
+                    graph,
+                    connection
+            );
+        }
+
+        ManualPath manualPath =
+                findManualPath(
+                        graph,
+                        startNode.id,
+                        endNode.id
+                );
+
+        if (manualPath == null) {
+            return null;
+        }
+
+        MeasurementPath result =
+                new MeasurementPath();
+
+        LatLng previousEnd =
+                null;
+
+        for (ManualEdge edge
+                : manualPath.edges) {
+
+            if (edge.track != null) {
+                ProjectionHit from =
+                        manualHitAtChainage(
+                                route,
+                                edge.track,
+                                edge.fromChainageM
+                        );
+
+                ProjectionHit to =
+                        manualHitAtChainage(
+                                route,
+                                edge.track,
+                                edge.toChainageM
+                        );
+
+                if (from == null
+                        || to == null) {
+
+                    continue;
+                }
+
+                if (previousEnd != null
+                        && GeoMath.distanceMeters(
+                        previousEnd,
+                        from.point
+                ) > MANUAL_NODE_EPSILON_M) {
+
+                    result.profileLastGeometryPoint =
+                            null;
+
+                    result.profileNeedsBreak =
+                            true;
+                }
+
+                addTrackSlice(
+                        result.routeFeatures,
+                        edge.track,
+                        from,
+                        to
+                );
+
+                appendTrackProfileSlice(
+                        result,
+                        edge.track,
+                        from,
+                        to
+                );
+
+                result.distanceM +=
+                        edge.distanceM;
+
+                previousEnd =
+                        to.point;
+
+                continue;
+            }
+
+            /*
+             * Primary stage gaps remain real measured gaps.
+             */
+            if (edge.measuredGap) {
+                result.distanceM +=
+                        edge.distanceM;
+
+                if (edge.distanceM
+                        > MANUAL_NODE_EPSILON_M) {
+
+                    addGapFeature(
+                            result.gapFeatures,
+                            edge.from.point,
+                            edge.toNode.point,
+                            route.highlightColor
+                    );
+
+                    ProjectionHit fromHit =
+                            manualHitAtChainage(
+                                    route,
+                                    edge.from.track,
+                                    edge.from.chainageM
+                            );
+
+                    ProjectionHit toHit =
+                            manualHitAtChainage(
+                                    route,
+                                    edge.toNode.track,
+                                    edge.toNode.chainageM
+                            );
+
+                    appendGapProfile(
+                            result,
+                            edge.from.point,
+                            fromHit == null
+                                    ? Double.NaN
+                                    : elevationAtHit(
+                                            edge.from.track,
+                                            fromHit
+                                    ),
+                            edge.toNode.point,
+                            toHit == null
+                                    ? Double.NaN
+                                    : elevationAtHit(
+                                            edge.toNode.track,
+                                            toHit
+                                    )
+                    );
+                }
+
+            } else if (GeoMath.distanceMeters(
+                    edge.from.point,
+                    edge.toNode.point
+            ) > MANUAL_NODE_EPSILON_M) {
+
+                /*
+                 * Strict topology snap (<=25 m): like resolved stage routing,
+                 * do not draw or measure an invented connector.
+                 */
+                result.profileLastGeometryPoint =
+                        null;
+
+                result.profileNeedsBreak =
+                        true;
+            }
+
+            previousEnd =
+                    edge.toNode.point;
+        }
+
+        if (result.routeFeatures.isEmpty()) {
+            return null;
+        }
+
+        result.startRoute =
+                route;
+
+        result.endRoute =
+                route;
+
+        return result;
+    }
+
+
+    private ManualProjection nearestManualAttachment(
+            CaminoRoute route,
+            LatLng point,
+            Set<RouteTrack> excluded,
+            boolean preferPrimary
+    ) {
+        if (route == null
+                || point == null) {
+
+            return null;
+        }
+
+        if (preferPrimary) {
+            ManualProjection bestPrimary =
+                    null;
+
+            for (RouteTrack primary
+                    : route.tracks) {
+
+                if (excluded.contains(
+                        primary
+                )) {
+
+                    continue;
+                }
+
+                ManualProjection hit =
+                        manualProject(
+                                primary,
+                                point
+                        );
+
+                if (hit != null
+                        && (
+                        bestPrimary == null
+                                || hit.distanceM
+                                < bestPrimary.distanceM
+                )) {
+
+                    bestPrimary =
+                            hit;
+                }
+            }
+
+            if (bestPrimary != null
+                    && bestPrimary.distanceM
+                    <= MANUAL_VARIANT_JOIN_TOLERANCE_M) {
+
+                return bestPrimary;
+            }
+        }
+
+        ManualProjection best =
+                null;
+
+        for (RouteTrack candidate
+                : route.renderTracks) {
+
+            if (excluded.contains(
+                    candidate
+            )) {
+
+                continue;
+            }
+
+            double lowerBound =
+                    Math.max(
+                            0.0,
+                            GeoMath.distanceMeters(
+                                    point,
+                                    candidate.boundsCenter
+                            )
+                                    - candidate.boundsRadiusM
+                                    - 50.0
+                    );
+
+            if (best != null
+                    && lowerBound
+                    > best.distanceM) {
+
+                continue;
+            }
+
+            ManualProjection hit =
+                    manualProject(
+                            candidate,
+                            point
+                    );
+
+            if (hit != null
+                    && (
+                    best == null
+                            || hit.distanceM
+                            < best.distanceM
+            )) {
+
+                best =
+                        hit;
+            }
+        }
+
+        return best != null
+                && best.distanceM
+                <= MANUAL_VARIANT_JOIN_TOLERANCE_M
+                ? best
+                : null;
+    }
+
+
+    private ManualProjection manualProject(
+            RouteTrack track,
+            LatLng query
+    ) {
+        if (track == null
+                || query == null
+                || track.points.size() < 2) {
+
+            return null;
+        }
+
+        ManualProjection best =
+                null;
+
+        double chainageAtA =
+                0.0;
+
+        for (int segmentIndex = 0;
+                segmentIndex
+                < track.points.size() - 1;
+                segmentIndex++) {
+
+            LatLng a =
+                    track.points.get(
+                            segmentIndex
+                    );
+
+            LatLng b =
+                    track.points.get(
+                            segmentIndex + 1
+                    );
+
+            ManualSegmentProjection segment =
+                    manualProjectToSegment(
+                            query,
+                            a,
+                            b
+                    );
+
+            double segmentLength =
+                    GeoMath.distanceMeters(
+                            a,
+                            b
+                    );
+
+            if (best == null
+                    || segment.distanceM
+                    < best.distanceM) {
+
+                best =
+                        new ManualProjection(
+                                track,
+                                segment.point,
+                                segment.distanceM,
+                                chainageAtA
+                                        + segment.t
+                                        * segmentLength,
+                                segmentIndex,
+                                segment.t
+                        );
+            }
+
+            chainageAtA +=
+                    segmentLength;
+        }
+
+        return best;
+    }
+
+
+    private ManualSegmentProjection manualProjectToSegment(
+            LatLng query,
+            LatLng a,
+            LatLng b
+    ) {
+        double refLatRad =
+                Math.toRadians(
+                        (
+                                query.getLatitude()
+                                        + a.getLatitude()
+                                        + b.getLatitude()
+                        ) / 3.0
+                );
+
+        double cosLat =
+                Math.max(
+                        0.20,
+                        Math.cos(
+                                refLatRad
+                        )
+                );
+
+        double ax =
+                Math.toRadians(
+                        a.getLongitude()
+                                - query.getLongitude()
+                )
+                        * GeoMath.EARTH_RADIUS_M
+                        * cosLat;
+
+        double ay =
+                Math.toRadians(
+                        a.getLatitude()
+                                - query.getLatitude()
+                )
+                        * GeoMath.EARTH_RADIUS_M;
+
+        double bx =
+                Math.toRadians(
+                        b.getLongitude()
+                                - query.getLongitude()
+                )
+                        * GeoMath.EARTH_RADIUS_M
+                        * cosLat;
+
+        double by =
+                Math.toRadians(
+                        b.getLatitude()
+                                - query.getLatitude()
+                )
+                        * GeoMath.EARTH_RADIUS_M;
+
+        double vx =
+                bx - ax;
+
+        double vy =
+                by - ay;
+
+        double lengthSq =
+                vx * vx
+                        + vy * vy;
+
+        double t =
+                0.0;
+
+        if (lengthSq > 1e-9) {
+            t =
+                    -(ax * vx
+                            + ay * vy)
+                            / lengthSq;
+
+            t =
+                    Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    t
+                            )
+                    );
+        }
+
+        double px =
+                ax + t * vx;
+
+        double py =
+                ay + t * vy;
+
+        LatLng point =
+                new LatLng(
+                        a.getLatitude()
+                                + t
+                                * (
+                                b.getLatitude()
+                                        - a.getLatitude()
+                        ),
+                        a.getLongitude()
+                                + t
+                                * (
+                                b.getLongitude()
+                                        - a.getLongitude()
+                        )
+                );
+
+        return new ManualSegmentProjection(
+                point,
+                Math.hypot(
+                        px,
+                        py
+                ),
+                t
+        );
+    }
+
+
+    private double localChainageM(
+            RouteTrack track,
+            ProjectionHit hit
+    ) {
+        if (track == null
+                || hit == null
+                || track.points.size() < 2) {
+
+            return 0.0;
+        }
+
+        int segment =
+                Math.max(
+                        0,
+                        Math.min(
+                                track.points.size() - 2,
+                                hit.segmentIndex
+                        )
+                );
+
+        double chainage =
+                0.0;
+
+        for (int index = 0;
+                index < segment;
+                index++) {
+
+            chainage +=
+                    GeoMath.distanceMeters(
+                            track.points.get(
+                                    index
+                            ),
+                            track.points.get(
+                                    index + 1
+                            )
+                    );
+        }
+
+        double segmentLength =
+                GeoMath.distanceMeters(
+                        track.points.get(
+                                segment
+                        ),
+                        track.points.get(
+                                segment + 1
+                        )
+                );
+
+        chainage +=
+                Math.max(
+                        0.0,
+                        Math.min(
+                                1.0,
+                                hit.t
+                        )
+                )
+                        * segmentLength;
+
+        return chainage;
+    }
+
+
+    private ManualNode manualNode(
+            Map<RouteTrack, List<ManualNode>> nodesByTrack,
+            RouteTrack track,
+            double requestedChainageM
+    ) {
+        if (track == null
+                || track.points.size() < 2) {
+
+            return null;
+        }
+
+        double length =
+                trackGeometryLength(
+                        track
+                );
+
+        double chainage =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                length,
+                                requestedChainageM
+                        )
+                );
+
+        List<ManualNode> nodes =
+                nodesByTrack.computeIfAbsent(
+                        track,
+                        ignored ->
+                                new ArrayList<>()
+                );
+
+        for (ManualNode node
+                : nodes) {
+
+            if (Math.abs(
+                    node.chainageM
+                            - chainage
+            ) <= MANUAL_NODE_EPSILON_M) {
+
+                return node;
+            }
+        }
+
+        ProjectionHit hit =
+                manualHitAtChainage(
+                        null,
+                        track,
+                        chainage
+                );
+
+        if (hit == null) {
+            return null;
+        }
+
+        ManualNode created =
+                new ManualNode(
+                        track,
+                        chainage,
+                        hit.point
+                );
+
+        nodes.add(
+                created
+        );
+
+        return created;
+    }
+
+
+    private ProjectionHit manualHitAtChainage(
+            CaminoRoute route,
+            RouteTrack track,
+            double requestedChainageM
+    ) {
+        if (track == null
+                || track.points.size() < 2) {
+
+            return null;
+        }
+
+        double total =
+                trackGeometryLength(
+                        track
+                );
+
+        double wanted =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                total,
+                                requestedChainageM
+                        )
+                );
+
+        double chainage =
+                0.0;
+
+        for (int segmentIndex = 0;
+                segmentIndex
+                < track.points.size() - 1;
+                segmentIndex++) {
+
+            LatLng a =
+                    track.points.get(
+                            segmentIndex
+                    );
+
+            LatLng b =
+                    track.points.get(
+                            segmentIndex + 1
+                    );
+
+            double segmentLength =
+                    GeoMath.distanceMeters(
+                            a,
+                            b
+                    );
+
+            if (chainage + segmentLength
+                    >= wanted
+                    || segmentIndex
+                    == track.points.size() - 2) {
+
+                double t =
+                        segmentLength <= 1e-9
+                                ? 0.0
+                                : (
+                                wanted - chainage
+                        ) / segmentLength;
+
+                t =
+                        Math.max(
+                                0.0,
+                                Math.min(
+                                        1.0,
+                                        t
+                                )
+                        );
+
+                LatLng point =
+                        new LatLng(
+                                a.getLatitude()
+                                        + t
+                                        * (
+                                        b.getLatitude()
+                                                - a.getLatitude()
+                                ),
+                                a.getLongitude()
+                                        + t
+                                        * (
+                                        b.getLongitude()
+                                                - a.getLongitude()
+                                )
+                        );
+
+                int primaryIndex =
+                        route == null
+                                ? -1
+                                : route.tracks.indexOf(
+                                        track
+                                );
+
+                double publicChainage =
+                        primaryIndex >= 0
+                                ? track.baseChainageM
+                                + wanted
+                                : wanted;
+
+                return new ProjectionHit(
+                        point,
+                        publicChainage,
+                        0.0,
+                        primaryIndex,
+                        segmentIndex,
+                        t,
+                        track
+                );
+            }
+
+            chainage +=
+                    segmentLength;
+        }
+
+        return null;
+    }
+
+
+    private void addManualTrackEdge(
+            List<List<ManualEdge>> graph,
+            ManualNode left,
+            ManualNode right
+    ) {
+        if (left == null
+                || right == null) {
+
+            return;
+        }
+
+        double distance =
+                Math.abs(
+                        right.chainageM
+                                - left.chainageM
+                );
+
+        graph.get(
+                left.id
+        ).add(
+                new ManualEdge(
+                        right.id,
+                        distance,
+                        left.track,
+                        left.chainageM,
+                        right.chainageM,
+                        left,
+                        right,
+                        false
+                )
+        );
+
+        graph.get(
+                right.id
+        ).add(
+                new ManualEdge(
+                        left.id,
+                        distance,
+                        right.track,
+                        right.chainageM,
+                        left.chainageM,
+                        right,
+                        left,
+                        false
+                )
+        );
+    }
+
+
+    private void addManualConnectionEdge(
+            List<List<ManualEdge>> graph,
+            ManualConnection connection
+    ) {
+        if (connection == null
+                || connection.from == null
+                || connection.to == null) {
+
+            return;
+        }
+
+        graph.get(
+                connection.from.id
+        ).add(
+                new ManualEdge(
+                        connection.to.id,
+                        connection.distanceM,
+                        null,
+                        0.0,
+                        0.0,
+                        connection.from,
+                        connection.to,
+                        connection.measuredGap
+                )
+        );
+
+        graph.get(
+                connection.to.id
+        ).add(
+                new ManualEdge(
+                        connection.from.id,
+                        connection.distanceM,
+                        null,
+                        0.0,
+                        0.0,
+                        connection.to,
+                        connection.from,
+                        connection.measuredGap
+                )
+        );
+    }
+
+
+    private ManualPath findManualPath(
+            List<List<ManualEdge>> graph,
+            int startNode,
+            int endNode
+    ) {
+        if (startNode < 0
+                || endNode < 0
+                || startNode >= graph.size()
+                || endNode >= graph.size()) {
+
+            return null;
+        }
+
+        if (startNode == endNode) {
+            return new ManualPath(
+                    new ArrayList<>()
+            );
+        }
+
+        double[] distance =
+                new double[
+                        graph.size()
+                        ];
+
+        int[] previousNode =
+                new int[
+                        graph.size()
+                        ];
+
+        ManualEdge[] previousEdge =
+                new ManualEdge[
+                        graph.size()
+                        ];
+
+        for (int index = 0;
+                index < graph.size();
+                index++) {
+
+            distance[index] =
+                    Double.POSITIVE_INFINITY;
+
+            previousNode[index] =
+                    -1;
+        }
+
+        PriorityQueue<ManualQueueItem> queue =
+                new PriorityQueue<>(
+                        Comparator.comparingDouble(
+                                item ->
+                                        item.distanceM
+                        )
+                );
+
+        distance[startNode] =
+                0.0;
+
+        queue.add(
+                new ManualQueueItem(
+                        startNode,
+                        0.0
+                )
+        );
+
+        while (!queue.isEmpty()) {
+            ManualQueueItem current =
+                    queue.poll();
+
+            if (current.distanceM
+                    != distance[current.node]) {
+
+                continue;
+            }
+
+            if (current.node
+                    == endNode) {
+
+                break;
+            }
+
+            for (ManualEdge edge
+                    : graph.get(
+                            current.node
+                    )) {
+
+                double candidate =
+                        current.distanceM
+                                + edge.distanceM;
+
+                if (candidate
+                        >= distance[edge.to]) {
+
+                    continue;
+                }
+
+                distance[edge.to] =
+                        candidate;
+
+                previousNode[edge.to] =
+                        current.node;
+
+                previousEdge[edge.to] =
+                        edge;
+
+                queue.add(
+                        new ManualQueueItem(
+                                edge.to,
+                                candidate
+                        )
+                );
+            }
+        }
+
+        if (!Double.isFinite(
+                distance[endNode]
+        )) {
+
+            return null;
+        }
+
+        List<ManualEdge> reversed =
+                new ArrayList<>();
+
+        int node =
+                endNode;
+
+        while (node
+                != startNode) {
+
+            ManualEdge edge =
+                    previousEdge[node];
+
+            int previous =
+                    previousNode[node];
+
+            if (edge == null
+                    || previous < 0) {
+
+                return null;
+            }
+
+            reversed.add(
+                    edge
+            );
+
+            node =
+                    previous;
+        }
+
+        Collections.reverse(
+                reversed
+        );
+
+        return new ManualPath(
+                reversed
+        );
+    }
+
 
     private void appendCrossRouteProfile(
             MeasurementPath result,
@@ -1888,6 +3434,199 @@ final class MeasurementEngine {
     }
 
 
+    private static final class ManualProjection {
+
+        final RouteTrack track;
+        final LatLng point;
+        final double distanceM;
+        final double chainageM;
+        final int segmentIndex;
+        final double t;
+
+        ManualProjection(
+                RouteTrack track,
+                LatLng point,
+                double distanceM,
+                double chainageM,
+                int segmentIndex,
+                double t
+        ) {
+            this.track =
+                    track;
+
+            this.point =
+                    point;
+
+            this.distanceM =
+                    distanceM;
+
+            this.chainageM =
+                    chainageM;
+
+            this.segmentIndex =
+                    segmentIndex;
+
+            this.t =
+                    t;
+        }
+    }
+
+
+    private static final class ManualSegmentProjection {
+
+        final LatLng point;
+        final double distanceM;
+        final double t;
+
+        ManualSegmentProjection(
+                LatLng point,
+                double distanceM,
+                double t
+        ) {
+            this.point =
+                    point;
+
+            this.distanceM =
+                    distanceM;
+
+            this.t =
+                    t;
+        }
+    }
+
+
+    private static final class ManualNode {
+
+        final RouteTrack track;
+        final double chainageM;
+        final LatLng point;
+        int id =
+                -1;
+
+        ManualNode(
+                RouteTrack track,
+                double chainageM,
+                LatLng point
+        ) {
+            this.track =
+                    track;
+
+            this.chainageM =
+                    chainageM;
+
+            this.point =
+                    point;
+        }
+    }
+
+
+    private static final class ManualConnection {
+
+        final ManualNode from;
+        final ManualNode to;
+        final double distanceM;
+        final boolean measuredGap;
+
+        ManualConnection(
+                ManualNode from,
+                ManualNode to,
+                double distanceM,
+                boolean measuredGap
+        ) {
+            this.from =
+                    from;
+
+            this.to =
+                    to;
+
+            this.distanceM =
+                    distanceM;
+
+            this.measuredGap =
+                    measuredGap;
+        }
+    }
+
+
+    private static final class ManualEdge {
+
+        final int to;
+        final double distanceM;
+        final RouteTrack track;
+        final double fromChainageM;
+        final double toChainageM;
+        final ManualNode from;
+        final ManualNode toNode;
+        final boolean measuredGap;
+
+        ManualEdge(
+                int to,
+                double distanceM,
+                RouteTrack track,
+                double fromChainageM,
+                double toChainageM,
+                ManualNode from,
+                ManualNode toNode,
+                boolean measuredGap
+        ) {
+            this.to =
+                    to;
+
+            this.distanceM =
+                    distanceM;
+
+            this.track =
+                    track;
+
+            this.fromChainageM =
+                    fromChainageM;
+
+            this.toChainageM =
+                    toChainageM;
+
+            this.from =
+                    from;
+
+            this.toNode =
+                    toNode;
+
+            this.measuredGap =
+                    measuredGap;
+        }
+    }
+
+
+    private static final class ManualQueueItem {
+
+        final int node;
+        final double distanceM;
+
+        ManualQueueItem(
+                int node,
+                double distanceM
+        ) {
+            this.node =
+                    node;
+
+            this.distanceM =
+                    distanceM;
+        }
+    }
+
+
+    private static final class ManualPath {
+
+        final List<ManualEdge> edges;
+
+        ManualPath(
+                List<ManualEdge> edges
+        ) {
+            this.edges =
+                    edges;
+        }
+    }
+
+
     private static final class NetworkCandidate {
         final int startSide;
         final int endSide;
@@ -1972,6 +3711,14 @@ final class ProjectionHit {
     final int segmentIndex;
     final double t;
 
+    /*
+     * Exact geometry owner for manual selectable hits.
+     *
+     * Legacy primary-only hits may leave this null and keep using trackIndex.
+     * Variant hits use trackIndex == -1 and carry the real RouteTrack here.
+     */
+    final RouteTrack track;
+
     ProjectionHit(
             LatLng point,
             double chainageM,
@@ -1979,6 +3726,26 @@ final class ProjectionHit {
             int trackIndex,
             int segmentIndex,
             double t
+    ) {
+        this(
+                point,
+                chainageM,
+                distanceFromQueryM,
+                trackIndex,
+                segmentIndex,
+                t,
+                null
+        );
+    }
+
+    ProjectionHit(
+            LatLng point,
+            double chainageM,
+            double distanceFromQueryM,
+            int trackIndex,
+            int segmentIndex,
+            double t,
+            RouteTrack track
     ) {
         this.point =
                 point;
@@ -1997,6 +3764,9 @@ final class ProjectionHit {
 
         this.t =
                 t;
+
+        this.track =
+                track;
     }
 }
 

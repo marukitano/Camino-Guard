@@ -30,10 +30,6 @@ final class CaminoInfoController {
     private Runnable navigationAction;
     private boolean navigationFollowEnabled;
 
-    private Runnable selectionLockAction;
-    private boolean selectionLocked;
-    private boolean selectionLockAvailable;
-
     CaminoInfoController(
             Activity activity,
             MapView mapView,
@@ -78,45 +74,6 @@ final class CaminoInfoController {
         }
     }
 
-    void setSelectionLockAction(
-            Runnable action
-    ) {
-        selectionLockAction =
-                action;
-
-        if (panel != null) {
-            panel.setSelectionLockAction(
-                    action
-            );
-        }
-    }
-
-    void setSelectionLocked(
-            boolean locked
-    ) {
-        selectionLocked =
-                locked;
-
-        if (panel != null) {
-            panel.setSelectionLocked(
-                    locked
-            );
-        }
-    }
-
-    void setSelectionLockAvailable(
-            boolean available
-    ) {
-        selectionLockAvailable =
-                available;
-
-        if (panel != null) {
-            panel.setSelectionLockAvailable(
-                    available
-            );
-        }
-    }
-
     void ensureView() {
         if (panel != null) {
             return;
@@ -139,18 +96,6 @@ final class CaminoInfoController {
 
         panel.setNavigationFollowEnabled(
                 navigationFollowEnabled
-        );
-
-        panel.setSelectionLockAction(
-                selectionLockAction
-        );
-
-        panel.setSelectionLocked(
-                selectionLocked
-        );
-
-        panel.setSelectionLockAvailable(
-                selectionLockAvailable
         );
 
         panel.setAttributionAction(
@@ -176,7 +121,7 @@ final class CaminoInfoController {
                                 48
                         ),
                         dp(
-                                192
+                                144
                         ),
                         Gravity.START
                                 | Gravity.BOTTOM

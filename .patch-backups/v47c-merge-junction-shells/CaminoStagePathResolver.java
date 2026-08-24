@@ -19,13 +19,11 @@ import java.util.Set;
  * One selectable section ALWAYS ends at the next shell.
  *
  * A shell exists at:
- * - every established primary stage endpoint,
- * - every proven physical fork where an official alternative starts, and
- * - every proven physical merge where an official alternative rejoins another
- *   official Camino track.
+ * - every established primary stage endpoint, and
+ * - every proven physical fork where an official alternative starts.
  *
- * Forks AND merges therefore split the interactive selection into explicit
- * sections. A connected junction must never be crossed silently.
+ * A pure merge does not create a shell. After a merge traversal simply keeps
+ * following the physically attached official track until the next shell.
  *
  * Physical automatic joins are deliberately strict: <= 25 m, same Camino
  * route group, and only between already-existing official GPS geometries.
@@ -40,16 +38,6 @@ final class CaminoStagePathResolver {
 
     private static final double EXISTING_SHELL_REUSE_M =
             10.0;
-
-    /*
-     * If an official fork occurs only a few walking metres after an established
-     * stage start, rendering a second shell is confusing. Fold such a fork into
-     * the existing start shell while keeping the real shared-prefix geometry.
-     *
-     * Abla is the motivating case: the 04b fork is ~87 m after the 04a start.
-     */
-    private static final double NEAR_STAGE_FORK_COLLAPSE_M =
-            120.0;
 
     private static final double EVENT_EPSILON_M =
             0.25;
@@ -70,13 +58,6 @@ final class CaminoStagePathResolver {
     private final Map<PathAttachment, DecisionPoint> decisionByAttachment =
             new IdentityHashMap<>();
 
-    /*
-     * A merge is also a real physical junction. v47c gives it a shell so
-     * stage selection stops before continuing on the receiving track.
-     */
-    private final Map<String, List<MergePoint>> mergesByKey =
-            new LinkedHashMap<>();
-
 
     void rebuild(
             List<CaminoRoute> routes,
@@ -86,7 +67,6 @@ final class CaminoStagePathResolver {
         decisionsByKey.clear();
         allDecisions.clear();
         decisionByAttachment.clear();
-        mergesByKey.clear();
 
         for (CaminoRoute route
                 : routes) {
@@ -144,17 +124,10 @@ final class CaminoStagePathResolver {
 
         /*
          * Only after all strict physical variant attachments are known do we
-         * create additional shells at actual junctions.
-         *
-         * Forks are installed first. A merge at the same physical point can
-         * then reuse the existing shell instead of creating a duplicate.
+         * create additional shells at actual forks.
          */
         if (topology != null) {
             installDecisionShells(
-                    topology
-            );
-
-            installMergeShells(
                     topology
             );
         }
@@ -308,10 +281,7 @@ final class CaminoStagePathResolver {
                 );
 
         if (atStart != null) {
-            return choicesFromStageStartDecision(
-                    state,
-                    stage,
-                    primaryTrackIndex,
+            return choicesFromDecision(
                     atStart,
                     primary
             );
@@ -360,369 +330,63 @@ final class CaminoStagePathResolver {
 
 
     /**
-     * Choices from a synthetic junction shell. A junction can be a fork,
-     * a merge, or both at the same physical point.
+     * Choices from a synthetic fork shell. This is used when the shell has no
+     * primary StageTopology outgoing edge because it lies in the middle of an
+     * official track.
      */
     List<CaminoResolvedStagePath> findDecisionChoices(
             String placeKey,
             LatLng point
     ) {
-        if (!meaningful(
-                placeKey
-        )
-                || point == null) {
-
-            return Collections.emptyList();
-        }
-
-        List<CaminoResolvedStagePath> result =
-                new ArrayList<>();
-
-        Set<String> seen =
-                new LinkedHashSet<>();
-
         List<DecisionPoint> candidates =
                 decisionsByKey.get(
                         placeKey
                 );
 
-        if (candidates != null
-                && !candidates.isEmpty()) {
-
-            DecisionPoint best =
-                    null;
-
-            double bestDistanceM =
-                    Double.POSITIVE_INFINITY;
-
-            for (DecisionPoint candidate
-                    : candidates) {
-
-                double distanceM =
-                        GeoMath.distanceMeters(
-                                point,
-                                candidate.point
-                        );
-
-                if (distanceM
-                        < bestDistanceM) {
-
-                    best =
-                            candidate;
-
-                    bestDistanceM =
-                            distanceM;
-                }
-            }
-
-            if (best != null
-                    && bestDistanceM
-                    <= JOIN_TOLERANCE_M * 2.0) {
-
-                for (CaminoResolvedStagePath path
-                        : choicesFromDecision(
-                                best,
-                                null
-                        )) {
-
-                    if (path != null
-                            && seen.add(
-                            path.id
-                    )) {
-
-                        result.add(
-                                path
-                        );
-                    }
-                }
-            }
-        }
-
-        List<MergePoint> mergeCandidates =
-                mergesByKey.get(
-                        placeKey
-                );
-
-        if (mergeCandidates != null) {
-            for (MergePoint merge
-                    : mergeCandidates) {
-
-                if (GeoMath.distanceMeters(
-                        point,
-                        merge.point
-                ) > JOIN_TOLERANCE_M * 2.0) {
-
-                    continue;
-                }
-
-                CaminoResolvedStagePath continuation =
-                        continuationFromMerge(
-                                merge
-                        );
-
-                if (continuation != null
-                        && seen.add(
-                        continuation.id
-                )) {
-
-                    result.add(
-                            continuation
-                    );
-                }
-            }
-        }
-
-        return result;
-    }
-
-
-    private CaminoResolvedStagePath continuationFromMerge(
-            MergePoint merge
-    ) {
-        if (merge == null
-                || merge.state == null
-                || merge.target == null) {
-
-            return null;
-        }
-
-        Cursor next =
-                cursorAtAttachment(
-                        merge.state,
-                        merge.target
-                );
-
-        if (next == null) {
-            return null;
-        }
-
-        LinkedHashSet<String> used =
-                new LinkedHashSet<>();
-
-        VariantOwner targetOwner =
-                merge.state.variantOwnerByTrack.get(
-                        merge.target.track
-                );
-
-        if (targetOwner != null) {
-            used.add(
-                    targetOwner.path.id
-            );
-        }
-
-        CompletedPath completed =
-                traceUntilNextShell(
-                        merge.state,
-                        next,
-                        new ArrayList<>(),
-                        used,
-                        merge.placeKey,
-                        0
-                );
-
-        return resolved(
-                merge.state.route,
-                merge.placeKey,
-                merge.target.toHit(
-                        next.primaryTrackIndex
-                ),
-                completed
-        );
-    }
-
-
-    /**
-     * A fork can be physically a short distance after an established stage
-     * start but still belong to the same user-facing place.
-     *
-     * In that case the visible stage shell owns the carousel. Both the straight
-     * and alternative choices retain the real primary prefix from the shell to
-     * the physical fork before they diverge.
-     */
-    private List<CaminoResolvedStagePath> choicesFromStageStartDecision(
-            RouteState state,
-            PrimaryStageInfo stage,
-            int primaryTrackIndex,
-            DecisionPoint decision,
-            RouteTrack primary
-    ) {
-        if (state == null
-                || stage == null
-                || decision == null
-                || primary == null) {
+        if (candidates == null
+                || candidates.isEmpty()
+                || point == null) {
 
             return Collections.emptyList();
         }
 
-        Cursor stageStart =
-                Cursor.primary(
-                        primary,
-                        primaryTrackIndex,
-                        stage.start,
-                        stage.direction
-                );
+        DecisionPoint best =
+                null;
 
-        List<CaminoResolvedStagePath> result =
-                new ArrayList<>();
+        double bestDistanceM =
+                Double.POSITIVE_INFINITY;
 
-        Set<String> seen =
-                new LinkedHashSet<>();
+        for (DecisionPoint candidate
+                : candidates) {
 
-        boolean straightAdded =
-                false;
-
-        for (BranchEvent event
-                : decision.events) {
-
-            if (event == null
-                    || event.target == null
-                    || event.target.track != primary) {
-
-                continue;
-            }
-
-            double prefixLengthM =
-                    Math.abs(
-                            event.target.chainageM
-                                    - stage.start.chainageM
+            double distanceM =
+                    GeoMath.distanceMeters(
+                            point,
+                            candidate.point
                     );
 
-            if (prefixLengthM
-                    > NEAR_STAGE_FORK_COLLAPSE_M
-                    + EVENT_EPSILON_M) {
+            if (distanceM
+                    < bestDistanceM) {
 
-                continue;
-            }
+                best =
+                        candidate;
 
-            List<CaminoResolvedStageLeg> commonPrefix =
-                    copyWithSlice(
-                            new ArrayList<>(),
-                            stageStart,
-                            event.target
-                    );
-
-            /*
-             * Straight continuation: include the shared prefix exactly once,
-             * then continue from the real fork while ignoring this folded
-             * decision so we do not immediately stop again.
-             */
-            if (!straightAdded) {
-                Cursor straight =
-                        cursorAtAttachment(
-                                state,
-                                event.target
-                        );
-
-                if (straight != null) {
-                    CompletedPath completed =
-                            traceUntilNextShell(
-                                    state,
-                                    straight,
-                                    commonPrefix,
-                                    new LinkedHashSet<>(),
-                                    decision.placeKey,
-                                    0
-                            );
-
-                    CaminoResolvedStagePath path =
-                            resolved(
-                                    state.route,
-                                    decision.placeKey,
-                                    stage.start.toHit(
-                                            primaryTrackIndex
-                                    ),
-                                    completed
-                            );
-
-                    if (path != null
-                            && seen.add(
-                            path.id
-                    )) {
-
-                        result.add(
-                                path
-                        );
-
-                        straightAdded =
-                                true;
-                    }
-                }
-            }
-
-            /*
-             * Alternative continuation: the same shared prefix is followed by
-             * the official variant beginning at the physical fork.
-             */
-            CaminoVariantPath variant =
-                    event.attachment == null
-                            ? null
-                            : event.attachment.path;
-
-            Cursor variantStart =
-                    variant == null
-                            ? null
-                            : variantPartStartCursor(
-                                    state,
-                                    variant,
-                                    0
-                            );
-
-            if (variantStart == null) {
-                continue;
-            }
-
-            LinkedHashSet<String> used =
-                    new LinkedHashSet<>();
-
-            used.add(
-                    variant.id
-            );
-
-            CompletedPath completed =
-                    traceUntilNextShell(
-                            state,
-                            variantStart,
-                            new ArrayList<>(
-                                    commonPrefix
-                            ),
-                            used,
-                            decision.placeKey,
-                            0
-                    );
-
-            CaminoResolvedStagePath path =
-                    resolved(
-                            state.route,
-                            decision.placeKey,
-                            stage.start.toHit(
-                                    primaryTrackIndex
-                            ),
-                            completed
-                    );
-
-            if (path != null
-                    && seen.add(
-                    path.id
-            )) {
-
-                result.add(
-                        path
-                );
+                bestDistanceM =
+                        distanceM;
             }
         }
 
-        /*
-         * Exact legacy fork-at-shell cases should still work even if malformed
-         * input prevented the folded-prefix path above from producing choices.
-         */
-        if (result.isEmpty()) {
-            return choicesFromDecision(
-                    decision,
-                    primary
-            );
+        if (best == null
+                || bestDistanceM
+                > JOIN_TOLERANCE_M * 2.0) {
+
+            return Collections.emptyList();
         }
 
-        return result;
+        return choicesFromDecision(
+                best,
+                null
+        );
     }
 
 
@@ -877,8 +541,8 @@ final class CaminoStagePathResolver {
 
 
     /**
-     * Linear traversal only. Forks and merges are STOP events, not recursive
-     * choices. Tapping the junction shell starts the next section explicitly.
+     * Linear traversal only. Forks are STOP events, not recursive choices.
+     * Merges remain transparent and traversal continues through them.
      */
     private CompletedPath traceUntilNextShell(
             RouteState state,
@@ -981,8 +645,7 @@ final class CaminoStagePathResolver {
 
         /*
          * No shell before this technical track boundary. Continue through the
-         * proven physical connection. Valid merge endpoints have already been
-         * inserted into shellsOnTrack by installMergeShells().
+         * proven physical connection. Pure merges therefore stay invisible.
          */
         if (cursor.primaryTrackIndex >= 0) {
             Cursor next =
@@ -1341,17 +1004,10 @@ final class CaminoStagePathResolver {
                 continue;
             }
 
-            double allowedDistanceM =
-                    decision.placeKey.equals(
-                            placeKey
-                    )
-                            ? NEAR_STAGE_FORK_COLLAPSE_M
-                            : JOIN_TOLERANCE_M;
-
             if (Math.abs(
                     event.target.chainageM
                             - projection.chainageM
-            ) <= allowedDistanceM) {
+            ) <= JOIN_TOLERANCE_M) {
 
                 return decision;
             }
@@ -1724,43 +1380,11 @@ final class CaminoStagePathResolver {
 
                     if (existing == null) {
                         CaminoStageTopology.StageNode established =
-                                null;
-
-                        /*
-                         * Special UI collapse only for a fork shortly after the
-                         * START of this exact primary stage. Do not globally
-                         * merge arbitrary nearby shells.
-                         */
-                        PrimaryStageInfo ownerStage =
-                                state.primaryStages.get(
-                                        event.target.track
+                                topology.nearestPrimaryNode(
+                                        state.route,
+                                        event.target.point,
+                                        EXISTING_SHELL_REUSE_M
                                 );
-
-                        if (ownerStage != null
-                                && Math.abs(
-                                event.target.chainageM
-                                        - ownerStage.start.chainageM
-                        ) <= NEAR_STAGE_FORK_COLLAPSE_M) {
-
-                            established =
-                                    topology.node(
-                                            ownerStage.startPlaceKey,
-                                            ownerStage.start.point
-                                    );
-                        }
-
-                        /*
-                         * Preserve the old exact spatial reuse behavior for
-                         * true fork-at-shell cases.
-                         */
-                        if (established == null) {
-                            established =
-                                    topology.nearestPrimaryNode(
-                                            state.route,
-                                            event.target.point,
-                                            EXISTING_SHELL_REUSE_M
-                                    );
-                        }
 
                         String placeKey;
                         LatLng point;
@@ -1822,304 +1446,6 @@ final class CaminoStagePathResolver {
                 }
             }
         }
-    }
-
-
-    private void installMergeShells(
-            CaminoStageTopology topology
-    ) {
-        int syntheticIndex =
-                1;
-
-        for (RouteState state
-                : states.values()) {
-
-            for (PathAttachment attachment
-                    : state.attachments.values()) {
-
-                if (attachment == null
-                        || !attachment.valid()
-                        || attachment.endTarget == null
-                        || attachment.path == null
-                        || attachment.path.parts.isEmpty()) {
-
-                    continue;
-                }
-
-                TrackProjection target =
-                        attachment.endTarget;
-
-                String placeKey =
-                        null;
-
-                LatLng shellPoint =
-                        null;
-
-                CaminoStageTopology.StageNode established =
-                        topology.nearestPrimaryNode(
-                                state.route,
-                                target.point,
-                                EXISTING_SHELL_REUSE_M
-                        );
-
-                if (established != null) {
-                    placeKey =
-                            established.placeKey;
-
-                    shellPoint =
-                            established.point;
-                }
-
-                if (placeKey == null) {
-                    DecisionPoint decision =
-                            decisionNearPoint(
-                                    state,
-                                    target.point,
-                                    EXISTING_SHELL_REUSE_M
-                            );
-
-                    if (decision != null) {
-                        placeKey =
-                                decision.placeKey;
-
-                        shellPoint =
-                                decision.point;
-                    }
-                }
-
-                if (placeKey == null) {
-                    MergePoint existingMerge =
-                            mergeNearPoint(
-                                    state,
-                                    target.point,
-                                    EXISTING_SHELL_REUSE_M
-                            );
-
-                    if (existingMerge != null) {
-                        placeKey =
-                                existingMerge.placeKey;
-
-                        shellPoint =
-                                existingMerge.point;
-                    }
-                }
-
-                if (placeKey == null) {
-                    placeKey =
-                            "@merge:"
-                                    + state.route.id
-                                    + ":"
-                                    + syntheticIndex++;
-
-                    shellPoint =
-                            target.point;
-
-                    topology.addDecisionNode(
-                            placeKey,
-                            shellPoint,
-                            state.route.color
-                    );
-                }
-
-                MergePoint merge =
-                        new MergePoint(
-                                state,
-                                placeKey,
-                                shellPoint,
-                                target
-                        );
-
-                mergesByKey
-                        .computeIfAbsent(
-                                placeKey,
-                                ignored ->
-                                        new ArrayList<>()
-                        )
-                        .add(
-                                merge
-                        );
-
-                int targetPrimaryIndex =
-                        state.primaryIndex(
-                                target.track
-                        );
-
-                ProjectionHit shellHit =
-                        target.toHit(
-                                targetPrimaryIndex
-                        );
-
-                /*
-                 * Stop the receiving corridor at the same junction too.
-                 */
-                addJunctionShellEvent(
-                        state,
-                        target.track,
-                        new ShellEvent(
-                                placeKey,
-                                target,
-                                shellHit
-                        )
-                );
-
-                /*
-                 * Stop the alternative at its physical end before
-                 * nextVariantContinuation() crosses onto the receiving track.
-                 */
-                CaminoVariantPathPart lastPart =
-                        attachment.path.parts.get(
-                                attachment.path.parts.size() - 1
-                        );
-
-                TrackProjection variantEnd =
-                        endpointProjection(
-                                lastPart.track,
-                                lastPart.reversed
-                        );
-
-                if (variantEnd != null) {
-                    addJunctionShellEvent(
-                            state,
-                            lastPart.track,
-                            new ShellEvent(
-                                    placeKey,
-                                    variantEnd,
-                                    shellHit
-                            )
-                    );
-                }
-            }
-        }
-    }
-
-
-    private DecisionPoint decisionNearPoint(
-            RouteState state,
-            LatLng point,
-            double maxDistanceM
-    ) {
-        DecisionPoint best =
-                null;
-
-        double bestDistanceM =
-                maxDistanceM;
-
-        for (DecisionPoint decision
-                : allDecisions) {
-
-            if (decision.state != state) {
-                continue;
-            }
-
-            double distanceM =
-                    GeoMath.distanceMeters(
-                            point,
-                            decision.point
-                    );
-
-            if (distanceM
-                    <= bestDistanceM) {
-
-                best =
-                        decision;
-
-                bestDistanceM =
-                        distanceM;
-            }
-        }
-
-        return best;
-    }
-
-
-    private MergePoint mergeNearPoint(
-            RouteState state,
-            LatLng point,
-            double maxDistanceM
-    ) {
-        MergePoint best =
-                null;
-
-        double bestDistanceM =
-                maxDistanceM;
-
-        for (List<MergePoint> candidates
-                : mergesByKey.values()) {
-
-            for (MergePoint candidate
-                    : candidates) {
-
-                if (candidate.state != state) {
-                    continue;
-                }
-
-                double distanceM =
-                        GeoMath.distanceMeters(
-                                point,
-                                candidate.point
-                        );
-
-                if (distanceM
-                        <= bestDistanceM) {
-
-                    best =
-                            candidate;
-
-                    bestDistanceM =
-                            distanceM;
-                }
-            }
-        }
-
-        return best;
-    }
-
-
-    private void addJunctionShellEvent(
-            RouteState state,
-            RouteTrack track,
-            ShellEvent shell
-    ) {
-        if (state == null
-                || track == null
-                || shell == null) {
-
-            return;
-        }
-
-        List<ShellEvent> events =
-                state.shellsOnTrack
-                        .computeIfAbsent(
-                                track,
-                                ignored ->
-                                        new ArrayList<>()
-                        );
-
-        for (ShellEvent existing
-                : events) {
-
-            if (existing.placeKey.equals(
-                    shell.placeKey
-            )
-                    && Math.abs(
-                    existing.trackProjection.chainageM
-                            - shell.trackProjection.chainageM
-            ) <= 1.0) {
-
-                return;
-            }
-        }
-
-        events.add(
-                shell
-        );
-
-        events.sort(
-                Comparator.comparingDouble(
-                        event ->
-                                event.trackProjection.chainageM
-                )
-        );
     }
 
 
@@ -3294,35 +2620,6 @@ final class CaminoStagePathResolver {
                     <= JOIN_TOLERANCE_M
                     && endTarget.distanceM
                     <= JOIN_TOLERANCE_M;
-        }
-    }
-
-
-    private static final class MergePoint {
-
-        final RouteState state;
-        final String placeKey;
-        final LatLng point;
-        final TrackProjection target;
-
-
-        MergePoint(
-                RouteState state,
-                String placeKey,
-                LatLng point,
-                TrackProjection target
-        ) {
-            this.state =
-                    state;
-
-            this.placeKey =
-                    placeKey;
-
-            this.point =
-                    point;
-
-            this.target =
-                    target;
         }
     }
 

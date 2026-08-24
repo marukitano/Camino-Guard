@@ -305,7 +305,7 @@ final class CaminoDragController {
         }
 
         ProjectionHit snapped =
-                projectionEngine.projectToSelectableRoute(
+                projectionEngine.projectToRoute(
                         dragRoute,
                         fingerPosition
                 );
