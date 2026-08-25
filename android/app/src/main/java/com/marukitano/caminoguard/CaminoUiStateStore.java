@@ -69,9 +69,6 @@ final class CaminoUiStateStore {
     private static final String PREF_SELECTION_END_LON =
             "selection_end_lon";
 
-    private static final String PREF_SELECTION_VARIANT_PATH =
-            "selection_variant_path";
-
     private static final String PREF_SELECTION_STAGE_PLACE =
             "selection_stage_place";
 
@@ -273,7 +270,6 @@ final class CaminoUiStateStore {
             LatLng startPoint,
             String endRouteId,
             LatLng endPoint,
-            String variantPathId,
             String stagePlaceKey,
             LatLng stagePoint,
             String resolvedPathId
@@ -310,12 +306,6 @@ final class CaminoUiStateStore {
                 PREF_SELECTION_END_LAT,
                 PREF_SELECTION_END_LON,
                 endPoint
-        );
-
-        putNullableString(
-                editor,
-                PREF_SELECTION_VARIANT_PATH,
-                variantPathId
         );
 
         putNullableString(
@@ -368,10 +358,6 @@ final class CaminoUiStateStore {
                         PREF_SELECTION_END_LON
                 ),
                 preferences.getString(
-                        PREF_SELECTION_VARIANT_PATH,
-                        null
-                ),
-                preferences.getString(
                         PREF_SELECTION_STAGE_PLACE,
                         null
                 ),
@@ -410,9 +396,6 @@ final class CaminoUiStateStore {
                 )
                 .remove(
                         PREF_SELECTION_END_LON
-                )
-                .remove(
-                        PREF_SELECTION_VARIANT_PATH
                 )
                 .remove(
                         PREF_SELECTION_STAGE_PLACE
@@ -555,7 +538,6 @@ final class CaminoUiStateStore {
         final LatLng startPoint;
         final String endRouteId;
         final LatLng endPoint;
-        final String variantPathId;
         final String stagePlaceKey;
         final LatLng stagePoint;
         final String resolvedPathId;
@@ -565,7 +547,6 @@ final class CaminoUiStateStore {
                 LatLng startPoint,
                 String endRouteId,
                 LatLng endPoint,
-                String variantPathId,
                 String stagePlaceKey,
                 LatLng stagePoint,
                 String resolvedPathId
@@ -581,9 +562,6 @@ final class CaminoUiStateStore {
 
             this.endPoint =
                     endPoint;
-
-            this.variantPathId =
-                    variantPathId;
 
             this.stagePlaceKey =
                     stagePlaceKey;

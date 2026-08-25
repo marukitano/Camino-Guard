@@ -9,3 +9,8 @@ __pycache__/
 # Editor/OS noise
 .DS_Store
 /.cache/
+
+# Local patch-script safety copies; Git already owns project history
+.patch-backups/
+*.orig
+*.rej

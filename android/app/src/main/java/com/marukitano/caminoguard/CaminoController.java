@@ -86,8 +86,6 @@ public final class CaminoController {
     private int stageExtensionChoiceIndex =
             -1;
 
-    private CaminoVariantPath selectedVariantPath;
-
     /*
      * One visible shell can represent several logical primary Camino edges.
      * These temporary constraints let the established variant resolver run
@@ -575,8 +573,7 @@ public final class CaminoController {
         interactionRenderer.updateDummyPosition(
                 dummyPosition
         );
-        if (selectedStagePoint != null
-                || selectedVariantPath != null) {
+        if (selectedStagePoint != null) {
             /*
              * Do not paint the normal blue tap dots over the shell artwork.
              * The route endpoints still exist in selectionController; this is
@@ -710,8 +707,7 @@ public final class CaminoController {
         interactionRenderer.updateDummyPosition(
                 dummyPosition
         );
-        if (selectedStagePoint != null
-                || selectedVariantPath != null) {
+        if (selectedStagePoint != null) {
             /*
              * Do not paint the normal blue tap dots over the shell artwork.
              * The route endpoints still exist in selectionController; this is
@@ -751,10 +747,7 @@ public final class CaminoController {
                         ? null
                         : startRouteHit.hit;
 
-        if (selectedVariantPath != null) {
-            interactionRenderer.hideStartProjectionAndConnector();
-
-        } else if (selectionController.secondTapHit()
+        if (selectionController.secondTapHit()
                 == null) {
 
             interactionRenderer.updateStartProjection(
@@ -780,8 +773,7 @@ public final class CaminoController {
          * position intentionally stays card-free.
          */
         if (selectionController.secondTapHit()
-                != null
-                || selectedVariantPath != null) {
+                != null) {
 
             selectionStatsOverlay.update(
                     currentMeasurementPath
@@ -1057,9 +1049,8 @@ public final class CaminoController {
         }
 
         /*
-         * The offset snail collider overlaps nearby shell colliders. A shell is
-         * the stage selector, so it must get first refusal. Snails remain
-         * tappable where no shell is under the tap.
+         * Stage selection is driven exclusively by the visible Camino shells:
+         * track starts and fork/junction shells.
          */
         PointF screenPoint =
                 map.getProjection()
@@ -1071,249 +1062,14 @@ public final class CaminoController {
                         screenPoint.y
                 );
 
-        if (target != null) {
-            return handleStagePlaceTap(
-                    target.placeKey,
-                    target.point
-            );
-        }
-
-        return handleVariantTap(
-                tap
-        );
-    }
-
-
-    private boolean handleVariantTap(
-            LatLng tap
-    ) {
-        if (map == null) {
+        if (target == null) {
             return false;
         }
 
-        PointF screenPoint =
-                map.getProjection()
-                        .toScreenLocation(
-                                tap
-                        );
-
-        List<VariantTapTarget> targets =
-                findVariantTapTargets(
-                        screenPoint.x,
-                        screenPoint.y
-                );
-
-        if (targets.isEmpty()) {
-            return false;
-        }
-
-        int choiceIndex =
-                0;
-
-        if (selectedVariantPath != null) {
-            for (int index = 0;
-                    index < targets.size();
-                    index++) {
-
-                if (selectedVariantPath.id.equals(
-                        targets.get(
-                                index
-                        ).pathId
-                )) {
-
-                    choiceIndex =
-                            (
-                                    index + 1
-                            )
-                                    % targets.size();
-
-                    break;
-                }
-            }
-        }
-
-        VariantTapTarget target =
-                targets.get(
-                        choiceIndex
-                );
-
-        CaminoVariantPath path =
-                findVariantPath(
-                        target.pathId
-                );
-
-        if (path == null) {
-            return true;
-        }
-
-        clearSelectedStageVisual();
-
-        selectionController.clearSelectionWithoutRefresh();
-
-        selectedVariantPath =
-                path;
-
-        refresh();
-
-        return true;
-    }
-
-
-    private List<VariantTapTarget> findVariantTapTargets(
-            float screenX,
-            float screenY
-    ) {
-        List<VariantTapTarget> result =
-                new ArrayList<>();
-
-        if (map == null) {
-            return result;
-        }
-
-        float radius =
-                stageDp(
-                        28
-                );
-
-        RectF hitBox =
-                new RectF(
-                        screenX - radius,
-                        screenY - radius,
-                        screenX + radius,
-                        screenY + radius
-                );
-
-        List<Feature> features =
-                map.queryRenderedFeatures(
-                        hitBox,
-                        CaminoMapRenderer.VARIANT_LAYER
-                );
-
-        if (features == null
-                || features.isEmpty()) {
-
-            return result;
-        }
-
-        for (Feature feature
-                : features) {
-
-            if (feature == null
-                    || !feature.hasProperty(
-                    "variant_path_id"
-            )
-                    || !(feature.geometry()
-                    instanceof Point)) {
-
-                continue;
-            }
-
-            Point geometry =
-                    (Point)
-                            feature.geometry();
-
-            LatLng point =
-                    new LatLng(
-                            geometry.latitude(),
-                            geometry.longitude()
-                    );
-
-            PointF markerScreen =
-                    map.getProjection()
-                            .toScreenLocation(
-                                    point
-                            );
-
-            float dx =
-                    screenX
-                            - markerScreen.x;
-
-            float dy =
-                    screenY
-                            - markerScreen.y;
-
-            float distanceSq =
-                    dx * dx
-                            + dy * dy;
-
-            if (distanceSq
-                    > radius * radius) {
-
-                continue;
-            }
-
-            String pathId =
-                    feature.getStringProperty(
-                            "variant_path_id"
-                    );
-
-            boolean alreadyPresent =
-                    false;
-
-            for (VariantTapTarget existing
-                    : result) {
-
-                if (existing.pathId.equals(
-                        pathId
-                )) {
-
-                    alreadyPresent =
-                            true;
-
-                    break;
-                }
-            }
-
-            if (!alreadyPresent) {
-                result.add(
-                        new VariantTapTarget(
-                                pathId,
-                                point,
-                                distanceSq
-                        )
-                );
-            }
-        }
-
-        result.sort(
-                Comparator
-                        .comparingDouble(
-                                (VariantTapTarget target) ->
-                                        target.distanceSq
-                        )
-                        .thenComparing(
-                                (VariantTapTarget target) ->
-                                        target.pathId
-                        )
+        return handleStagePlaceTap(
+                target.placeKey,
+                target.point
         );
-
-        return result;
-    }
-
-
-    private CaminoVariantPath findVariantPath(
-            String pathId
-    ) {
-        if (pathId == null) {
-            return null;
-        }
-
-        for (CaminoRoute route
-                : routes) {
-
-            for (CaminoVariantPath path
-                    : route.variantPaths) {
-
-                if (pathId.equals(
-                        path.id
-                )) {
-
-                    return path;
-                }
-            }
-        }
-
-        return null;
     }
 
 
@@ -1404,8 +1160,6 @@ public final class CaminoController {
             String placeKey,
             LatLng stagePoint
     ) {
-        selectedVariantPath =
-                null;
 
         /*
          * Repeated tap on the same fork while its extension carousel is active.
@@ -1768,8 +1522,7 @@ public final class CaminoController {
 
 
     private boolean hasMarkedSelection() {
-        return selectedVariantPath != null
-                || selectionController.secondTapHit() != null;
+        return selectionController.secondTapHit() != null;
     }
 
 
@@ -1859,11 +1612,6 @@ public final class CaminoController {
                     selectionController.secondTapHit().point;
         }
 
-        String variantPathId =
-                selectedVariantPath == null
-                        ? null
-                        : selectedVariantPath.id;
-
         String resolvedPathId =
                 selectedStageSelection == null
                         || selectedStageSelection.resolvedPath == null
@@ -1875,7 +1623,6 @@ public final class CaminoController {
                 startPoint,
                 endRouteId,
                 endPoint,
-                variantPathId,
                 selectedStagePlaceKey,
                 selectedStagePoint,
                 resolvedPathId
@@ -1894,24 +1641,6 @@ public final class CaminoController {
             return;
         }
 
-        if (saved.variantPathId != null) {
-            CaminoVariantPath variant =
-                    findVariantPath(
-                            saved.variantPathId
-                    );
-
-            if (variant != null) {
-                selectionController.clearSelectionWithoutRefresh();
-
-                selectedVariantPath =
-                        variant;
-
-                selectionLocked =
-                        true;
-
-                return;
-            }
-        }
 
         if (saved.stagePlaceKey != null
                 && saved.stagePoint != null
@@ -1939,9 +1668,6 @@ public final class CaminoController {
 
                     continue;
                 }
-
-                selectedVariantPath =
-                        null;
 
                 selectedStagePoint =
                         saved.stagePoint;
@@ -2083,32 +1809,7 @@ public final class CaminoController {
         selectedStageSelection =
                 null;
 
-        selectedVariantPath =
-                null;
         clearStageExtensionCarousel();
-    }
-
-
-    private static final class VariantTapTarget {
-
-        final String pathId;
-        final LatLng point;
-        final float distanceSq;
-
-        VariantTapTarget(
-                String pathId,
-                LatLng point,
-                float distanceSq
-        ) {
-            this.pathId =
-                    pathId;
-
-            this.point =
-                    point;
-
-            this.distanceSq =
-                    distanceSq;
-        }
     }
 
 
@@ -2232,18 +1933,6 @@ public final class CaminoController {
             return;
         }
 
-        if (selectedVariantPath != null) {
-            currentMeasurementPath =
-                    measurementEngine.buildOfficialVariantPath(
-                            selectedVariantPath
-                    );
-
-            interactionRenderer.renderMeasurementPath(
-                    currentMeasurementPath
-            );
-
-            return;
-        }
 
         if (selectionController.selectedRoute() == null
                 || selectionController.selectedHit() == null) {
