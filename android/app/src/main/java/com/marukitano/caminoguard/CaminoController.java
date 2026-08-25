@@ -148,15 +148,15 @@ public final class CaminoController {
                         mapView,
                         () -> dummyPosition,
                         this::navigationBearingAtPosition,
-                        infoController::setNavigationFollowEnabled
+                        infoController::setNavigationMode
                 );
 
         infoController.setNavigationAction(
-                navigationController::toggleFollow
+                navigationController::cycleMode
         );
 
-        infoController.setNavigationFollowEnabled(
-                navigationController.isFollowEnabled()
+        infoController.setNavigationMode(
+                navigationController.currentMode()
         );
 
         infoController.setSelectionLockAction(
@@ -372,10 +372,23 @@ public final class CaminoController {
          * excluded from learned walking speed.
          */
         if (snapshot.stationary) {
-            travelStatsController.noteStationary(
+            LatLng stationaryPosition =
                     new LatLng(
                             snapshot.location.getLatitude(),
                             snapshot.location.getLongitude()
+                    );
+
+            travelStatsController.noteStationary(
+                    stationaryPosition
+            );
+
+            walkingPerformanceModel.noteStationary(
+                    stationaryPosition
+            );
+
+            activity.runOnUiThread(
+                    () -> selectionStatsOverlay.noteMotionState(
+                            true
                     )
             );
         }
@@ -421,6 +434,27 @@ public final class CaminoController {
                     travelStatsController.noteSample(
                             position
                     );
+
+                    if (!snapshot.stationary) {
+                        long elapsedMs =
+                                snapshot.location
+                                        .getElapsedRealtimeNanos()
+                                > 0L
+                                        ? snapshot.location
+                                        .getElapsedRealtimeNanos()
+                                        / 1_000_000L
+                                        : snapshot.location
+                                        .getTime();
+
+                        walkingPerformanceModel.noteMovingSample(
+                                position,
+                                elapsedMs
+                        );
+
+                        selectionStatsOverlay.noteMotionState(
+                                false
+                        );
+                    }
 
                     if (map == null
                             || routes.isEmpty()) {
@@ -751,7 +785,8 @@ public final class CaminoController {
 
             selectionStatsOverlay.update(
                     currentMeasurementPath
-            );
+            ,
+                    dummyPosition);
 
         } else {
             selectionStatsOverlay.hide();
@@ -785,6 +820,10 @@ public final class CaminoController {
         );
 
         infoController.setSelectionLocked(
+                selectionLocked
+        );
+
+        selectionStatsOverlay.setLocked(
                 selectionLocked
         );
 
@@ -1739,6 +1778,10 @@ public final class CaminoController {
             selectionLocked =
                     false;
 
+            selectionStatsOverlay.setLocked(
+                    false
+            );
+
             uiStateStore.clearLockedSelection();
 
             infoController.setSelectionLocked(
@@ -1763,6 +1806,10 @@ public final class CaminoController {
 
         selectionLocked =
                 true;
+
+        selectionStatsOverlay.setLocked(
+                true
+        );
 
         persistLockedSelection();
 

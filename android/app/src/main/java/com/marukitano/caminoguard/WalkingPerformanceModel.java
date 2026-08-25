@@ -564,6 +564,285 @@ final class WalkingPerformanceModel {
         );
     }
 
+    /**
+     * ETA for only the still-unwalked fraction of a selected MeasurementPath.
+     *
+     * progressFraction is 0 at the selected start and 1 at the selected goal.
+     * No pause duration is added here; this remains pure moving-time ETA.
+     */
+    WalkingTimeEstimate estimateRemaining(
+            MeasurementPath path,
+            double progressFraction
+    ) {
+        refreshHistoryIfNeeded();
+
+        if (path == null
+                || path.profilePoints == null
+                || path.profilePoints.size() < 2
+                || !Double.isFinite(
+                path.distanceM
+        )
+                || path.distanceM <= 0.0) {
+
+            return null;
+        }
+
+        progressFraction =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                1.0,
+                                progressFraction
+                        )
+                );
+
+        if (progressFraction >= 0.999999) {
+            return new WalkingTimeEstimate(
+                    1.0
+            );
+        }
+
+        List<ProfilePoint> points =
+                path.profilePoints;
+
+        ProfilePoint first =
+                points.get(
+                        0
+                );
+
+        ProfilePoint last =
+                points.get(
+                        points.size() - 1
+                );
+
+        if (first == null
+                || last == null
+                || !Double.isFinite(
+                first.distanceM
+        )
+                || !Double.isFinite(
+                last.distanceM
+        )) {
+
+            return null;
+        }
+
+        double profileSpanM =
+                last.distanceM
+                        - first.distanceM;
+
+        if (!Double.isFinite(
+                profileSpanM
+        )
+                || profileSpanM <= 0.01) {
+
+            return null;
+        }
+
+        double startDistanceM =
+                first.distanceM
+                        + profileSpanM
+                        * progressFraction;
+
+        double seconds =
+                0.0;
+
+        double accountedDistanceM =
+                0.0;
+
+        double chunkDistanceM =
+                0.0;
+
+        double chunkElevationDeltaM =
+                0.0;
+
+        ProfilePoint previous =
+                points.get(
+                        0
+                );
+
+        for (int index = 1;
+                index < points.size();
+                index++) {
+
+            ProfilePoint current =
+                    points.get(
+                            index
+                    );
+
+            if (previous == null
+                    || current == null
+                    || !Double.isFinite(
+                    previous.distanceM
+            )
+                    || !Double.isFinite(
+                    current.distanceM
+            )) {
+
+                previous =
+                        current;
+
+                continue;
+            }
+
+            double fullSegmentDistanceM =
+                    current.distanceM
+                            - previous.distanceM;
+
+            if (!Double.isFinite(
+                    fullSegmentDistanceM
+            )
+                    || fullSegmentDistanceM <= 0.0
+                    || current.distanceM
+                    <= startDistanceM) {
+
+                previous =
+                        current;
+
+                continue;
+            }
+
+            double usableStartDistanceM =
+                    Math.max(
+                            previous.distanceM,
+                            startDistanceM
+                    );
+
+            double remainingRatio =
+                    (
+                            current.distanceM
+                                    - usableStartDistanceM
+                    )
+                            / fullSegmentDistanceM;
+
+            remainingRatio =
+                    Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    remainingRatio
+                            )
+                    );
+
+            double segmentDistanceM =
+                    fullSegmentDistanceM
+                            * remainingRatio;
+
+            if (segmentDistanceM <= 0.0) {
+                previous =
+                        current;
+
+                continue;
+            }
+
+            accountedDistanceM +=
+                    segmentDistanceM;
+
+            if (current.breakBefore
+                    || !Double.isFinite(
+                    current.elevationM
+            )
+                    || !Double.isFinite(
+                    previous.elevationM
+            )) {
+
+                if (chunkDistanceM > 0.0) {
+                    seconds +=
+                            secondsForChunk(
+                                    chunkDistanceM,
+                                    chunkElevationDeltaM
+                            );
+
+                    chunkDistanceM =
+                            0.0;
+
+                    chunkElevationDeltaM =
+                            0.0;
+                }
+
+                seconds +=
+                        secondsForGrade(
+                                segmentDistanceM,
+                                0.0
+                        );
+
+                previous =
+                        current;
+
+                continue;
+            }
+
+            chunkDistanceM +=
+                    segmentDistanceM;
+
+            chunkElevationDeltaM +=
+                    (
+                            current.elevationM
+                                    - previous.elevationM
+                    )
+                            * remainingRatio;
+
+            if (chunkDistanceM
+                    >= ETA_GRADE_WINDOW_M) {
+
+                seconds +=
+                        secondsForChunk(
+                                chunkDistanceM,
+                                chunkElevationDeltaM
+                        );
+
+                chunkDistanceM =
+                        0.0;
+
+                chunkElevationDeltaM =
+                        0.0;
+            }
+
+            previous =
+                    current;
+        }
+
+        if (chunkDistanceM > 0.0) {
+            seconds +=
+                    secondsForChunk(
+                            chunkDistanceM,
+                            chunkElevationDeltaM
+                    );
+        }
+
+        double expectedRemainingDistanceM =
+                path.distanceM
+                        * (
+                        1.0
+                                - progressFraction
+                );
+
+        double unprofiledDistanceM =
+                expectedRemainingDistanceM
+                        - accountedDistanceM;
+
+        if (unprofiledDistanceM > 0.5) {
+            seconds +=
+                    secondsForGrade(
+                            unprofiledDistanceM,
+                            0.0
+                    );
+        }
+
+        if (!Double.isFinite(
+                seconds
+        )
+                || seconds <= 0.0) {
+
+            return null;
+        }
+
+        return new WalkingTimeEstimate(
+                seconds
+        );
+    }
+
+
     private double secondsForChunk(
             double distanceM,
             double elevationDeltaM

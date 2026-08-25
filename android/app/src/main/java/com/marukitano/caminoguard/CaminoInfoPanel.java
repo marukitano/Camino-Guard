@@ -8,7 +8,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -26,13 +25,12 @@ import android.widget.TextView;
  *   two vertical lists: altitude left, pace/navigation right
  *
  * controls
- *   navigation + compass in reserved bottom area
+ *   one three-state navigation control in reserved bottom area
  */
 final class CaminoInfoPanel extends FrameLayout {
 
     private static final float TAB_VISIBLE_HEIGHT_DP = 31.0f;
 
-    private final ImageView compassView;
     private final TextView titleView;
     private final TextView summaryLeftView;
     private final TextView summaryRightView;
@@ -54,11 +52,11 @@ final class CaminoInfoPanel extends FrameLayout {
         /*
          * The old bottom information card is temporarily disabled.
          * This view now acts only as a transparent host for the two map
-         * controls that remain active: compass + navigation/recenter.
+         * controls that remain active: navigation mode + lock + attribution.
          */
         setClickable(false);
         setMinimumWidth(dpInt(48));
-        setMinimumHeight(dpInt(192));
+        setMinimumHeight(dpInt(144));
 
         setBackground(
                 null
@@ -257,28 +255,6 @@ final class CaminoInfoPanel extends FrameLayout {
                 )
         );
 
-        compassView =
-                new ImageView(context);
-
-        compassView.setScaleType(
-                ImageView.ScaleType.CENTER_INSIDE
-        );
-
-        FrameLayout.LayoutParams compassParams =
-                new FrameLayout.LayoutParams(
-                        dpInt(40),
-                        dpInt(40),
-                        Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
-                );
-
-        compassParams.bottomMargin =
-                dpInt(148);
-
-        addView(
-                compassView,
-                compassParams
-        );
-
         navigationButton =
                 new CaminoNavigationButton(
                         context
@@ -379,7 +355,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 );
 
         attributionParams.bottomMargin =
-                dpInt(52);
+                dpInt(4);
 
         addView(
                 attributionButton,
@@ -411,7 +387,7 @@ final class CaminoInfoPanel extends FrameLayout {
                 );
 
         lockParams.bottomMargin =
-                dpInt(4);
+                dpInt(52);
 
         addView(
                 selectionLockButton,
@@ -614,42 +590,20 @@ final class CaminoInfoPanel extends FrameLayout {
     void setCompassDrawable(
             Drawable drawable
     ) {
-        if (drawable == null) {
-            compassView.setVisibility(
-                    GONE
-            );
-
-            return;
-        }
-
-        Drawable copy =
-                drawable;
-
-        if (drawable.getConstantState()
-                != null) {
-
-            copy =
-                    drawable.getConstantState()
-                            .newDrawable()
-                            .mutate();
-        }
-
-        compassView.setImageDrawable(
-                copy
-        );
-
-        compassView.setVisibility(
-                VISIBLE
+        navigationButton.setCompassDrawable(
+                drawable
         );
     }
 
     void setBearing(
             double bearing
     ) {
-        compassView.setRotation(
-                (float) -bearing
+        navigationButton.setMapBearing(
+                bearing
         );
     }
+
+
 
     void setNavigationAction(
             Runnable action
@@ -688,11 +642,13 @@ final class CaminoInfoPanel extends FrameLayout {
         );
     }
 
-    void setNavigationFollowEnabled(
-            boolean enabled
+    void setNavigationMode(
+            NavigationController.Mode mode,
+            boolean suspended
     ) {
-        navigationButton.setFollowEnabled(
-                enabled
+        navigationButton.setMode(
+                mode,
+                suspended
         );
     }
 

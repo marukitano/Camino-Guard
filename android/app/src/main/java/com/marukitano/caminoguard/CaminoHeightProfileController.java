@@ -52,6 +52,14 @@ final class CaminoHeightProfileController {
     private static final double SLOPE_WINDOW_M =
             100.0;
 
+    /*
+     * A physical GPS position is only a position ON the selected route when it
+     * is plausibly close to that route. Never snap a Swiss position onto a
+     * Camino hundreds or thousands of kilometres away.
+     */
+    private static final double LOCKED_POSITION_MAX_OFFSET_M =
+            200.0;
+
     private final Activity activity;
     private final MapView mapView;
     private final CaminoInfoPresenter infoPresenter;
@@ -122,6 +130,10 @@ final class CaminoHeightProfileController {
                         activity
                 );
 
+        view.setLockedProfileStyle(
+                lockedSelectionActive
+        );
+
         /*
          * The transparent full-screen View must exist even while the profile is
          * closed, because the right-edge chevron itself is the on/off control.
@@ -181,18 +193,59 @@ final class CaminoHeightProfileController {
     void setMeasurementPath(
             MeasurementPath path
     ) {
+        boolean previouslyMarked =
+                hasUsableMeasurementPath(
+                        selectedMeasurementPath
+                );
+
         selectedMeasurementPath =
                 hasUsableMeasurementPath(
                         path
                 )
                         ? path
                         : null;
+
+        boolean nowMarked =
+                hasUsableMeasurementPath(
+                        selectedMeasurementPath
+                );
+
+        /*
+         * A newly marked route should reveal its elevation profile
+         * automatically. This is intentionally edge-triggered:
+         *
+         *   unmarked -> marked : open once
+         *   marked   -> marked : keep the user's current open/closed choice
+         *
+         * That means camera/GPS refreshes never fight a user who manually
+         * closes the profile after selecting a route.
+         */
+        if (!previouslyMarked
+                && nowMarked) {
+
+            autoOpenMarkedMeasurementProfile();
+        }
+    }
+
+    private void autoOpenMarkedMeasurementProfile() {
+        if (view == null) {
+            return;
+        }
+
+        if (!updateProfileAvailability()) {
+            return;
+        }
+
+        view.showProfile();
     }
 
     void setLockedSelectionPosition(
             LatLng position,
             boolean locked
     ) {
+        boolean wasLocked =
+                lockedSelectionActive;
+
         lockedSelectionPosition =
                 locked
                         ? position
@@ -201,6 +254,25 @@ final class CaminoHeightProfileController {
         lockedSelectionActive =
                 locked
                         && position != null;
+
+        if (view
+                != null) {
+
+            view.setLockedProfileStyle(
+                    lockedSelectionActive
+            );
+
+            /*
+             * Locking is an explicit mode change. If the profile was manually
+             * closed after marking the route, reveal it again when the lock is
+             * engaged so position + permanent elevation are actually visible.
+             */
+            if (!wasLocked
+                    && lockedSelectionActive) {
+
+                view.showProfile();
+            }
+        }
     }
 
 
@@ -444,6 +516,10 @@ final class CaminoHeightProfileController {
                 selectedMeasurementPath
         )) {
 
+            view.setMarkedSelectionProfile(
+                    true
+            );
+
             List<CaminoHeightProfileView.Sample> selectedSamples =
                     buildSelectedMeasurementSamples(
                             selectedMeasurementPath
@@ -478,6 +554,10 @@ final class CaminoHeightProfileController {
 
             return;
         }
+
+        view.setMarkedSelectionProfile(
+                false
+        );
 
         view.setLockedPositionSample(
                 null
@@ -850,8 +930,18 @@ final class CaminoHeightProfileController {
         )
                 || !Double.isFinite(
                 bestElevationM
-        )) {
+        )
+                || !Double.isFinite(
+                bestOffsetM
+        )
+                || bestOffsetM
+                > LOCKED_POSITION_MAX_OFFSET_M) {
 
+            /*
+             * Important: "nearest" is not the same as "on route".
+             * If the real position is farther than 200 m away, there is no
+             * permanent blue position marker on the selected profile.
+             */
             return null;
         }
 

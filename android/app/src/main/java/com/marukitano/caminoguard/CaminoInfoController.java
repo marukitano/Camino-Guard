@@ -28,7 +28,10 @@ final class CaminoInfoController {
     private CaminoInfoPanel panel;
 
     private Runnable navigationAction;
-    private boolean navigationFollowEnabled;
+    private NavigationController.Mode navigationMode =
+            NavigationController.Mode.MANUAL;
+
+    private boolean navigationSuspended;
 
     private Runnable selectionLockAction;
     private boolean selectionLocked;
@@ -66,14 +69,33 @@ final class CaminoInfoController {
         }
     }
 
-    void setNavigationFollowEnabled(
-            boolean enabled
+    void setNavigationMode(
+            NavigationController.Mode mode
     ) {
-        navigationFollowEnabled = enabled;
+        setNavigationMode(
+                mode,
+                false
+        );
+    }
+
+    void setNavigationMode(
+            NavigationController.Mode mode,
+            boolean suspended
+    ) {
+        navigationMode =
+                mode == null
+                        ? NavigationController.Mode.MANUAL
+                        : mode;
+
+        navigationSuspended =
+                navigationMode
+                        != NavigationController.Mode.MANUAL
+                        && suspended;
 
         if (panel != null) {
-            panel.setNavigationFollowEnabled(
-                    enabled
+            panel.setNavigationMode(
+                    navigationMode,
+                    navigationSuspended
             );
         }
     }
@@ -137,8 +159,9 @@ final class CaminoInfoController {
             );
         }
 
-        panel.setNavigationFollowEnabled(
-                navigationFollowEnabled
+        panel.setNavigationMode(
+                navigationMode,
+                navigationSuspended
         );
 
         panel.setSelectionLockAction(
@@ -167,7 +190,7 @@ final class CaminoInfoController {
 
         /*
          * The former bottom info card is currently disabled. Its remaining
-         * compass + navigation/recenter + attribution controls live as a compact vertical
+         * navigation-mode + lock + attribution controls live as a compact vertical
          * stack at the left screen edge.
          */
         FrameLayout.LayoutParams params =
@@ -176,7 +199,7 @@ final class CaminoInfoController {
                                 48
                         ),
                         dp(
-                                192
+                                144
                         ),
                         Gravity.START
                                 | Gravity.BOTTOM
@@ -189,7 +212,7 @@ final class CaminoInfoController {
 
         /*
          * Anchor the three controls at the bottom-left and let the stack grow
-         * upward: recenter/navigation at the bottom, compass above it.
+         * upward: info, lock, then the single navigation-mode button.
          */
         params.bottomMargin =
                 dp(

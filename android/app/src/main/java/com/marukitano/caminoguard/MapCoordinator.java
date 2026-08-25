@@ -213,6 +213,7 @@ final class MapCoordinator {
         ioExecutor.shutdownNow();
     }
 
+
     private void configureStartupCamera(
             MapLibreMap map
     ) {
@@ -299,6 +300,7 @@ final class MapCoordinator {
                                     orientationController.onStyleLoaded(
                                             style
                                     );
+
                                 }
                         );
                     }

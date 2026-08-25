@@ -86,13 +86,12 @@ final class CaminoHeightProfileView extends View {
     private static final float PROFILE_WIDTH_FRACTION = 1.0f / 3.0f;
     private static final float PROFILE_RIGHT_MARGIN_MM = 3.0f;
 
+    /*
+     * Original unlocked-profile cursor placement.
+     * v79 restores this ONLY for the white/unlocked profile.
+     */
     private static final float CURSOR_LABEL_RIGHT_MARGIN_DP = 134.0f;
 
-    /*
-     * Swipe altitude label sits 10 mm further right than before.
-     * Use physical millimetres so this remains visually consistent across
-     * different phone densities.
-     */
     private static final float CURSOR_LABEL_SHIFT_RIGHT_MM = 10.0f;
 
     private static final float PROFILE_END_FADE_MM = 6.0f;
@@ -137,6 +136,10 @@ final class CaminoHeightProfileView extends View {
                     Paint.ANTI_ALIAS_FLAG
             );
 
+    /*
+     * These three paints belong only to the original white/unlocked cursor.
+     * Locked mode continues to reuse drawLockedPositionMarker().
+     */
     private final Paint cursorPaint =
             new Paint(
                     Paint.ANTI_ALIAS_FLAG
@@ -195,6 +198,19 @@ final class CaminoHeightProfileView extends View {
 
     private Sample lockedPositionSample;
 
+    /*
+     * Visual mode only:
+     * false -> normal/marked profile stays translucent white
+     * true  -> locked profile uses the stats-overlay dark fill
+     */
+    private boolean lockedProfileStyle;
+
+    /*
+     * True only when the current profile is an explicit marked route.
+     * Independent from lock state.
+     */
+    private boolean markedSelectionProfile;
+
     private int touchMode =
             TOUCH_NONE;
 
@@ -224,6 +240,35 @@ final class CaminoHeightProfileView extends View {
 
     boolean isProfileHidden() {
         return profileHidden;
+    }
+
+    void showProfile() {
+        if (!profileAvailable
+                || !profileHidden) {
+
+            return;
+        }
+
+        /*
+         * A route selection is an explicit user action, so a newly selected
+         * route may reveal the profile even if the previous generic viewport
+         * profile had been left closed.
+         */
+        restoreProfileWhenAvailable =
+                false;
+
+        animateReveal(
+                1.0f
+        );
+
+        if (profileVisibilityListener
+                != null) {
+
+            profileVisibilityListener
+                    .onProfileVisibilityChanged(
+                            true
+                    );
+        }
     }
 
     void setProfileAvailable(
@@ -287,6 +332,11 @@ final class CaminoHeightProfileView extends View {
                 context
         );
 
+        /*
+         * Normal and merely-marked profiles keep the original translucent
+         * white fill. Lock mode switches ONLY this filled body to the same
+         * dark colour as the selection stats overlay.
+         */
         fillPaint.setColor(
                 Color.argb(
                         76,
@@ -345,6 +395,10 @@ final class CaminoHeightProfileView extends View {
                 Paint.Cap.ROUND
         );
 
+        /*
+         * Original white/unlocked profile cursor styling.
+         * Locked mode does not use these paints.
+         */
         cursorPaint.setColor(
                 Color.argb(
                         220,
@@ -475,6 +529,74 @@ final class CaminoHeightProfileView extends View {
         lockedMarkerLabelBackgroundPaint.setStyle(
                 Paint.Style.FILL
         );
+    }
+
+    void setLockedProfileStyle(
+            boolean locked
+    ) {
+        if (lockedProfileStyle
+                == locked) {
+
+            return;
+        }
+
+        lockedProfileStyle =
+                locked;
+
+        fillPaint.setColor(
+                locked
+                        ? Color.argb(
+                        150,
+                        24,
+                        27,
+                        30
+                )
+                        : Color.argb(
+                        76,
+                        255,
+                        255,
+                        255
+                )
+        );
+
+        /*
+         * The thin profile contour follows the lock state too.
+         * The thicker grade overlay is handled separately by
+         * slopeLineColor(), otherwise its neutral white segments would still
+         * cover this dark contour.
+         */
+        /*
+         * Dark lock mode still needs a visible contour. Use a graphite neutral
+         * instead of near-black so the silhouette remains readable against the
+         * dark fill while still looking clearly different from the white
+         * unlocked profile.
+         */
+        linePaint.setColor(
+                locked
+                        ? Color.argb(
+                        235,
+                        76,
+                        82,
+                        88
+                )
+                        : Color.argb(
+                        235,
+                        255,
+                        255,
+                        255
+                )
+        );
+
+        invalidate();
+    }
+
+    void setMarkedSelectionProfile(
+            boolean marked
+    ) {
+        markedSelectionProfile =
+                marked;
+
+        invalidate();
     }
 
     void setLockedPositionSample(
@@ -814,6 +936,9 @@ final class CaminoHeightProfileView extends View {
                 right
                         - width;
 
+        /*
+         * Back to the original centre-right position.
+         */
         float top =
                 (
                         getHeight()
@@ -1289,11 +1414,11 @@ final class CaminoHeightProfileView extends View {
 
     private boolean profileNeedsEndFade() {
         /*
-         * v13 simplification:
-         * always use the same beautiful fragment fade, even when a fragment
-         * starts or ends directly at the physical screen edge.
+         * White/unlocked profile: keep the existing fragment fade unchanged.
+         * Dark/locked profile: draw the selected route solid to both ends.
          */
-        return samples.size()
+        return !lockedProfileStyle
+                && samples.size()
                 >= 2
                 && getHeight()
                 > 0;
@@ -1666,23 +1791,70 @@ final class CaminoHeightProfileView extends View {
     private int slopeLineColor(
             double slopePercent
     ) {
-        final int neutralR = 255;
-        final int neutralG = 250;
-        final int neutralB = 238;
+        /*
+         * locked slope contrast v78
+         *
+         * Unlocked keeps the original warm-white -> muted red/green palette.
+         *
+         * Locked starts from a readable graphite neutral and uses brighter
+         * red/green targets. sqrt(factor) makes colour appear earlier on the
+         * dark background while remaining a continuous grade scale.
+         */
+        final int neutralR =
+                lockedProfileStyle
+                        ? 76
+                        : 255;
 
-        final int uphillR = 190;
-        final int uphillG = 108;
-        final int uphillB = 86;
+        final int neutralG =
+                lockedProfileStyle
+                        ? 82
+                        : 250;
 
-        final int downhillR = 111;
-        final int downhillG = 143;
-        final int downhillB = 104;
+        final int neutralB =
+                lockedProfileStyle
+                        ? 88
+                        : 238;
+
+        final int uphillR =
+                lockedProfileStyle
+                        ? 240
+                        : 190;
+
+        final int uphillG =
+                lockedProfileStyle
+                        ? 112
+                        : 108;
+
+        final int uphillB =
+                lockedProfileStyle
+                        ? 92
+                        : 86;
+
+        final int downhillR =
+                lockedProfileStyle
+                        ? 104
+                        : 111;
+
+        final int downhillG =
+                lockedProfileStyle
+                        ? 202
+                        : 143;
+
+        final int downhillB =
+                lockedProfileStyle
+                        ? 122
+                        : 104;
+
+        final int alpha =
+                lockedProfileStyle
+                        ? 235
+                        : 210;
 
         if (!Double.isFinite(
                 slopePercent
         )) {
             return Color.argb(
-                    210,
+                    alpha,
                     neutralR,
                     neutralG,
                     neutralB
@@ -1698,7 +1870,7 @@ final class CaminoHeightProfileView extends View {
                 <= SLOPE_NEUTRAL_PERCENT) {
 
             return Color.argb(
-                    210,
+                    alpha,
                     neutralR,
                     neutralG,
                     neutralB
@@ -1728,6 +1900,13 @@ final class CaminoHeightProfileView extends View {
                                 factor
                         )
                 );
+
+        if (lockedProfileStyle) {
+            factor =
+                    Math.sqrt(
+                            factor
+                    );
+        }
 
         int targetR =
                 slopePercent > 0.0
@@ -1778,7 +1957,7 @@ final class CaminoHeightProfileView extends View {
                         );
 
         return Color.argb(
-                210,
+                alpha,
                 red,
                 green,
                 blue
@@ -1872,6 +2051,32 @@ final class CaminoHeightProfileView extends View {
             double displayMin,
             double elevationSpan
     ) {
+        drawProfileMarker(
+                canvas,
+                sample,
+                profileLeft,
+                right,
+                displayMin,
+                elevationSpan,
+                formatElevationLabel(
+                        sample
+                )
+        );
+    }
+
+    /*
+     * Shared blue marker for the permanent lock position and for
+     * finger inspection on a marked route.
+     */
+    private void drawProfileMarker(
+            Canvas canvas,
+            Sample sample,
+            float profileLeft,
+            float right,
+            double displayMin,
+            double elevationSpan,
+            String text
+    ) {
         float y =
                 screenY(
                         sample
@@ -1903,13 +2108,6 @@ final class CaminoHeightProfileView extends View {
                 ),
                 lockedMarkerInnerPaint
         );
-
-        String text =
-                String.format(
-                        Locale.GERMANY,
-                        "%.0f m",
-                        sample.elevationM
-                );
 
         float horizontalPadding =
                 dp(
@@ -2040,6 +2238,48 @@ final class CaminoHeightProfileView extends View {
         );
     }
 
+    private String formatElevationLabel(
+            Sample sample
+    ) {
+        return String.format(
+                Locale.GERMANY,
+                "%.0f m",
+                sample.elevationM
+        );
+    }
+
+    private String formatMarkedCursorLabel(
+            Sample sample
+    ) {
+        String distance;
+
+        if (sample.distanceM
+                < 1000.0) {
+
+            distance =
+                    String.format(
+                            Locale.GERMANY,
+                            "%.0f m",
+                            sample.distanceM
+                    );
+
+        } else {
+            distance =
+                    String.format(
+                            Locale.GERMANY,
+                            "%.1f km",
+                            sample.distanceM
+                                    / 1000.0
+                    );
+        }
+
+        return distance
+                + " - "
+                + formatElevationLabel(
+                        sample
+                );
+    }
+
 
     private void drawCursor(
             Canvas canvas,
@@ -2049,6 +2289,36 @@ final class CaminoHeightProfileView extends View {
             double displayMin,
             double elevationSpan
     ) {
+        /*
+         * v79 unlocked cursor restore
+         *
+         * LOCKED / dark profile:
+         *   keep the v78 behaviour exactly as-is and reuse the permanent
+         *   blue position marker + metre label.
+         *
+         * UNLOCKED / white profile:
+         *   restore the original cursor presentation from before v78.
+         */
+        /*
+         * A marked route already IS the complete selected profile.
+         * Inspect it directly on the contour in both locked and unlocked mode.
+         */
+        if (markedSelectionProfile) {
+            drawProfileMarker(
+                    canvas,
+                    sample,
+                    profileLeft,
+                    right,
+                    displayMin,
+                    elevationSpan,
+                    formatMarkedCursorLabel(
+                            sample
+                    )
+            );
+
+            return;
+        }
+
         float y =
                 screenY(
                         sample

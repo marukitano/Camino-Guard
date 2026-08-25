@@ -236,12 +236,16 @@ if main_activity_path.is_file():
 
 if navigation_path.is_file():
     navigation = navigation_path.read_text()
-    check("void toggleFollow()" in navigation,
-          "NavigationController does not own follow state")
+    check("void cycleMode()" in navigation
+          and "Mode currentMode()" in navigation
+          and "NORTH_UP" in navigation
+          and "COURSE_UP" in navigation,
+          "NavigationController does not own three-state navigation mode")
     check("void handleCameraMoveStarted(" in navigation,
           "NavigationController does not own gesture suspension")
-    check("void handleCameraIdle()" in navigation,
-          "NavigationController does not own delayed resume")
+    check("void handleCameraIdle()" in navigation
+          and "Follow suspension is sticky" in navigation,
+          "NavigationController does not own sticky follow suspension")
     check("CameraUpdateFactory.newCameraPosition(" in navigation,
           "NavigationController does not own camera follow mechanics")
     check("GpsGyroOrientationController" in navigation,
@@ -251,18 +255,22 @@ if live_navigation_camera_path.is_file():
     live_navigation_camera = live_navigation_camera_path.read_text()
     check("GeoMath.distanceMeters(" in live_navigation_camera,
           "LiveNavigationCameraController is not using shared GeoMath distance")
-    check("GeoMath.destination(" in live_navigation_camera,
-          "LiveNavigationCameraController is not using shared GeoMath destination")
+    check("final LatLng finalTarget =" in live_navigation_camera
+          and "lastPose;" in live_navigation_camera
+          and "LatLng target =" in live_navigation_camera
+          and "pos;" in live_navigation_camera,
+          "LiveNavigationCameraController does not keep follow pivot on GPS position")
     check("RETURN_MS = 1650" in live_navigation_camera,
           "LiveNavigationCameraController lost proven 1650 ms return timing")
     check("BEARING_TAU_MS = 2200.0" in live_navigation_camera,
           "LiveNavigationCameraController lost proven bearing smoothing")
     check("BEARING_DEADBAND_DEG = 1.25" in live_navigation_camera,
           "LiveNavigationCameraController lost proven bearing deadband")
-    check("/ 6.0" in live_navigation_camera,
-          "LiveNavigationCameraController lost H/6 camera lead")
-    check("Follow NEVER owns zoom." in live_navigation_camera,
-          "LiveNavigationCameraController no longer preserves zoom ownership")
+    check("direction arrow is the rotation pivot" in live_navigation_camera,
+          "LiveNavigationCameraController lost position-centred rotation pivot")
+    check("FOLLOW_ZOOM =" in live_navigation_camera
+          and "16.5;" in live_navigation_camera,
+          "LiveNavigationCameraController lost tuned z16.5 follow zoom")
     check("GPS walking course" in live_navigation_camera,
           "LiveNavigationCameraController no longer documents course-only rotation")
 
@@ -343,7 +351,7 @@ if info_controller_path.is_file():
           "CaminoInfoController does not own measurement summary presentation")
     check("void updateCompass()" in info_controller,
           "CaminoInfoController does not own HUD compass updates")
-    check("void setNavigationFollowEnabled(" in info_controller,
+    check("void setNavigationMode(" in info_controller,
           "CaminoInfoController does not own navigation-button UI state")
     check("new MeasurementEngine(" not in info_controller,
           "CaminoInfoController incorrectly constructs measurement engine")
@@ -533,8 +541,11 @@ if info_chevron_path.is_file():
 
 if info_navigation_button_path.is_file():
     info_navigation_button = info_navigation_button_path.read_text()
-    check("void setFollowEnabled(" in info_navigation_button,
-          "CaminoNavigationButton does not own follow visual state")
+    check("void setMode(" in info_navigation_button
+          and "NavigationController.Mode.MANUAL" in info_navigation_button
+          and "NavigationController.Mode.NORTH_UP" in info_navigation_button
+          and "drawRecenterReticle(" in info_navigation_button,
+          "CaminoNavigationButton does not own navigation-mode/reticle visual state")
     check("protected void onDraw(" in info_navigation_button,
           "CaminoNavigationButton does not own navigation control drawing")
 

@@ -6692,6 +6692,7 @@
       "type": "fill",
       "source": "maplibre-world",
       "source-layer": "countries",
+      "maxzoom": 5.8,
       "filter": [
         "in",
         "ADM0_A3",
@@ -6701,6 +6702,35 @@
       "layout": {
         "visibility": "visible"
       },
+      "paint": {
+        "fill-color": "#eee2c2",
+        "fill-opacity": 1.0
+      }
+    },
+    {
+      "id": "water-polygons",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "water",
+      "filter": [
+        "==",
+        "$type",
+        "Polygon"
+      ],
+      "paint": {
+        "fill-color": "#D8F2FF"
+      }
+    },
+        {
+      "id": "earth-land",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "earth",
+      "filter": [
+        "==",
+        "kind",
+        "earth"
+      ],
       "paint": {
         "fill-color": "#eee2c2",
         "fill-opacity": 1.0
@@ -6749,7 +6779,6 @@
         "forest",
         "wood",
         "park",
-        "nature_reserve",
         "national_park",
         "grass",
         "meadow",
@@ -6778,20 +6807,7 @@
         "fill-opacity": 0.32
       }
     },
-    {
-      "id": "water-polygons",
-      "type": "fill",
-      "source": "protomaps",
-      "source-layer": "water",
-      "filter": [
-        "==",
-        "$type",
-        "Polygon"
-      ],
-      "paint": {
-        "fill-color": "#D8F2FF"
-      }
-    },
+    
     {
       "id": "water-lines",
       "type": "line",
@@ -7410,9 +7426,9 @@
       "source-layer": "contours",
       "minzoom": 11.1,
       "filter": [
-        "==",
+        "all",
         [
-          "%",
+          ">",
           [
             "to-number",
             [
@@ -7420,16 +7436,30 @@
               "ele"
             ]
           ],
-          100
+          0
         ],
-        0
+        [
+          "==",
+          [
+            "%",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ],
+            100
+          ],
+          0
+        ]
       ],
       "layout": {
         "line-cap": "round",
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#7d9466",
+        "line-color": "#586847",
         "line-opacity": [
           "interpolate",
           [
@@ -7473,14 +7503,25 @@
         "line-blur": 0.1
       }
     },
-    {
+        {
       "id": "contour-50-lines",
       "type": "line",
       "source": "contours",
       "source-layer": "contours",
-      "minzoom": 11.4,
+      "minzoom": 10.6,
       "filter": [
         "all",
+        [
+          ">",
+          [
+            "to-number",
+            [
+              "get",
+              "ele"
+            ]
+          ],
+          0
+        ],
         [
           "==",
           [
@@ -7518,7 +7559,7 @@
         "visibility": "visible"
       },
       "paint": {
-        "line-color": "#7d9466",
+        "line-color": "#586847",
         "line-opacity": [
           "interpolate",
           [
@@ -7527,17 +7568,17 @@
           [
             "zoom"
           ],
-          11.4,
+          10.6,
           0.0,
-          11.9,
+          11.1,
           0.24,
-          12.8,
+          12.0,
           0.34,
-          14.0,
+          13.2,
           0.46,
-          15.5,
+          14.7,
           0.56,
-          16.5,
+          15.7,
           0.64
         ],
         "line-width": [
@@ -7562,16 +7603,16 @@
         "line-blur": 0.12
       }
     },
-    {
+        {
       "id": "contour-10-lines",
       "type": "line",
       "source": "contours",
       "source-layer": "contours",
-      "minzoom": 12.2,
+      "minzoom": 11.4,
       "filter": [
-        "!=",
+        "all",
         [
-          "%",
+          ">",
           [
             "to-number",
             [
@@ -7579,9 +7620,23 @@
               "ele"
             ]
           ],
-          50
+          0
         ],
-        0
+        [
+          "!=",
+          [
+            "%",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ],
+            50
+          ],
+          0
+        ]
       ],
       "layout": {
         "line-cap": "round",
@@ -7589,7 +7644,7 @@
         "visibility": "visible"
       },
       "paint": {
-        "line-color": "#7d9466",
+        "line-color": "#586847",
         "line-opacity": [
           "interpolate",
           [
@@ -7598,17 +7653,17 @@
           [
             "zoom"
           ],
-          12.2,
+          11.4,
           0.0,
-          12.7,
+          11.9,
           0.13,
-          13.5,
+          12.7,
           0.2,
-          14.5,
+          13.7,
           0.3,
-          15.5,
+          14.7,
           0.4,
-          16.5,
+          15.7,
           0.48
         ],
         "line-width": [
@@ -7633,16 +7688,16 @@
         "line-blur": 0.14
       }
     },
-    {
+        {
       "id": "contour-100-labels",
       "type": "symbol",
       "source": "contours",
       "source-layer": "contours",
-      "minzoom": 11.4,
+      "minzoom": 11.1,
       "filter": [
-        "==",
+        "all",
         [
-          "%",
+          ">",
           [
             "to-number",
             [
@@ -7650,9 +7705,161 @@
               "ele"
             ]
           ],
-          100
+          0
         ],
-        0
+        [
+          "==",
+          [
+            "%",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ],
+            100
+          ],
+          0
+        ]
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "symbol-spacing": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          540,
+          14,
+          460,
+          16,
+          360
+        ],
+        "text-field": [
+          "concat",
+          [
+            "to-string",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ]
+          ],
+          " m"
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11.4,
+          12.5,
+          12.0,
+          13.5,
+          14.0,
+          14.8,
+          16.0,
+          16.0,
+          17.0,
+          17.0
+        ],
+        "text-rotation-alignment": "map",
+        "text-pitch-alignment": "map",
+        "text-keep-upright": true,
+        "text-padding": 1,
+        "text-max-angle": 25,
+        "text-offset": [
+          0,
+          0
+        ],
+        "text-anchor": "center"
+      },
+      "paint": {
+        "text-color": "#7d9466",
+        "text-halo-color": "#f5f2e8",
+        "text-halo-width": 1.15,
+        "text-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11.1,
+          0.0,
+          11.5,
+          0.55,
+          11.9,
+          0.9,
+          12.7,
+          0.98
+        ],
+        "text-halo-blur": 0.25
+      }
+    },
+    {
+      "id": "contour-50-labels",
+      "type": "symbol",
+      "source": "contours",
+      "source-layer": "contours",
+      "minzoom": 11.4,
+      "filter": [
+        "all",
+        [
+          ">",
+          [
+            "to-number",
+            [
+              "get",
+              "ele"
+            ]
+          ],
+          0
+        ],
+        [
+          "==",
+          [
+            "%",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ],
+            50
+          ],
+          0
+        ],
+        [
+          "!=",
+          [
+            "%",
+            [
+              "to-number",
+              [
+                "get",
+                "ele"
+              ]
+            ],
+            100
+          ],
+          0
+        ]
       ],
       "layout": {
         "symbol-placement": "line",
@@ -13039,7 +13246,7 @@
       "source": "maplibre-world",
       "source-layer": "countries",
       "minzoom": 0,
-      "maxzoom": 24,
+      "maxzoom": 5.8,
       "layout": {
         "visibility": "visible",
         "line-cap": "round",
@@ -13048,6 +13255,21 @@
       "paint": {
         "line-blur": 0.5,
         "line-color": "#198EC8",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4.8,
+          1.0,
+          5.4,
+          0.55,
+          5.8,
+          0.0
+        ],
         "line-width": {
           "stops": [
             [
@@ -13078,7 +13300,7 @@
       "type": "line",
       "source": "maplibre-world",
       "source-layer": "countries",
-      "maxzoom": 24,
+      "maxzoom": 5.8,
       "layout": {
         "visibility": "visible",
         "line-cap": "round",
@@ -13106,18 +13328,23 @@
             ]
           ]
         },
-        "line-opacity": {
-          "stops": [
-            [
-              3,
-              0.5
-            ],
-            [
-              6,
-              1
-            ]
-          ]
-        }
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          0.5,
+          4.8,
+          1.0,
+          5.4,
+          0.55,
+          5.8,
+          0.0
+        ]
       },
       "metadata": {
         "camino-guard:purpose": "country boundaries above world overview and persistent regional mask"

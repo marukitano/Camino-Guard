@@ -1,9 +1,11 @@
 package com.marukitano.caminoguard;
 
 import android.app.Activity;
+import android.app.TimePickerDialog;
+import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.View;
@@ -11,152 +13,489 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapView;
 
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Small map overlay shown only for a manually selected Camino segment
- * (two explicit Camino tap points).
+ * Vertical statistics for an explicit selected Camino segment.
  *
- * It consumes the already calculated MeasurementPath. No routing or projection
- * work is duplicated here.
+ * Planning / unlocked:
+ *   - complete selected route
+ *   - selectable start time
+ *   - no guessed pause time (Pause = 0)
+ *
+ * Navigation / locked:
+ *   - current position -> selected goal
+ *   - remaining distance / elevation / walking time
+ *   - actually accumulated stationary time only
+ *   - arrival = current wall clock + remaining walking time
  */
 final class CaminoSelectionStatsOverlay {
+
+    private static final int RIGHT_MARGIN_PX = 3;
+    private static final int CENTER_GAP_DP = 34;
+
+    /*
+     * Live remaining-distance/ETA is valid only while the physical position is
+     * genuinely near the selected route.
+     */
+    private static final double MAX_LIVE_ROUTE_OFFSET_M =
+            200.0;
+
+    private static final long CLOCK_TICK_MS = 30_000L;
 
     private final Activity activity;
     private final MapView mapView;
     private final WalkingPerformanceModel performanceModel;
 
-    private TextView view;
+    private VerticalStatsTextView upperView;
+    private VerticalStatsTextView lowerView;
+
+    private boolean locked;
+
+    private MeasurementPath lastPath;
+    private LatLng lastPosition;
+
+    /*
+     * Also gates real pause accumulation. A stationary phone in Switzerland
+     * while inspecting a Spanish route is not a pause on that hike.
+     */
+    private boolean currentPositionOnSelectedRoute;
+
+    private int plannedStartMinutesOfDay =
+            -1;
+
+    private long accumulatedPauseMs;
+    private long activePauseStartedWallMs =
+            -1L;
+
+    private final Runnable clockTick =
+            new Runnable() {
+                @Override
+                public void run() {
+                    if (!locked
+                            || upperView == null
+                            || upperView.getVisibility()
+                            != View.VISIBLE) {
+
+                        return;
+                    }
+
+                    renderLastState();
+
+                    mapView.postDelayed(
+                            this,
+                            CLOCK_TICK_MS
+                    );
+                }
+            };
 
     CaminoSelectionStatsOverlay(
             Activity activity,
             MapView mapView,
             WalkingPerformanceModel performanceModel
     ) {
-        this.activity = activity;
-        this.mapView = mapView;
+        this.activity =
+                activity;
+
+        this.mapView =
+                mapView;
+
         this.performanceModel =
                 performanceModel;
     }
 
     void ensureView() {
-        if (view != null) {
+        if (upperView != null
+                && lowerView != null) {
+
             return;
         }
 
-        view =
-                new TextView(
+        ViewGroup parent =
+                (ViewGroup)
+                        mapView.getParent();
+
+        upperView =
+                createStatsView();
+
+        lowerView =
+                createStatsView();
+
+        upperView.setOnClickListener(
+                ignored -> {
+                    if (!locked
+                            && lastPath != null) {
+
+                        showStartTimePicker();
+                    }
+                }
+        );
+
+        FrameLayout.LayoutParams upperParams =
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        Gravity.END
+                                | Gravity.BOTTOM
+                );
+
+        upperParams.rightMargin =
+                RIGHT_MARGIN_PX;
+
+        FrameLayout.LayoutParams lowerParams =
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        Gravity.END
+                                | Gravity.TOP
+                );
+
+        lowerParams.rightMargin =
+                RIGHT_MARGIN_PX;
+
+        parent.addView(
+                upperView,
+                upperParams
+        );
+
+        parent.addView(
+                lowerView,
+                lowerParams
+        );
+
+        upperView.setElevation(
+                dp(
+                        900
+                )
+        );
+
+        lowerView.setElevation(
+                dp(
+                        900
+                )
+        );
+
+        upperView.bringToFront();
+        lowerView.bringToFront();
+
+        mapView.post(
+                this::updateVerticalPlacement
+        );
+    }
+
+    private VerticalStatsTextView createStatsView() {
+        VerticalStatsTextView result =
+                new VerticalStatsTextView(
                         activity
                 );
 
-        view.setTextColor(
-                Color.WHITE
+        result.setTextColor(
+                statsTextColor()
         );
 
-        view.setTextSize(
+        result.setTextSize(
                 13.5f
         );
 
-        view.setTypeface(
+        result.setTypeface(
                 Typeface.create(
                         Typeface.MONOSPACE,
                         Typeface.NORMAL
                 )
         );
 
-        view.setGravity(
-                Gravity.START
-                        | Gravity.CENTER_VERTICAL
+        result.setGravity(
+                Gravity.CENTER
         );
 
-        view.setPadding(
-                dp(9),
-                dp(7),
-                dp(10),
-                dp(7)
+        result.setPadding(
+                0,
+                0,
+                0,
+                0
         );
 
-        view.setLineSpacing(
-                0.0f,
-                1.08f
-        );
-
-        view.setBackground(
-                buildBackground()
-        );
-
-        view.setVisibility(
+        result.setVisibility(
                 View.GONE
         );
 
-        view.setClickable(
-                false
-        );
+        return result;
+    }
 
-        ViewGroup parent =
-                (ViewGroup)
-                        mapView.getParent();
+    private void updateVerticalPlacement() {
+        if (upperView == null
+                || lowerView == null
+                || mapView.getHeight() <= 0) {
 
-        FrameLayout.LayoutParams params =
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        Gravity.START
-                                | Gravity.TOP
+            return;
+        }
+
+        ViewGroup.LayoutParams rawUpper =
+                upperView.getLayoutParams();
+
+        ViewGroup.LayoutParams rawLower =
+                lowerView.getLayoutParams();
+
+        if (!(rawUpper
+                instanceof FrameLayout.LayoutParams)
+                || !(rawLower
+                instanceof FrameLayout.LayoutParams)) {
+
+            return;
+        }
+
+        FrameLayout.LayoutParams upperParams =
+                (FrameLayout.LayoutParams)
+                        rawUpper;
+
+        FrameLayout.LayoutParams lowerParams =
+                (FrameLayout.LayoutParams)
+                        rawLower;
+
+        int centre =
+                mapView.getHeight()
+                        / 2;
+
+        int gap =
+                dp(
+                        CENTER_GAP_DP
                 );
 
-        params.leftMargin =
-                dp(
-                        8
+        upperParams.rightMargin =
+                RIGHT_MARGIN_PX;
+
+        upperParams.bottomMargin =
+                mapView.getHeight()
+                        - (
+                        centre
+                                - gap
                 );
 
-        params.topMargin =
-                dp(
-                        78
-                );
+        lowerParams.rightMargin =
+                RIGHT_MARGIN_PX;
 
-        parent.addView(
-                view,
-                params
+        lowerParams.topMargin =
+                centre
+                        + gap;
+
+        upperView.setLayoutParams(
+                upperParams
         );
 
-        view.setElevation(
-                dp(
-                        900
-                )
+        lowerView.setLayoutParams(
+                lowerParams
+        );
+    }
+
+    void setLocked(
+            boolean locked
+    ) {
+        boolean changed =
+                this.locked
+                        != locked;
+
+        this.locked =
+                locked;
+
+        if (changed) {
+            accumulatedPauseMs =
+                    0L;
+
+            activePauseStartedWallMs =
+                    -1L;
+
+            currentPositionOnSelectedRoute =
+                    false;
+        }
+
+        int color =
+                statsTextColor();
+
+        if (upperView != null) {
+            upperView.setTextColor(
+                    color
+            );
+
+            upperView.setClickable(
+                    !locked
+            );
+
+            upperView.invalidate();
+        }
+
+        if (lowerView != null) {
+            lowerView.setTextColor(
+                    color
+            );
+
+            lowerView.invalidate();
+        }
+
+        mapView.removeCallbacks(
+                clockTick
         );
 
-        view.bringToFront();
+        if (locked
+                && upperView != null
+                && upperView.getVisibility()
+                == View.VISIBLE) {
+
+            mapView.postDelayed(
+                    clockTick,
+                    CLOCK_TICK_MS
+            );
+        }
+
+        renderLastState();
+    }
+
+    void noteMotionState(
+            boolean stationary
+    ) {
+        if (!locked) {
+            return;
+        }
+
+        if (!currentPositionOnSelectedRoute) {
+            /*
+             * We are not currently on the selected route. Do not start or carry
+             * a hiking pause across an off-route / remote-planning interval.
+             */
+            activePauseStartedWallMs =
+                    -1L;
+
+            return;
+        }
+
+        long now =
+                System.currentTimeMillis();
+
+        if (stationary) {
+            if (activePauseStartedWallMs < 0L) {
+                activePauseStartedWallMs =
+                        now;
+            }
+
+        } else if (activePauseStartedWallMs >= 0L) {
+            accumulatedPauseMs +=
+                    Math.max(
+                            0L,
+                            now
+                                    - activePauseStartedWallMs
+                    );
+
+            activePauseStartedWallMs =
+                    -1L;
+        }
+
+        renderLastState();
+    }
+
+    private long currentPauseMs() {
+        long result =
+                accumulatedPauseMs;
+
+        if (locked
+                && activePauseStartedWallMs >= 0L) {
+
+            result +=
+                    Math.max(
+                            0L,
+                            System.currentTimeMillis()
+                                    - activePauseStartedWallMs
+                    );
+        }
+
+        return result;
+    }
+
+    private int statsTextColor() {
+        if (locked) {
+            return Color.rgb(
+                    245,
+                    245,
+                    245
+            );
+        }
+
+        return Color.rgb(
+                35,
+                39,
+                43
+        );
     }
 
     void update(
-            MeasurementPath path
+            MeasurementPath path,
+            LatLng currentPosition
     ) {
         ensureView();
 
+        lastPath =
+                path;
+
+        lastPosition =
+                currentPosition;
+
         if (path == null
+                || path.profilePoints == null
                 || path.profilePoints.isEmpty()
                 || !Double.isFinite(
                 path.distanceM
         )
                 || path.distanceM <= 0.0) {
 
+            plannedStartMinutesOfDay =
+                    -1;
+
             hide();
             return;
         }
 
+        if (!locked
+                && plannedStartMinutesOfDay < 0) {
+
+            plannedStartMinutesOfDay =
+                    currentMinutesOfDay();
+        }
+
+        renderLastState();
+    }
+
+    private void renderLastState() {
+        if (upperView == null
+                || lowerView == null
+                || lastPath == null
+                || lastPath.profilePoints == null
+                || lastPath.profilePoints.isEmpty()) {
+
+            return;
+        }
+
+        if (locked) {
+            renderNavigation(
+                    lastPath,
+                    lastPosition
+            );
+
+        } else {
+            renderPlanning(
+                    lastPath
+            );
+        }
+    }
+
+    private void renderPlanning(
+            MeasurementPath path
+    ) {
         ElevationStats elevationStats =
                 calculateElevationStats(
                         path.profilePoints
                 );
-
-        if (elevationStats == null) {
-            hide();
-            return;
-        }
 
         WalkingTimeEstimate estimate =
                 performanceModel == null
@@ -165,7 +504,123 @@ final class CaminoSelectionStatsOverlay {
                                 path
                         );
 
-        if (estimate == null) {
+        if (elevationStats == null
+                || estimate == null) {
+
+            hide();
+            return;
+        }
+
+        if (plannedStartMinutesOfDay < 0) {
+            plannedStartMinutesOfDay =
+                    currentMinutesOfDay();
+        }
+
+        int walkingMinutes =
+                roundedDurationMinutes(
+                        estimate.durationSeconds
+                );
+
+        int arrivalMinutes =
+                normalizeMinutesOfDay(
+                        plannedStartMinutesOfDay
+                                + walkingMinutes
+                );
+
+        String upperText =
+                "Start "
+                        + formatClockMinutes(
+                        plannedStartMinutesOfDay
+                )
+                        + "  ·  "
+                        + "≈ "
+                        + formatDurationSeconds(
+                        estimate.durationSeconds
+                )
+                        + "  ·  "
+                        + "Pause 0 min"
+                        + "  ·  "
+                        + "Ankunft "
+                        + formatClockMinutes(
+                        arrivalMinutes
+                );
+
+        String lowerText =
+                formatDistance(
+                        path.distanceM
+                )
+                        + "  ·  "
+                        + "↑ "
+                        + formatMeters(
+                        elevationStats.ascentM
+                )
+                        + "  ·  "
+                        + "↓ "
+                        + formatMeters(
+                        elevationStats.descentM
+                )
+                        + "  ·  "
+                        + "Δ "
+                        + formatSignedMeters(
+                        elevationStats.deltaM
+                );
+
+        showTexts(
+                upperText,
+                lowerText
+        );
+    }
+
+    private void renderNavigation(
+            MeasurementPath path,
+            LatLng position
+    ) {
+        RouteProgress progress =
+                locateProgress(
+                        path.profilePoints,
+                        position
+                );
+
+        currentPositionOnSelectedRoute =
+                progress != null;
+
+        if (progress == null) {
+            progress =
+                    new RouteProgress(
+                            0.0,
+                            firstFiniteElevation(
+                                    path.profilePoints
+                            )
+                    );
+        }
+
+        double remainingDistanceM =
+                Math.max(
+                        0.0,
+                        path.distanceM
+                                * (
+                                1.0
+                                        - progress.fraction
+                        )
+                );
+
+        ElevationStats remainingElevation =
+                calculateRemainingElevationStats(
+                        path.profilePoints,
+                        progress
+                );
+
+        WalkingTimeEstimate estimate =
+                performanceModel == null
+                        ? null
+                        : performanceModel.estimateRemaining(
+                                path,
+                                progress.fraction
+                        );
+
+        if (remainingElevation == null
+                || estimate == null) {
+
             hide();
             return;
         }
@@ -177,75 +632,543 @@ final class CaminoSelectionStatsOverlay {
                                 * 1000.0
                 );
 
-        String text =
-                formatDistance(
-                        path.distanceM
-                )
-                        + "\n"
-                        + "↑ "
-                        + formatMeters(
-                        elevationStats.ascentM
-                )
-                        + "\n"
-                        + "↓ "
-                        + formatMeters(
-                        elevationStats.descentM
-                )
-                        + "\n"
-                        + "Δ "
-                        + formatSignedMeters(
-                        elevationStats.deltaM
-                )
-                        + "\n"
-                        + "≈ "
+        String upperText =
+                "≈ "
                         + formatDurationSeconds(
                         estimate.durationSeconds
                 )
-                        + "\n"
+                        + "  ·  "
+                        + "Pause "
+                        + formatPauseMs(
+                        currentPauseMs()
+                )
+                        + "  ·  "
                         + "Ankunft "
                         + DateFormat.format(
                         "HH:mm",
                         arrivalWallClockMs
                 ).toString();
 
-        view.setText(
-                text
-        );
+        String lowerText =
+                formatDistance(
+                        remainingDistanceM
+                )
+                        + "  ·  "
+                        + "↑ "
+                        + formatMeters(
+                        remainingElevation.ascentM
+                )
+                        + "  ·  "
+                        + "↓ "
+                        + formatMeters(
+                        remainingElevation.descentM
+                )
+                        + "  ·  "
+                        + "Δ "
+                        + formatSignedMeters(
+                        remainingElevation.deltaM
+                );
 
-        view.setVisibility(
-                View.VISIBLE
+        showTexts(
+                upperText,
+                lowerText
         );
     }
 
-    void hide() {
-        if (view == null) {
-            return;
-        }
-
-        view.setText(
-                ""
+    private void showTexts(
+            String upperText,
+            String lowerText
+    ) {
+        upperView.setText(
+                upperText
         );
 
-        view.setVisibility(
-                View.GONE
+        lowerView.setText(
+                lowerText
+        );
+
+        updateVerticalPlacement();
+
+        upperView.setVisibility(
+                View.VISIBLE
+        );
+
+        lowerView.setVisibility(
+                View.VISIBLE
+        );
+
+        mapView.removeCallbacks(
+                clockTick
+        );
+
+        if (locked) {
+            mapView.postDelayed(
+                    clockTick,
+                    CLOCK_TICK_MS
+            );
+        }
+    }
+
+    private void showStartTimePicker() {
+        int initial =
+                plannedStartMinutesOfDay >= 0
+                        ? plannedStartMinutesOfDay
+                        : currentMinutesOfDay();
+
+        int hour =
+                initial
+                        / 60;
+
+        int minute =
+                initial
+                        % 60;
+
+        TimePickerDialog dialog =
+                new TimePickerDialog(
+                        activity,
+                        (
+                                picker,
+                                selectedHour,
+                                selectedMinute
+                        ) -> {
+                            plannedStartMinutesOfDay =
+                                    normalizeMinutesOfDay(
+                                            selectedHour
+                                                    * 60
+                                                    + selectedMinute
+                                    );
+
+                            renderLastState();
+                        },
+                        hour,
+                        minute,
+                        true
+                );
+
+        dialog.setTitle(
+                "Startzeit"
+        );
+
+        dialog.show();
+    }
+
+    private RouteProgress locateProgress(
+            List<ProfilePoint> points,
+            LatLng position
+    ) {
+        if (position == null
+                || points == null
+                || points.size() < 2) {
+
+            return null;
+        }
+
+        ProfilePoint first =
+                points.get(
+                        0
+                );
+
+        ProfilePoint last =
+                points.get(
+                        points.size() - 1
+                );
+
+        if (first == null
+                || last == null
+                || !Double.isFinite(
+                first.distanceM
+        )
+                || !Double.isFinite(
+                last.distanceM
+        )) {
+
+            return null;
+        }
+
+        double spanM =
+                last.distanceM
+                        - first.distanceM;
+
+        if (!Double.isFinite(
+                spanM
+        )
+                || spanM <= 0.01) {
+
+            return null;
+        }
+
+        double bestOffsetM =
+                Double.POSITIVE_INFINITY;
+
+        double bestDistanceM =
+                first.distanceM;
+
+        double bestElevationM =
+                first.elevationM;
+
+        double userLat =
+                position.getLatitude();
+
+        double userLon =
+                position.getLongitude();
+
+        for (int index = 1;
+                index < points.size();
+                index++) {
+
+            ProfilePoint a =
+                    points.get(
+                            index - 1
+                    );
+
+            ProfilePoint b =
+                    points.get(
+                            index
+                    );
+
+            if (a == null
+                    || b == null
+                    || a.point == null
+                    || b.point == null
+                    || b.breakBefore
+                    || !Double.isFinite(
+                    a.distanceM
+            )
+                    || !Double.isFinite(
+                    b.distanceM
+            )) {
+
+                continue;
+            }
+
+            double refLatRad =
+                    Math.toRadians(
+                            (
+                                    a.point.getLatitude()
+                                            + b.point.getLatitude()
+                                            + userLat
+                            )
+                                    / 3.0
+                    );
+
+            double lonScale =
+                    Math.cos(
+                            refLatRad
+                    );
+
+            double ax =
+                    a.point.getLongitude()
+                            * lonScale;
+
+            double ay =
+                    a.point.getLatitude();
+
+            double bx =
+                    b.point.getLongitude()
+                            * lonScale;
+
+            double by =
+                    b.point.getLatitude();
+
+            double px =
+                    userLon
+                            * lonScale;
+
+            double py =
+                    userLat;
+
+            double dx =
+                    bx
+                            - ax;
+
+            double dy =
+                    by
+                            - ay;
+
+            double lengthSquared =
+                    dx
+                            * dx
+                            + dy
+                            * dy;
+
+            double t =
+                    lengthSquared <= 1e-15
+                            ? 0.0
+                            : (
+                            (
+                                    px
+                                            - ax
+                            )
+                                    * dx
+                                    + (
+                                    py
+                                            - ay
+                            )
+                                    * dy
+                    )
+                            / lengthSquared;
+
+            t =
+                    Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    t
+                            )
+                    );
+
+            double projectedLat =
+                    a.point.getLatitude()
+                            + (
+                            b.point.getLatitude()
+                                    - a.point.getLatitude()
+                    )
+                            * t;
+
+            double projectedLon =
+                    a.point.getLongitude()
+                            + (
+                            b.point.getLongitude()
+                                    - a.point.getLongitude()
+                    )
+                            * t;
+
+            double offsetM =
+                    GeoMath.distanceMeters(
+                            position,
+                            new LatLng(
+                                    projectedLat,
+                                    projectedLon
+                            )
+                    );
+
+            if (!Double.isFinite(
+                    offsetM
+            )
+                    || offsetM >= bestOffsetM) {
+
+                continue;
+            }
+
+            bestOffsetM =
+                    offsetM;
+
+            bestDistanceM =
+                    a.distanceM
+                            + (
+                            b.distanceM
+                                    - a.distanceM
+                    )
+                            * t;
+
+            if (Double.isFinite(
+                    a.elevationM
+            )
+                    && Double.isFinite(
+                    b.elevationM
+            )) {
+
+                bestElevationM =
+                        a.elevationM
+                                + (
+                                b.elevationM
+                                        - a.elevationM
+                        )
+                                * t;
+
+            } else if (Double.isFinite(
+                    a.elevationM
+            )) {
+
+                bestElevationM =
+                        a.elevationM;
+
+            } else if (Double.isFinite(
+                    b.elevationM
+            )) {
+
+                bestElevationM =
+                        b.elevationM;
+            }
+        }
+
+        if (!Double.isFinite(
+                bestOffsetM
+        )
+                || bestOffsetM
+                > MAX_LIVE_ROUTE_OFFSET_M) {
+
+            /*
+             * Never turn an arbitrary nearest point into fake live progress.
+             */
+            return null;
+        }
+
+        double fraction =
+                (
+                        bestDistanceM
+                                - first.distanceM
+                )
+                        / spanM;
+
+        fraction =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                1.0,
+                                fraction
+                        )
+                );
+
+        return new RouteProgress(
+                fraction,
+                bestElevationM
+        );
+    }
+
+    private ElevationStats calculateRemainingElevationStats(
+            List<ProfilePoint> points,
+            RouteProgress progress
+    ) {
+        if (points == null
+                || points.size() < 2
+                || progress == null) {
+
+            return null;
+        }
+
+        ProfilePoint first =
+                points.get(
+                        0
+                );
+
+        ProfilePoint last =
+                points.get(
+                        points.size() - 1
+                );
+
+        if (first == null
+                || last == null
+                || !Double.isFinite(
+                first.distanceM
+        )
+                || !Double.isFinite(
+                last.distanceM
+        )) {
+
+            return null;
+        }
+
+        double startDistanceM =
+                first.distanceM
+                        + (
+                        last.distanceM
+                                - first.distanceM
+                )
+                        * progress.fraction;
+
+        double ascentM =
+                0.0;
+
+        double descentM =
+                0.0;
+
+        double previousElevationM =
+                progress.elevationM;
+
+        boolean havePrevious =
+                Double.isFinite(
+                        previousElevationM
+                );
+
+        for (ProfilePoint point
+                : points) {
+
+            if (point == null
+                    || !Double.isFinite(
+                    point.distanceM
+            )
+                    || point.distanceM
+                    <= startDistanceM) {
+
+                continue;
+            }
+
+            if (point.breakBefore
+                    || !Double.isFinite(
+                    point.elevationM
+            )) {
+
+                havePrevious =
+                        false;
+
+                continue;
+            }
+
+            if (havePrevious) {
+                double deltaM =
+                        point.elevationM
+                                - previousElevationM;
+
+                if (deltaM > 0.0) {
+                    ascentM +=
+                            deltaM;
+
+                } else {
+                    descentM +=
+                            -deltaM;
+                }
+            }
+
+            previousElevationM =
+                    point.elevationM;
+
+            havePrevious =
+                    true;
+        }
+
+        double finalElevationM =
+                lastFiniteElevation(
+                        points
+                );
+
+        double deltaM =
+                Double.isFinite(
+                        finalElevationM
+                )
+                        && Double.isFinite(
+                        progress.elevationM
+                )
+                        ? finalElevationM
+                        - progress.elevationM
+                        : 0.0;
+
+        return new ElevationStats(
+                ascentM,
+                descentM,
+                deltaM
         );
     }
 
     private ElevationStats calculateElevationStats(
             List<ProfilePoint> points
     ) {
-        ProfilePoint first =
-                firstFiniteElevationPoint(
+        double firstElevationM =
+                firstFiniteElevation(
                         points
                 );
 
-        ProfilePoint last =
-                lastFiniteElevationPoint(
+        double lastElevationM =
+                lastFiniteElevation(
                         points
                 );
 
-        if (first == null
-                || last == null) {
+        if (!Double.isFinite(
+                firstElevationM
+        )
+                || !Double.isFinite(
+                lastElevationM
+        )) {
 
             return null;
         }
@@ -262,11 +1185,14 @@ final class CaminoSelectionStatsOverlay {
         for (ProfilePoint point
                 : points) {
 
-            if (!Double.isFinite(
+            if (point == null
+                    || !Double.isFinite(
                     point.elevationM
             )) {
+
                 previous =
                         null;
+
                 continue;
             }
 
@@ -294,28 +1220,30 @@ final class CaminoSelectionStatsOverlay {
         return new ElevationStats(
                 ascentM,
                 descentM,
-                last.elevationM
-                        - first.elevationM
+                lastElevationM
+                        - firstElevationM
         );
     }
 
-    private ProfilePoint firstFiniteElevationPoint(
+    private double firstFiniteElevation(
             List<ProfilePoint> points
     ) {
         for (ProfilePoint point
                 : points) {
 
-            if (Double.isFinite(
+            if (point != null
+                    && Double.isFinite(
                     point.elevationM
             )) {
-                return point;
+
+                return point.elevationM;
             }
         }
 
-        return null;
+        return Double.NaN;
     }
 
-    private ProfilePoint lastFiniteElevationPoint(
+    private double lastFiniteElevation(
             List<ProfilePoint> points
     ) {
         for (int index =
@@ -328,14 +1256,95 @@ final class CaminoSelectionStatsOverlay {
                             index
                     );
 
-            if (Double.isFinite(
+            if (point != null
+                    && Double.isFinite(
                     point.elevationM
             )) {
-                return point;
+
+                return point.elevationM;
             }
         }
 
-        return null;
+        return Double.NaN;
+    }
+
+    private int currentMinutesOfDay() {
+        java.util.Calendar calendar =
+                java.util.Calendar.getInstance();
+
+        return calendar.get(
+                java.util.Calendar.HOUR_OF_DAY
+        )
+                * 60
+                + calendar.get(
+                java.util.Calendar.MINUTE
+        );
+    }
+
+    private int normalizeMinutesOfDay(
+            int minutes
+    ) {
+        int result =
+                minutes
+                        % (
+                        24
+                                * 60
+                );
+
+        if (result < 0) {
+            result +=
+                    24
+                            * 60;
+        }
+
+        return result;
+    }
+
+    private String formatClockMinutes(
+            int minutes
+    ) {
+        int normalized =
+                normalizeMinutesOfDay(
+                        minutes
+                );
+
+        return String.format(
+                Locale.GERMANY,
+                "%02d:%02d",
+                normalized / 60,
+                normalized % 60
+        );
+    }
+
+    private int roundedDurationMinutes(
+            double seconds
+    ) {
+        if (!Double.isFinite(
+                seconds
+        )
+                || seconds <= 0.0) {
+
+            return 0;
+        }
+
+        int minutes =
+                Math.max(
+                        0,
+                        (int)
+                                Math.round(
+                                        seconds
+                                                / 60.0
+                                )
+                );
+
+        return (
+                (
+                        minutes
+                                + 2
+                )
+                        / 5
+        )
+                * 5;
     }
 
     private String formatDistance(
@@ -380,26 +1389,10 @@ final class CaminoSelectionStatsOverlay {
     private String formatDurationSeconds(
             double seconds
     ) {
-        if (!Double.isFinite(
-                seconds
-        )) {
-            return "–";
-        }
-
         int totalMinutes =
-                Math.max(
-                        0,
-                        (int)
-                                Math.round(
-                                        seconds
-                                                / 60.0
-                                )
+                roundedDurationMinutes(
+                        seconds
                 );
-
-        totalMinutes =
-                ((totalMinutes + 2)
-                        / 5)
-                        * 5;
 
         int wholeHours =
                 totalMinutes
@@ -433,38 +1426,83 @@ final class CaminoSelectionStatsOverlay {
         );
     }
 
-    private GradientDrawable buildBackground() {
-        GradientDrawable background =
-                new GradientDrawable();
+    private String formatPauseMs(
+            long pauseMs
+    ) {
+        long totalMinutes =
+                Math.max(
+                        0L,
+                        Math.round(
+                                pauseMs
+                                        / 60_000.0
+                        )
+                );
 
-        background.setColor(
-                Color.argb(
-                        150,
-                        24,
-                        27,
-                        30
-                )
+        long hours =
+                totalMinutes
+                        / 60L;
+
+        long minutes =
+                totalMinutes
+                        % 60L;
+
+        if (hours == 0L) {
+            return String.format(
+                    Locale.GERMANY,
+                    "%d min",
+                    minutes
+            );
+        }
+
+        if (minutes == 0L) {
+            return String.format(
+                    Locale.GERMANY,
+                    "%d h",
+                    hours
+            );
+        }
+
+        return String.format(
+                Locale.GERMANY,
+                "%d h %02d min",
+                hours,
+                minutes
+        );
+    }
+
+    void hide() {
+        mapView.removeCallbacks(
+                clockTick
         );
 
-        background.setCornerRadius(
-                dp(
-                        9
-                )
-        );
+        lastPath =
+                null;
 
-        background.setStroke(
-                dp(
-                        1
-                ),
-                Color.argb(
-                        85,
-                        255,
-                        255,
-                        255
-                )
-        );
+        lastPosition =
+                null;
 
-        return background;
+        plannedStartMinutesOfDay =
+                -1;
+
+        if (upperView != null) {
+            upperView.setText(
+                    ""
+            );
+
+            upperView.setVisibility(
+                    View.GONE
+            );
+        }
+
+        if (lowerView != null) {
+            lowerView.setText(
+                    ""
+            );
+
+            lowerView.setVisibility(
+                    View.GONE
+            );
+        }
     }
 
     private int dp(
@@ -477,6 +1515,142 @@ final class CaminoSelectionStatsOverlay {
                         .getDisplayMetrics()
                         .density
         );
+    }
+
+    private static final class VerticalStatsTextView
+            extends TextView {
+
+        VerticalStatsTextView(
+                Context context
+        ) {
+            super(
+                    context
+            );
+
+            setSingleLine(
+                    true
+            );
+        }
+
+        @Override
+        protected void onMeasure(
+                int widthMeasureSpec,
+                int heightMeasureSpec
+        ) {
+            CharSequence value =
+                    getText();
+
+            String text =
+                    value == null
+                            ? ""
+                            : value.toString();
+
+            android.graphics.Paint paint =
+                    getPaint();
+
+            android.graphics.Paint.FontMetrics metrics =
+                    paint.getFontMetrics();
+
+            int normalWidth =
+                    Math.max(
+                            1,
+                            Math.round(
+                                    paint.measureText(
+                                            text
+                                    )
+                            )
+                    );
+
+            int normalHeight =
+                    Math.max(
+                            1,
+                            Math.round(
+                                    metrics.descent
+                                            - metrics.ascent
+                            )
+                    );
+
+            setMeasuredDimension(
+                    resolveSize(
+                            normalHeight,
+                            widthMeasureSpec
+                    ),
+                    resolveSize(
+                            normalWidth,
+                            heightMeasureSpec
+                    )
+            );
+        }
+
+        @Override
+        protected void onDraw(
+                Canvas canvas
+        ) {
+            CharSequence value =
+                    getText();
+
+            if (value == null
+                    || value.length() == 0) {
+
+                return;
+            }
+
+            String text =
+                    value.toString();
+
+            android.graphics.Paint paint =
+                    getPaint();
+
+            paint.setColor(
+                    getCurrentTextColor()
+            );
+
+            android.graphics.Paint.FontMetrics metrics =
+                    paint.getFontMetrics();
+
+            int saveCount =
+                    canvas.save();
+
+            canvas.translate(
+                    0.0f,
+                    getHeight()
+            );
+
+            canvas.rotate(
+                    -90.0f
+            );
+
+            float baseline =
+                    -metrics.ascent;
+
+            canvas.drawText(
+                    text,
+                    0.0f,
+                    baseline,
+                    paint
+            );
+
+            canvas.restoreToCount(
+                    saveCount
+            );
+        }
+    }
+
+    private static final class RouteProgress {
+
+        final double fraction;
+        final double elevationM;
+
+        RouteProgress(
+                double fraction,
+                double elevationM
+        ) {
+            this.fraction =
+                    fraction;
+
+            this.elevationM =
+                    elevationM;
+        }
     }
 
     private static final class ElevationStats {

@@ -12,6 +12,9 @@ import org.maplibre.android.maps.MapLibreMap;
 final class LiveNavigationCameraController {
 
     private static final int RETURN_MS = 1650;
+
+    private static final double FOLLOW_ZOOM =
+            16.5;
     private static final double BEARING_TAU_MS = 2200.0;
     private static final double BEARING_DEADBAND_DEG = 1.25;
 
@@ -22,6 +25,7 @@ final class LiveNavigationCameraController {
     private Float courseDeg;
 
     private boolean followEnabled;
+    private boolean northUp;
     private boolean suspended;
     private boolean returnAnimating;
     private ValueAnimator returnAnimator;
@@ -49,8 +53,25 @@ final class LiveNavigationCameraController {
         }
     }
 
-    void setFollowEnabled(boolean enabled) {
-        followEnabled = enabled;
+    void setNavigationMode(
+            NavigationController.Mode mode
+    ) {
+        if (mode == null) {
+            mode =
+                    NavigationController.Mode.MANUAL;
+        }
+
+        boolean enabled =
+                mode
+                        != NavigationController.Mode.MANUAL;
+
+        northUp =
+                mode
+                        == NavigationController.Mode.NORTH_UP;
+
+        followEnabled =
+                enabled;
+
         suspended = false;
         returnAnimating = false;
 
@@ -61,7 +82,10 @@ final class LiveNavigationCameraController {
 
         if (enabled && map != null) {
             smoothedCameraBearingDeg =
-                    GeoMath.normalizeDegrees(map.getCameraPosition().bearing);
+                    GeoMath.normalizeDegrees(
+                            map.getCameraPosition().bearing
+                    );
+
             smoothedCameraBearingTimeMs =
                     SystemClock.elapsedRealtime();
         }
@@ -120,14 +144,21 @@ final class LiveNavigationCameraController {
         final CameraPosition startCamera =
                 map.getCameraPosition();
 
-        final double finalZoom =
+        final double startZoom =
                 startCamera.zoom;
 
-        final double bearing =
-                GeoMath.normalizeDegrees(startCamera.bearing);
+        final double finalZoom =
+                FOLLOW_ZOOM;
+
+        final double cameraBearing =
+                northUp
+                        ? 0.0
+                        : GeoMath.normalizeDegrees(
+                                startCamera.bearing
+                        );
 
         smoothedCameraBearingDeg =
-                bearing;
+                cameraBearing;
         smoothedCameraBearingTimeMs =
                 SystemClock.elapsedRealtime();
 
@@ -146,20 +177,13 @@ final class LiveNavigationCameraController {
         double logicalMapHeightPx =
                 mv.getHeight() / pixelRatio;
 
-        double leadMeters =
-                Double.isFinite(metersPerPixel)
-                        && metersPerPixel > 0.0
-                        ? metersPerPixel
-                                * logicalMapHeightPx
-                                / 6.0
-                        : 0.0;
-
+        /*
+         * The GPS arrow is the camera pivot.
+         * Rotating COURSE_UP must rotate around the walker, not around an
+         * artificial look-ahead point near the screen centre.
+         */
         final LatLng finalTarget =
-                GeoMath.destination(
-                        lastPose.getLatitude(),
-                        lastPose.getLongitude(),
-                        bearing,
-                        leadMeters);
+                lastPose;
 
         final LatLng startTarget =
                 startCamera.target;
@@ -249,8 +273,13 @@ final class LiveNavigationCameraController {
                             Math.sin(Math.PI * s);
 
                     double zoom =
-                            finalZoom
-                                    - zoomOutLevels * zoomPulse;
+                            startZoom
+                                    + (
+                                    finalZoom
+                                            - startZoom
+                            ) * s
+                                    - zoomOutLevels
+                                    * zoomPulse;
 
                     CameraPosition camera =
                             new CameraPosition.Builder(
@@ -260,7 +289,7 @@ final class LiveNavigationCameraController {
                                                     lat,
                                                     lon))
                                     .zoom(zoom)
-                                    .bearing(bearing)
+                                    .bearing(cameraBearing)
                                     .tilt(0.0)
                                     .padding(
                                             0.0,
@@ -335,10 +364,12 @@ final class LiveNavigationCameraController {
         }
 
         /*
-         * Follow NEVER owns zoom.
+         * Both walking follow modes use the tuned navigation zoom.
+         * A manual pinch immediately parks follow, so the user remains free to
+         * inspect the map at any other zoom until tapping the reticle.
          */
         double zoom =
-                map.getCameraPosition().zoom;
+                FOLLOW_ZOOM;
 
         /*
          * Rotate the whole map ONLY from the GPS walking course.
@@ -351,49 +382,30 @@ final class LiveNavigationCameraController {
                         : null;
 
         double cameraBearing =
-                desiredCourse != null
-                        ? smoothCameraBearing(desiredCourse)
-                        : smoothedCameraBearingDeg != null
-                                ? smoothedCameraBearingDeg
-                                : GeoMath.normalizeDegrees(map.getCameraPosition().bearing);
-
-        double metersPerPixel =
-                map.getProjection()
-                        .getMetersPerPixelAtLatitude(
-                                pos.getLatitude());
+                northUp
+                        ? 0.0
+                        : desiredCourse != null
+                                ? smoothCameraBearing(
+                                        desiredCourse
+                                )
+                                : smoothedCameraBearingDeg != null
+                                        ? smoothedCameraBearingDeg
+                                        : GeoMath.normalizeDegrees(
+                                                map.getCameraPosition().bearing
+                                        );
 
         /*
-         * IMPORTANT:
-         * Explicit zero padding prevents old/saved camera padding from
-         * combining with this H/6 lead.
-         *
-         * Zero padding + target H/6 ahead => walker at 2H/3:
-         * one third behind, two thirds ahead.
+         * Zero padding means the camera target is the physical screen centre.
+         * Because target == GPS pose, the direction arrow is the rotation pivot.
          */
-        double pixelRatio =
-                Math.max(
-                        1.0,
-                        activity.getResources()
-                                .getDisplayMetrics()
-                                .density);
-
-        double logicalMapHeightPx =
-                mv.getHeight() / pixelRatio;
-
-        double leadMeters =
-                Double.isFinite(metersPerPixel)
-                        && metersPerPixel > 0.0
-                        ? metersPerPixel
-                                * logicalMapHeightPx
-                                / 6.0
-                        : 0.0;
-
+        /*
+         * Keep the current GPS pose exactly on the camera target. This is what
+         * makes COURSE_UP rotate around the visible direction arrow.
+         *
+         * Active follow uses the tuned z16.5 walking scale.
+         */
         LatLng target =
-                GeoMath.destination(
-                        pos.getLatitude(),
-                        pos.getLongitude(),
-                        cameraBearing,
-                        leadMeters);
+                pos;
 
         CameraPosition camera =
                 new CameraPosition.Builder(

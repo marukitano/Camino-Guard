@@ -8,6 +8,15 @@ import org.maplibre.android.maps.MapView;
 
 final class NavigationController {
 
+    private static final double FOLLOW_ZOOM =
+            16.5;
+
+    enum Mode {
+        MANUAL,
+        NORTH_UP,
+        COURSE_UP
+    }
+
     interface PositionProvider {
         LatLng currentPosition();
     }
@@ -16,31 +25,17 @@ final class NavigationController {
         double currentBearingDegrees();
     }
 
-    interface FollowStateListener {
-        void onFollowStateChanged(
-                boolean enabled
+    interface NavigationModeListener {
+        void onNavigationModeChanged(
+                Mode mode,
+                boolean suspended
         );
     }
-
-    private final long recenterDelayMs =
-            CaminoConfig.get().longValue(
-                    "navigation.recenterDelayMs"
-            );
-
-    private final double verticalWindowM =
-            CaminoConfig.get().doubleValue(
-                    "navigation.verticalWindowMeters"
-            );
-
-    private final double cameraLeadM =
-            CaminoConfig.get().doubleValue(
-                    "navigation.cameraLeadMeters"
-            );
 
     private final MapView mapView;
     private final PositionProvider positionProvider;
     private final BearingProvider bearingProvider;
-    private final FollowStateListener followStateListener;
+    private final NavigationModeListener navigationModeListener;
     private final CaminoUiStateStore uiStateStore;
 
     private MapLibreMap map;
@@ -48,19 +43,20 @@ final class NavigationController {
 
     private boolean liveMode;
     private boolean followEnabled;
+    private boolean northUpFollow;
     private boolean followSuspended;
-    private int resumeGeneration;
 
     NavigationController(
             MapView mapView,
             PositionProvider positionProvider,
             BearingProvider bearingProvider,
-            FollowStateListener followStateListener
+            NavigationModeListener navigationModeListener
     ) {
         this.mapView = mapView;
         this.positionProvider = positionProvider;
         this.bearingProvider = bearingProvider;
-        this.followStateListener = followStateListener;
+        this.navigationModeListener =
+                navigationModeListener;
 
         uiStateStore =
                 new CaminoUiStateStore(
@@ -90,10 +86,16 @@ final class NavigationController {
                             true
                     );
 
-            followSuspended = false;
-            resumeGeneration++;
+            /*
+             * Existing installs keep the old boolean preference. A stored
+             * follow=true maps to the previous behaviour: course-up follow.
+             */
+            northUpFollow =
+                    false;
 
-            publishFollowState();
+            followSuspended = false;
+
+            publishNavigationMode();
             syncExternalFollow();
         }
     }
@@ -112,8 +114,13 @@ final class NavigationController {
         }
 
         externalController
-                .setExternalNavigationFollowEnabled(
-                        followEnabled
+                .setExternalNavigationMode(
+                        currentMode()
+                );
+
+        externalController
+                .setExternalNavigationSuspended(
+                        followSuspended
                 );
     }
 
@@ -121,30 +128,90 @@ final class NavigationController {
         return followEnabled;
     }
 
-    void toggleFollow() {
-        resumeGeneration++;
+    Mode currentMode() {
+        if (!followEnabled) {
+            return Mode.MANUAL;
+        }
 
-        followEnabled =
-                !followEnabled;
+        return northUpFollow
+                ? Mode.NORTH_UP
+                : Mode.COURSE_UP;
+    }
 
-        followSuspended = false;
+    void cycleMode() {
 
         /*
-         * Persist only the explicit centered/manual mode. Temporary camera
-         * suspension caused by dragging remains transient and is not saved.
+         * A manually moved follow map is PARKED, not in another navigation
+         * mode. Tapping the reticle resumes exactly the previous mode.
+         */
+        if (followEnabled
+                && followSuspended) {
+
+            followSuspended =
+                    false;
+
+            publishNavigationMode();
+
+            if (liveMode
+                    && externalController != null) {
+
+                externalController
+                        .setExternalNavigationSuspended(
+                                false
+                        );
+
+                return;
+            }
+
+            followNow(
+                    true
+            );
+
+            return;
+        }
+
+        /*
+         * The button shows the current state, and tapping advances:
+         * MANUAL -> NORTH_UP -> COURSE_UP -> MANUAL.
+         */
+        if (!followEnabled) {
+            followEnabled =
+                    true;
+
+            northUpFollow =
+                    true;
+
+        } else if (northUpFollow) {
+            northUpFollow =
+                    false;
+
+        } else {
+            followEnabled =
+                    false;
+
+            northUpFollow =
+                    false;
+        }
+
+        followSuspended =
+                false;
+
+        /*
+         * Keep the existing persisted manual/follow preference compatible.
+         * Both NORTH_UP and COURSE_UP are follow=true.
          */
         uiStateStore.saveFollowEnabled(
                 followEnabled
         );
 
-        publishFollowState();
+        publishNavigationMode();
 
         if (liveMode
                 && externalController != null) {
 
             externalController
-                    .setExternalNavigationFollowEnabled(
-                            followEnabled
+                    .setExternalNavigationMode(
+                            currentMode()
                     );
 
             return;
@@ -167,8 +234,10 @@ final class NavigationController {
             return;
         }
 
-        followSuspended = true;
-        resumeGeneration++;
+        followSuspended =
+                true;
+
+        publishNavigationMode();
 
         if (liveMode
                 && externalController != null) {
@@ -177,62 +246,23 @@ final class NavigationController {
                     .setExternalNavigationSuspended(
                             true
                     );
-
-            return;
         }
 
-        final int generation =
-                resumeGeneration;
-
-        mapView.postDelayed(
-                () -> {
-                    if (!followEnabled
-                            || generation
-                            != resumeGeneration) {
-                        return;
-                    }
-
-                    followSuspended = false;
-
-                    followNow(
-                            true
-                    );
-                },
-                recenterDelayMs
-        );
+        /*
+         * Deliberately NO delayed resume:
+         * the user may inspect or zoom another part of the map for as long as
+         * desired. The reticle button is the explicit way back.
+         */
     }
 
     void handleCameraIdle() {
-        if (!liveMode
-                || !followEnabled
-                || !followSuspended
-                || externalController == null) {
-            return;
-        }
-
-        final int generation =
-                ++resumeGeneration;
-
-        mapView.postDelayed(
-                () -> {
-                    if (!liveMode
-                            || !followEnabled
-                            || !followSuspended
-                            || generation
-                            != resumeGeneration
-                            || externalController == null) {
-                        return;
-                    }
-
-                    followSuspended = false;
-
-                    externalController
-                            .setExternalNavigationSuspended(
-                                    false
-                            );
-                },
-                recenterDelayMs
-        );
+        /*
+         * Intentionally empty.
+         *
+         * Follow suspension is sticky until the user taps the reticle.
+         * Keeping this policy here preserves NavigationController ownership of
+         * gesture/follow state rather than leaking it into the map UI.
+         */
     }
 
     void followIfActive(
@@ -260,21 +290,23 @@ final class NavigationController {
             return;
         }
 
-        double bearing =
+        double travelBearing =
                 bearingProvider.currentBearingDegrees();
 
+        double cameraBearing =
+                northUpFollow
+                        ? 0.0
+                        : travelBearing;
+
+        /*
+         * Follow pivots around the physical position itself.
+         * This keeps the user arrow fixed while COURSE_UP rotates the map.
+         */
         LatLng cameraTarget =
-                GeoMath.destination(
-                        position,
-                        bearing,
-                        cameraLeadM
-                );
+                position;
 
         double zoom =
-                zoomForVerticalMeters(
-                        position.getLatitude(),
-                        verticalWindowM
-                );
+                FOLLOW_ZOOM;
 
         CameraPosition cameraPosition =
                 new CameraPosition.Builder(
@@ -282,7 +314,7 @@ final class NavigationController {
                 )
                         .target(cameraTarget)
                         .zoom(zoom)
-                        .bearing(bearing)
+                        .bearing(cameraBearing)
                         .tilt(0.0)
                         .build();
 
@@ -300,50 +332,15 @@ final class NavigationController {
         }
     }
 
-    private double zoomForVerticalMeters(
-            double latitude,
-            double verticalMeters
-    ) {
-        double currentZoom =
-                map.getCameraPosition().zoom;
-
-        double currentMetersPerPixel =
-                map.getProjection()
-                        .getMetersPerPixelAtLatitude(
-                                latitude
-                        );
-
-        double desiredMetersPerPixel =
-                verticalMeters
-                        / Math.max(
-                                1.0,
-                                mapView.getHeight()
-                        );
-
-        if (!Double.isFinite(currentMetersPerPixel)
-                || currentMetersPerPixel <= 0.0
-                || !Double.isFinite(desiredMetersPerPixel)
-                || desiredMetersPerPixel <= 0.0) {
-
-            return currentZoom;
-        }
-
-        double zoomDelta =
-                Math.log(
-                        currentMetersPerPixel
-                                / desiredMetersPerPixel
-                ) / Math.log(2.0);
-
-        return currentZoom
-                + zoomDelta;
-    }
 
 
-    private void publishFollowState() {
-        if (followStateListener != null) {
-            followStateListener
-                    .onFollowStateChanged(
-                            followEnabled
+
+    private void publishNavigationMode() {
+        if (navigationModeListener != null) {
+            navigationModeListener
+                    .onNavigationModeChanged(
+                            currentMode(),
+                            followSuspended
                     );
         }
     }

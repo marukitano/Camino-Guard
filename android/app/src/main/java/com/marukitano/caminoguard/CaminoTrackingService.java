@@ -39,14 +39,15 @@ import java.util.concurrent.Executors;
  * Direction logic:
  *
  * MOVING:
- *   - GPS track is authoritative.
- *   - map course + arrow heading come from the last ~10 m of accepted path.
- *   - gyro rotation is ignored.
+ *   - GPS track/course are authoritative for walking direction.
+ *   - relative handset yaw from TYPE_GAME_ROTATION_VECTOR is added continuously
+ *     to that walking course for the visible direction arrow.
  *
  * STATIONARY:
  *   - GPS position/course are frozen.
- *   - gyro may rotate the arrow relative to the last walking course.
+ *   - the exact same relative handset-yaw logic continues.
  *
+ * The map's COURSE_UP rotation remains GPS-course-only.
  * No magnetometer is used.
  */
 public final class CaminoTrackingService extends Service
@@ -410,15 +411,21 @@ public final class CaminoTrackingService extends Service
                 event
         );
 
-        if (motionStateDetector.state() == MotionStateDetector.State.STATIONARY) {
-            directionTracker.updateGyroAugmentedHeading();
+        /*
+         * Handset rotation augments the GPS walking course in BOTH movement
+         * states. This is relative gyro orientation only; it does not introduce
+         * magnetic north and it never rotates the COURSE_UP map itself.
+         */
+        directionTracker.updateGyroAugmentedHeading();
 
-            long now = SystemClock.elapsedRealtime();
+        long now =
+                SystemClock.elapsedRealtime();
 
-            if (now - lastSensorPublishMs >= 50L) {
-                lastSensorPublishMs = now;
-                publish();
-            }
+        if (now - lastSensorPublishMs >= 50L) {
+            lastSensorPublishMs =
+                    now;
+
+            publish();
         }
     }
 

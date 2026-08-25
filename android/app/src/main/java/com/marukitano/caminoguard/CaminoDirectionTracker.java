@@ -10,7 +10,7 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Owns walking-course and stationary gyro-heading state.
+ * Owns walking-course and continuous GPS-anchored gyro-heading state.
  *
  * GPS acceptance, Android service lifecycle and motion-state classification
  * remain in CaminoTrackingService.
@@ -28,7 +28,16 @@ final class CaminoDirectionTracker {
     private Float gpsCourseDeg;
     private Float phoneHeadingDeg;
     private Float rawCameraYawDeg;
-    private Float gyroReferenceYawDeg;
+
+    /*
+     * Relative handset yaw versus walking direction.
+     *
+     * Gyro motion adds to this offset continuously. A real GPS course change
+     * subtracts from it, so turning a corner while holding the phone normally
+     * does not get counted twice.
+     */
+    private float phoneOffsetDeg;
+    private Float lastAppliedRawYawDeg;
 
     CaminoDirectionTracker(
             float trackPointSpacingM,
@@ -46,17 +55,50 @@ final class CaminoDirectionTracker {
                         courseBaselineM
                 );
 
-        if (course != null) {
-            gpsCourseDeg = course;
+        if (course == null) {
+            return;
         }
 
-        if (rawCameraYawDeg != null) {
-            gyroReferenceYawDeg = rawCameraYawDeg;
-        }
+        float normalizedCourse =
+                GeoMath.normalizeDegrees(
+                        course
+                );
 
         if (gpsCourseDeg != null) {
-            phoneHeadingDeg = gpsCourseDeg;
+            /*
+             * A change in GPS course is a change in WALKING direction, not an
+             * extra handset rotation. Remove it from the accumulated phone
+             * offset. This is what lets gyro augmentation remain active while
+             * walking without double-counting bends in the path.
+             */
+            float courseDelta =
+                    GeoMath.shortestAngleDegrees(
+                            gpsCourseDeg,
+                            normalizedCourse
+                    );
+
+            phoneOffsetDeg =
+                    signedDegrees(
+                            phoneOffsetDeg
+                                    - courseDelta
+                    );
         }
+
+        gpsCourseDeg =
+                normalizedCourse;
+
+        /*
+         * Until the first GPS walking course exists, the current handset
+         * orientation is implicitly the zero-offset / normal orientation.
+         */
+        if (lastAppliedRawYawDeg == null
+                && rawCameraYawDeg != null) {
+
+            lastAppliedRawYawDeg =
+                    rawCameraYawDeg;
+        }
+
+        updateHeadingFromCurrentOffset();
     }
 
     void enterMoving(Location acceptedLocation) {
@@ -70,11 +112,14 @@ final class CaminoDirectionTracker {
     }
 
     void enterStationary() {
-        gyroReferenceYawDeg = rawCameraYawDeg;
-
-        if (gpsCourseDeg != null) {
-            phoneHeadingDeg = gpsCourseDeg;
-        }
+        /*
+         * Do NOT recalibrate here.
+         *
+         * The same relative gyro offset continues through moving and
+         * stationary states, so stopping no longer changes how the arrow
+         * interprets handset rotation.
+         */
+        updateHeadingFromCurrentOffset();
     }
 
     void updateRawCameraYaw(SensorEvent event) {
@@ -108,29 +153,66 @@ final class CaminoDirectionTracker {
             return;
         }
 
-        if (gyroReferenceYawDeg == null) {
-            gyroReferenceYawDeg = rawCameraYawDeg;
-        }
+        if (gpsCourseDeg == null) {
+            /*
+             * No world reference yet. Remember the current sensor yaw so the
+             * first valid GPS course starts with offset zero.
+             */
+            lastAppliedRawYawDeg =
+                    rawCameraYawDeg;
 
-        Float baseHeading =
-                gpsCourseDeg != null
-                        ? gpsCourseDeg
-                        : phoneHeadingDeg;
-
-        if (baseHeading == null) {
             return;
         }
 
-        float offset =
+        if (lastAppliedRawYawDeg == null) {
+            lastAppliedRawYawDeg =
+                    rawCameraYawDeg;
+
+            updateHeadingFromCurrentOffset();
+            return;
+        }
+
+        float gyroDelta =
                 GeoMath.shortestAngleDegrees(
-                        gyroReferenceYawDeg,
+                        lastAppliedRawYawDeg,
                         rawCameraYawDeg
                 );
 
+        lastAppliedRawYawDeg =
+                rawCameraYawDeg;
+
+        phoneOffsetDeg =
+                signedDegrees(
+                        phoneOffsetDeg
+                                + gyroDelta
+                );
+
+        updateHeadingFromCurrentOffset();
+    }
+
+    private void updateHeadingFromCurrentOffset() {
+        if (gpsCourseDeg == null) {
+            return;
+        }
+
         phoneHeadingDeg =
                 GeoMath.normalizeDegrees(
-                        baseHeading + offset
+                        gpsCourseDeg
+                                + phoneOffsetDeg
                 );
+    }
+
+    private float signedDegrees(
+            float degrees
+    ) {
+        float normalized =
+                GeoMath.normalizeDegrees(
+                        degrees
+                );
+
+        return normalized > 180.0f
+                ? normalized - 360.0f
+                : normalized;
     }
 
     Float courseDeg() {

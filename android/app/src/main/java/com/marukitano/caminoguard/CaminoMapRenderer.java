@@ -56,6 +56,17 @@ final class CaminoMapRenderer {
             30.0f;
 
     /*
+     * Normal stage shells are useful only once the map is close enough to
+     * inspect individual day stages. Keeping hundreds of overlapping symbols
+     * alive at country scale causes unnecessary MapLibre layout/render work.
+     *
+     * Use the real visible screen diagonal instead of a fixed zoom level so
+     * the threshold remains meaningful across devices, latitude and tilt.
+     */
+    private static final double STAGE_MARKER_MAX_VIEWPORT_DIAGONAL_M =
+            200_000.0;
+
+    /*
      * v60: coloured v50 network-debug circles/labels are disabled.
      */
     private static final boolean NETWORK_DEBUG_ENABLED =
@@ -99,6 +110,14 @@ final class CaminoMapRenderer {
 private final Context context;
 
     private SymbolLayer stageLayer;
+
+    /*
+     * The camera listeners survive a style reload. Keep only one listener set
+     * per MapLibreMap; stageLayer itself may be replaced by a later style.
+     */
+    private MapLibreMap stageVisibilityMap;
+
+    private boolean stageMarkersVisible;
 
     /*
      * Logical MapLibre image size in style pixels, not raw bitmap pixels.
@@ -286,6 +305,9 @@ CaminoMapRenderer(
                     PropertyFactory.iconImage(
                             STAGE_IMAGE
                     ),
+                    PropertyFactory.visibility(
+                            "none"
+                    ),
                     PropertyFactory.iconAllowOverlap(
                             true
                     ),
@@ -314,6 +336,10 @@ CaminoMapRenderer(
                                     STAGE_LAYER
                             );
         }
+
+        installStageVisibilityGate(
+                map
+        );
 
 
         /*
@@ -410,6 +436,167 @@ CaminoMapRenderer(
         }
 
 }
+
+
+    /*
+     * Keep the expensive all-stage shell layer completely disabled while the
+     * visible map diagonal is larger than about 200 km.
+     *
+     * Zooming OUT:
+     *   hide immediately while the camera is moving, as soon as the threshold
+     *   is crossed.
+     *
+     * Zooming IN:
+     *   while hidden, do no per-frame distance work at all. Re-enable only on
+     *   CameraIdle once the final viewport is <= 200 km.
+     *
+     * This asymmetry avoids bringing hundreds of overlapping symbols back into
+     * MapLibre in the middle of a pinch gesture.
+     */
+    private void installStageVisibilityGate(
+            MapLibreMap map
+    ) {
+        setStageMarkersVisible(
+                false
+        );
+
+        /*
+         * Style loading can happen while the restored camera is already at a
+         * close scale. Evaluate it once immediately instead of waiting for the
+         * user's first gesture.
+         */
+        updateStageVisibilityAfterCameraIdle(
+                map
+        );
+
+        if (stageVisibilityMap == map) {
+            return;
+        }
+
+        stageVisibilityMap =
+                map;
+
+        map.addOnCameraMoveListener(
+                () -> {
+                    if (!stageMarkersVisible) {
+                        return;
+                    }
+
+                    double diagonalM =
+                            visibleViewportDiagonalMeters(
+                                    map
+                            );
+
+                    if (!Double.isFinite(
+                            diagonalM
+                    )
+                            || diagonalM
+                            > STAGE_MARKER_MAX_VIEWPORT_DIAGONAL_M) {
+
+                        setStageMarkersVisible(
+                                false
+                        );
+                    }
+                }
+        );
+
+        map.addOnCameraIdleListener(
+                () -> updateStageVisibilityAfterCameraIdle(
+                        map
+                )
+        );
+    }
+
+
+    private void updateStageVisibilityAfterCameraIdle(
+            MapLibreMap map
+    ) {
+        double diagonalM =
+                visibleViewportDiagonalMeters(
+                        map
+                );
+
+        boolean shouldBeVisible =
+                Double.isFinite(
+                        diagonalM
+                )
+                        && diagonalM
+                        <= STAGE_MARKER_MAX_VIEWPORT_DIAGONAL_M;
+
+        if (stageMarkersVisible != shouldBeVisible) {
+            setStageMarkersVisible(
+                    shouldBeVisible
+            );
+        }
+    }
+
+
+    private void setStageMarkersVisible(
+            boolean visible
+    ) {
+        stageMarkersVisible =
+                visible;
+
+        if (stageLayer == null) {
+            return;
+        }
+
+        stageLayer.setProperties(
+                PropertyFactory.visibility(
+                        visible
+                                ? "visible"
+                                : "none"
+                )
+        );
+    }
+
+
+    private double visibleViewportDiagonalMeters(
+            MapLibreMap map
+    ) {
+        try {
+            VisibleRegion region =
+                    map.getProjection()
+                            .getVisibleRegion();
+
+            if (region == null
+                    || region.farLeft == null
+                    || region.farRight == null
+                    || region.nearLeft == null
+                    || region.nearRight == null) {
+
+                return Double.POSITIVE_INFINITY;
+            }
+
+            /*
+             * Rotation and tilt can make the two geographic screen diagonals
+             * differ. Use the longer one so "200 km diagonal" is conservative.
+             */
+            double diagonal1M =
+                    GeoMath.distanceMeters(
+                            region.farLeft,
+                            region.nearRight
+                    );
+
+            double diagonal2M =
+                    GeoMath.distanceMeters(
+                            region.farRight,
+                            region.nearLeft
+                    );
+
+            return Math.max(
+                    diagonal1M,
+                    diagonal2M
+            );
+
+        } catch (RuntimeException error) {
+            /*
+             * During transient projection/style states, fail closed: keeping
+             * the mass marker layer hidden is both safer and faster.
+             */
+            return Double.POSITIVE_INFINITY;
+        }
+    }
 
 
     private float fixedStageIconSize() {
