@@ -48,7 +48,6 @@ final class CaminoNavigationButton extends View {
 
     private boolean suspended;
 
-    private Drawable compassDrawable;
     private double mapBearing;
 
     CaminoNavigationButton(
@@ -59,7 +58,12 @@ final class CaminoNavigationButton extends View {
         );
 
         circlePaint.setColor(
-                Color.WHITE
+                Color.argb(
+                        165,
+                        35,
+                        39,
+                        43
+                )
         );
 
         circlePaint.setStyle(
@@ -68,10 +72,10 @@ final class CaminoNavigationButton extends View {
 
         outlinePaint.setColor(
                 Color.argb(
-                        190,
-                        61,
-                        51,
-                        44
+                        185,
+                        255,
+                        255,
+                        255
                 )
         );
 
@@ -86,11 +90,7 @@ final class CaminoNavigationButton extends View {
         );
 
         iconPaint.setColor(
-                Color.rgb(
-                        61,
-                        51,
-                        44
-                )
+                Color.WHITE
         );
 
         iconPaint.setStyle(
@@ -98,11 +98,7 @@ final class CaminoNavigationButton extends View {
         );
 
         textPaint.setColor(
-                Color.rgb(
-                        61,
-                        51,
-                        44
-                )
+                Color.WHITE
         );
 
         textPaint.setTextAlign(
@@ -114,11 +110,7 @@ final class CaminoNavigationButton extends View {
         );
 
         reticlePaint.setColor(
-                Color.rgb(
-                        61,
-                        51,
-                        44
-                )
+                Color.WHITE
         );
 
         reticlePaint.setStyle(
@@ -156,30 +148,10 @@ final class CaminoNavigationButton extends View {
     void setCompassDrawable(
             Drawable drawable
     ) {
-        if (drawable == null) {
-            compassDrawable =
-                    null;
-
-            invalidate();
-            return;
-        }
-
-        Drawable copy =
-                drawable;
-
-        if (drawable.getConstantState()
-                != null) {
-
-            copy =
-                    drawable
-                            .getConstantState()
-                            .newDrawable()
-                            .mutate();
-        }
-
-        compassDrawable =
-                copy;
-
+        /*
+         * API bleibt bestehen; gezeichnet wird absichtlich unser
+         * stabiles eigenes Kompasssymbol.
+         */
         invalidate();
     }
 
@@ -223,23 +195,11 @@ final class CaminoNavigationButton extends View {
                 )
                         * 0.43f;
 
-        if (mode
-                == NavigationController.Mode.MANUAL) {
-
-            /*
-             * Exactly the old visual idea: the native MapLibre compass drawable
-             * by itself, with no extra v88 circle around it.
-             */
-            drawCompass(
-                    canvas,
-                    cx,
-                    cy,
-                    radius
-            );
-
-            return;
-        }
-
+        /*
+         * All three map controls share the same quiet dark-grey base.
+         * Navigation state is communicated only by the symbol, not by changing
+         * the whole button from black/white to dark/light.
+         */
         canvas.drawCircle(
                 cx,
                 cy,
@@ -253,6 +213,19 @@ final class CaminoNavigationButton extends View {
                 radius,
                 outlinePaint
         );
+
+        if (mode
+                == NavigationController.Mode.MANUAL) {
+
+            drawCompass(
+                    canvas,
+                    cx,
+                    cy,
+                    radius
+            );
+
+            return;
+        }
 
         if (suspended) {
             drawRecenterReticle(
@@ -283,7 +256,7 @@ final class CaminoNavigationButton extends View {
                 cx,
                 cy,
                 radius
-                        * 0.88f
+                        * 0.72f
         );
     }
 
@@ -293,182 +266,130 @@ final class CaminoNavigationButton extends View {
             float cy,
             float radius
     ) {
-        if (compassDrawable != null) {
-            int intrinsicWidth =
-                    compassDrawable.getIntrinsicWidth();
-
-            int intrinsicHeight =
-                    compassDrawable.getIntrinsicHeight();
-
-            int availableWidth =
-                    Math.max(
-                            1,
-                            getWidth()
-                    );
-
-            int availableHeight =
-                    Math.max(
-                            1,
-                            getHeight()
-                    );
-
-            int drawWidth =
-                    availableWidth;
-
-            int drawHeight =
-                    availableHeight;
-
-            /*
-             * Match ImageView.ScaleType.CENTER_INSIDE from the pre-v88 compass:
-             * preserve aspect ratio and never upscale a smaller native drawable.
-             */
-            if (intrinsicWidth > 0
-                    && intrinsicHeight > 0) {
-
-                float scale =
-                        Math.min(
-                                1.0f,
-                                Math.min(
-                                        availableWidth
-                                                / (float) intrinsicWidth,
-                                        availableHeight
-                                                / (float) intrinsicHeight
-                                )
-                        );
-
-                drawWidth =
-                        Math.max(
-                                1,
-                                Math.round(
-                                        intrinsicWidth
-                                                * scale
-                                )
-                        );
-
-                drawHeight =
-                        Math.max(
-                                1,
-                                Math.round(
-                                        intrinsicHeight
-                                                * scale
-                                )
-                        );
-            }
-
-            int left =
-                    Math.round(
-                            cx
-                                    - drawWidth
-                                    / 2.0f
-                    );
-
-            int top =
-                    Math.round(
-                            cy
-                                    - drawHeight
-                                    / 2.0f
-                    );
-
-            compassDrawable.setBounds(
-                    new Rect(
-                            left,
-                            top,
-                            left
-                                    + drawWidth,
-                            top
-                                    + drawHeight
-                    )
-            );
-
-            int save =
-                    canvas.save();
-
-            canvas.rotate(
-                    (float)
-                            -mapBearing,
-                    cx,
-                    cy
-            );
-
-            compassDrawable.draw(
-                    canvas
-            );
-
-            canvas.restoreToCount(
-                    save
-            );
-
-            return;
-        }
-
         /*
-         * Only a fallback for an unavailable MapLibre compass drawable.
+         * Classic compass needle:
+         * north = red acute triangle
+         * south = white acute triangle
          */
-        textPaint.setTextSize(
-                sp(
-                        10.0f
-                )
-        );
-
-        canvas.drawText(
-                "N",
-                cx,
-                cy
-                        - radius
-                        * 0.28f,
-                textPaint
-        );
-
-        Path needle =
-                new Path();
-
-        needle.moveTo(
-                cx,
-                cy
-                        - radius
-                        * 0.55f
-        );
-
-        needle.lineTo(
-                cx
-                        + radius
-                        * 0.18f,
-                cy
-                        + radius
-                        * 0.38f
-        );
-
-        needle.lineTo(
-                cx,
-                cy
-                        + radius
-                        * 0.15f
-        );
-
-        needle.lineTo(
-                cx
-                        - radius
-                        * 0.18f,
-                cy
-                        + radius
-                        * 0.38f
-        );
-
-        needle.close();
-
         int save =
                 canvas.save();
 
         canvas.rotate(
-                (float)
-                        -mapBearing,
+                (float) -mapBearing,
                 cx,
                 cy
         );
 
+        float tipDistance =
+                radius
+                        * 0.62f;
+
+        float halfWidth =
+                radius
+                        * 0.16f;
+
+        Path north =
+                new Path();
+
+        north.moveTo(
+                cx,
+                cy - tipDistance
+        );
+
+        north.lineTo(
+                cx + halfWidth,
+                cy
+        );
+
+        north.lineTo(
+                cx - halfWidth,
+                cy
+        );
+
+        north.close();
+
+        Paint northPaint =
+                new Paint(
+                        Paint.ANTI_ALIAS_FLAG
+                );
+
+        northPaint.setStyle(
+                Paint.Style.FILL
+        );
+
+        northPaint.setColor(
+                Color.rgb(
+                        210,
+                        52,
+                        52
+                )
+        );
+
         canvas.drawPath(
-                needle,
-                iconPaint
+                north,
+                northPaint
+        );
+
+        Path south =
+                new Path();
+
+        south.moveTo(
+                cx,
+                cy + tipDistance
+        );
+
+        south.lineTo(
+                cx + halfWidth,
+                cy
+        );
+
+        south.lineTo(
+                cx - halfWidth,
+                cy
+        );
+
+        south.close();
+
+        Paint southPaint =
+                new Paint(
+                        Paint.ANTI_ALIAS_FLAG
+                );
+
+        southPaint.setStyle(
+                Paint.Style.FILL
+        );
+
+        southPaint.setColor(
+                Color.WHITE
+        );
+
+        canvas.drawPath(
+                south,
+                southPaint
+        );
+
+        Paint centrePaint =
+                new Paint(
+                        Paint.ANTI_ALIAS_FLAG
+                );
+
+        centrePaint.setStyle(
+                Paint.Style.FILL
+        );
+
+        centrePaint.setColor(
+                Color.rgb(
+                        35,
+                        39,
+                        43
+                )
+        );
+
+        canvas.drawCircle(
+                cx,
+                cy,
+                dp(1.25f),
+                centrePaint
         );
 
         canvas.restoreToCount(

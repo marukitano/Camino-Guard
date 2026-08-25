@@ -20,7 +20,6 @@ final class CaminoSelectionLockButton extends View {
             new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private boolean locked;
-    private boolean available;
 
     CaminoSelectionLockButton(Context context) {
         super(context);
@@ -47,13 +46,16 @@ final class CaminoSelectionLockButton extends View {
     }
 
     void setAvailable(boolean available) {
-        if (this.available == available) {
-            return;
-        }
-
-        this.available = available;
-        setAlpha(available ? 1.0f : 0.42f);
-        invalidate();
+        /*
+         * Availability affects interaction only. Keep the same dark-grey
+         * appearance so the open lock does not turn into a pale odd-one-out.
+         */
+        setEnabled(
+                available
+        );
+        setAlpha(
+                1.0f
+        );
     }
 
     @Override
@@ -66,7 +68,7 @@ final class CaminoSelectionLockButton extends View {
 
         backgroundPaint.setColor(
                 Color.argb(
-                        locked ? 215 : 165,
+                        165,
                         35,
                         39,
                         43
@@ -77,7 +79,7 @@ final class CaminoSelectionLockButton extends View {
 
         borderPaint.setColor(
                 Color.argb(
-                        locked ? 235 : 185,
+                        185,
                         255,
                         255,
                         255

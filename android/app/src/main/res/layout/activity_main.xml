@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#F5F1E7">
 
     <org.maplibre.android.maps.MapView
         android:id="@+id/map_view"
@@ -12,6 +13,7 @@
         android:id="@+id/map_setup_panel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="#F5F1E7"
         android:clickable="true"
         android:focusable="true">
 

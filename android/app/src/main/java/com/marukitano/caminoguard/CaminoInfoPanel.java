@@ -4,7 +4,6 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.FrameLayout;
@@ -38,7 +37,7 @@ final class CaminoInfoPanel extends FrameLayout {
     private final TextView statsRightView;
     private final CaminoChevronView panelToggleView;
     private final CaminoNavigationButton navigationButton;
-    private final TextView attributionButton;
+    private final CaminoAttributionButton attributionButton;
     private final CaminoSelectionLockButton selectionLockButton;
 
     private Runnable navigationAction;
@@ -288,63 +287,12 @@ final class CaminoInfoPanel extends FrameLayout {
         );
 
         attributionButton =
-                new TextView(
+                new CaminoAttributionButton(
                         context
                 );
 
-        attributionButton.setText(
-                "i"
-        );
-
-        attributionButton.setTextColor(
-                Color.WHITE
-        );
-
-        attributionButton.setTextSize(
-                21.0f
-        );
-
-        attributionButton.setTypeface(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-        );
-
-        attributionButton.setGravity(
-                Gravity.CENTER
-        );
-
         attributionButton.setClickable(
                 true
-        );
-
-        GradientDrawable attributionBackground =
-                new GradientDrawable();
-
-        attributionBackground.setShape(
-                GradientDrawable.OVAL
-        );
-
-        attributionBackground.setColor(
-                Color.argb(
-                        165,
-                        35,
-                        39,
-                        43
-                )
-        );
-
-        attributionBackground.setStroke(
-                dpInt(1),
-                Color.argb(
-                        185,
-                        255,
-                        255,
-                        255
-                )
-        );
-
-        attributionButton.setBackground(
-                attributionBackground
         );
 
         FrameLayout.LayoutParams attributionParams =
