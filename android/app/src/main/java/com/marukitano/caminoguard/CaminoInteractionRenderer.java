@@ -71,6 +71,7 @@ final class CaminoInteractionRenderer {
     private GeoJsonSource selectedRouteSource;
     private GeoJsonSource connectorSource;
     private GeoJsonSource dummySource;
+    private CircleLayer dummyLayer;
     private GeoJsonSource startSnapSource;
     private GeoJsonSource selectedSource;
     private GeoJsonSource selectedStageSource;
@@ -242,13 +243,13 @@ final class CaminoInteractionRenderer {
                 dummySource
         );
 
-        CircleLayer dummy =
+        dummyLayer =
                 new CircleLayer(
                         DUMMY_LAYER,
                         DUMMY_SOURCE
                 );
 
-        dummy.setProperties(
+        dummyLayer.setProperties(
                 PropertyFactory.circleOpacity(
                         livePositionMode ? 0.0f : 1.0f
                 ),
@@ -271,7 +272,7 @@ final class CaminoInteractionRenderer {
         );
 
         style.addLayer(
-                dummy
+                dummyLayer
         );
 
         startSnapSource =
@@ -439,6 +440,23 @@ final class CaminoInteractionRenderer {
         return selectedRouteSource != null
                 && routeGapSource != null;
     }
+
+    void setDummyVisible(
+            boolean visible
+    ) {
+        if (dummyLayer == null) {
+            return;
+        }
+
+        dummyLayer.setProperties(
+                PropertyFactory.circleOpacity(
+                        visible
+                                ? 1.0f
+                                : 0.0f
+                )
+        );
+    }
+
 
     void updateDummyPosition(
             LatLng dummyPosition

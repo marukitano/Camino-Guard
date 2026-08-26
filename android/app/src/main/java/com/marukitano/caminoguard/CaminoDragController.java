@@ -17,6 +17,8 @@ final class CaminoDragController {
 
     interface Host {
         boolean isLivePositionMode();
+        boolean isDebugPositionOverride();
+        LatLng snapDebugPosition(LatLng position);
         LatLng dummyPosition();
         void setDummyPosition(LatLng position);
 
@@ -169,6 +171,21 @@ final class CaminoDragController {
         float bestDistanceSq =
                 Float.MAX_VALUE;
 
+        if (host.isDebugPositionOverride()) {
+            float dummyDistanceSq =
+                    screenDistanceSq(
+                            x,
+                            y,
+                            host.dummyPosition()
+                    );
+
+            if (dummyDistanceSq
+                    <= maxDistanceSq) {
+
+                return DRAG_DUMMY;
+            }
+        }
+
         ProjectionHit secondTapHit =
                 host.secondTapHit();
 
@@ -273,8 +290,25 @@ final class CaminoDragController {
         if (dragTarget
                 == DRAG_DUMMY) {
 
+            LatLng targetPosition =
+                    fingerPosition;
+
+            if (host.isDebugPositionOverride()) {
+                LatLng snapped =
+                        host.snapDebugPosition(
+                                fingerPosition
+                        );
+
+                if (snapped == null) {
+                    return;
+                }
+
+                targetPosition =
+                        snapped;
+            }
+
             host.setDummyPosition(
-                    fingerPosition
+                    targetPosition
             );
 
             if (previewOnly) {
@@ -285,11 +319,13 @@ final class CaminoDragController {
             } else {
                 host.refresh();
 
-                host.noteTravelSample(
-                        fingerPosition
-                );
+                if (!host.isDebugPositionOverride()) {
+                    host.noteTravelSample(
+                            fingerPosition
+                    );
 
-                host.followIfActive();
+                    host.followIfActive();
+                }
             }
 
             return;

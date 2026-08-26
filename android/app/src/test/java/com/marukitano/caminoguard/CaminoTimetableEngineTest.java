@@ -243,6 +243,140 @@ public final class CaminoTimetableEngineTest {
         );
     }
 
+    @Test
+    public void compactWindow_showsOnlyCurrentTwoNextAndGoal() {
+        CaminoTimetableState state =
+                engine.build(
+                        longerStops(),
+                        8 * 60,
+                        0.0
+                );
+
+        assertEquals(
+                4,
+                state.visibleStops.size()
+        );
+
+        assertEquals(
+                "Rioja",
+                state.visibleStops.get(
+                        0
+                ).name
+        );
+
+        assertEquals(
+                "Santa Cruz",
+                state.visibleStops.get(
+                        1
+                ).name
+        );
+
+        assertEquals(
+                "Bentarique",
+                state.visibleStops.get(
+                        2
+                ).name
+        );
+
+        assertEquals(
+                "Alboloduy",
+                state.visibleStops.get(
+                        3
+                ).name
+        );
+
+        assertTrue(
+                state.hasHiddenStopsBeforeGoal
+        );
+    }
+
+    @Test
+    public void afterBottomDrops_windowPromotesNextVillageAndKeepsGoal() {
+        CaminoTimetableState state =
+                engine.build(
+                        longerStops(),
+                        8 * 60,
+                        1000.0
+                );
+
+        assertTrue(
+                state.showDistanceToNext
+        );
+
+        assertEquals(
+                3,
+                state.visibleStops.size()
+        );
+
+        assertEquals(
+                "Santa Cruz",
+                state.visibleStops.get(
+                        0
+                ).name
+        );
+
+        assertEquals(
+                "Bentarique",
+                state.visibleStops.get(
+                        1
+                ).name
+        );
+
+        assertEquals(
+                "Alboloduy",
+                state.visibleStops.get(
+                        2
+                ).name
+        );
+
+        assertTrue(
+                state.hasHiddenStopsBeforeGoal
+        );
+    }
+
+    @Test
+    public void whenNoIntermediateVillagesAreHidden_goalConnectionStaysSolid() {
+        List<CaminoTimetableStopPlan> stops =
+                Arrays.asList(
+                        new CaminoTimetableStopPlan(
+                                "Rioja",
+                                0.0,
+                                0.0
+                        ),
+                        new CaminoTimetableStopPlan(
+                                "Santa Cruz",
+                                8000.0,
+                                2.0 * 60.0 * 60.0
+                        ),
+                        new CaminoTimetableStopPlan(
+                                "Bentarique",
+                                12000.0,
+                                3.0 * 60.0 * 60.0
+                        ),
+                        new CaminoTimetableStopPlan(
+                                "Alboloduy",
+                                15000.0,
+                                4.0 * 60.0 * 60.0
+                        )
+                );
+
+        CaminoTimetableState state =
+                engine.build(
+                        stops,
+                        8 * 60,
+                        1000.0
+                );
+
+        assertFalse(
+                state.hasHiddenStopsBeforeGoal
+        );
+
+        assertEquals(
+                3,
+                state.visibleStops.size()
+        );
+    }
+
     private List<CaminoTimetableStopPlan> sampleStops() {
         return Arrays.asList(
                 new CaminoTimetableStopPlan(
@@ -259,6 +393,36 @@ public final class CaminoTimetableEngineTest {
                         "Alboloduy",
                         15000.0,
                         4.0 * 60.0 * 60.0
+                )
+        );
+    }
+
+    private List<CaminoTimetableStopPlan> longerStops() {
+        return Arrays.asList(
+                new CaminoTimetableStopPlan(
+                        "Rioja",
+                        0.0,
+                        0.0
+                ),
+                new CaminoTimetableStopPlan(
+                        "Santa Cruz",
+                        8000.0,
+                        2.0 * 60.0 * 60.0
+                ),
+                new CaminoTimetableStopPlan(
+                        "Bentarique",
+                        11000.0,
+                        2.8 * 60.0 * 60.0
+                ),
+                new CaminoTimetableStopPlan(
+                        "Nacimiento",
+                        18000.0,
+                        4.0 * 60.0 * 60.0
+                ),
+                new CaminoTimetableStopPlan(
+                        "Alboloduy",
+                        24000.0,
+                        5.2 * 60.0 * 60.0
                 )
         );
     }

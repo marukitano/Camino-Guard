@@ -170,6 +170,16 @@ final class CaminoHeightProfileView extends View {
                     Paint.ANTI_ALIAS_FLAG
             );
 
+    private final Paint villageMarkerOuterPaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
+    private final Paint villageMarkerInnerPaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
     private final Paint lockedMarkerOuterPaint =
             new Paint(
                     Paint.ANTI_ALIAS_FLAG
@@ -191,6 +201,9 @@ final class CaminoHeightProfileView extends View {
             );
 
     private List<Sample> samples =
+            new ArrayList<>();
+
+    private List<Sample> villageSamples =
             new ArrayList<>();
 
     private int cursorIndex =
@@ -493,6 +506,31 @@ final class CaminoHeightProfileView extends View {
                 Paint.Style.FILL
         );
 
+        villageMarkerOuterPaint.setColor(
+                Color.argb(
+                        235,
+                        45,
+                        48,
+                        52
+                )
+        );
+
+        villageMarkerOuterPaint.setStyle(
+                Paint.Style.FILL
+        );
+
+        villageMarkerInnerPaint.setColor(
+                Color.rgb(
+                        255,
+                        240,
+                        200
+                )
+        );
+
+        villageMarkerInnerPaint.setStyle(
+                Paint.Style.FILL
+        );
+
         lockedMarkerOuterPaint.setColor(
                 Color.rgb(
                         36,
@@ -608,6 +646,19 @@ final class CaminoHeightProfileView extends View {
         invalidate();
     }
 
+    void setVillageSamples(
+            List<Sample> input
+    ) {
+        villageSamples =
+                input == null
+                        ? new ArrayList<>()
+                        : new ArrayList<>(
+                        input
+                );
+
+        invalidate();
+    }
+
     void clearProfile() {
         samples =
                 new ArrayList<>();
@@ -617,6 +668,9 @@ final class CaminoHeightProfileView extends View {
 
         lockedPositionSample =
                 null;
+
+        villageSamples =
+                new ArrayList<>();
 
         touchMode =
                 TOUCH_NONE;
@@ -1235,6 +1289,20 @@ final class CaminoHeightProfileView extends View {
 
         if (!profileHidden
                 && reveal > 0.01f
+                && markedSelectionProfile
+                && !villageSamples.isEmpty()) {
+
+            drawVillageMarkers(
+                    canvas,
+                    left,
+                    right,
+                    displayMin,
+                    elevationSpan
+            );
+        }
+
+        if (!profileHidden
+                && reveal > 0.01f
                 && lockedPositionSample != null
                 && Double.isFinite(
                 lockedPositionSample.elevationM
@@ -1272,6 +1340,59 @@ final class CaminoHeightProfileView extends View {
                 canvas
         );
     }
+
+    private void drawVillageMarkers(
+            Canvas canvas,
+            float left,
+            float right,
+            double displayMin,
+            double elevationSpan
+    ) {
+        for (Sample sample
+                : villageSamples) {
+
+            if (sample == null
+                    || !Double.isFinite(
+                    sample.elevationM
+            )) {
+
+                continue;
+            }
+
+            float x =
+                    profileX(
+                            sample,
+                            left,
+                            right,
+                            displayMin,
+                            elevationSpan
+                    );
+
+            float y =
+                    screenY(
+                            sample
+                    );
+
+            canvas.drawCircle(
+                    x,
+                    y,
+                    dp(
+                            5.0f
+                    ),
+                    villageMarkerOuterPaint
+            );
+
+            canvas.drawCircle(
+                    x,
+                    y,
+                    dp(
+                            3.2f
+                    ),
+                    villageMarkerInnerPaint
+            );
+        }
+    }
+
 
     private void drawSlopeLine(
             Canvas canvas,

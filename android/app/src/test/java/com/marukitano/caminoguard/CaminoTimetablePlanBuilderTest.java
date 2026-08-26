@@ -163,6 +163,32 @@ public final class CaminoTimetablePlanBuilderTest {
 
 
     @Test
+    public void elapsedSecondsAtChainageUsesExactPrefixDistance() {
+        MeasurementPath path =
+                new MeasurementPath();
+
+        path.distanceM =
+                10_000.0;
+
+        CaminoTimetablePlanBuilder builder =
+                new CaminoTimetablePlanBuilder(
+                        prefix ->
+                                prefix.distanceM
+                                        / 2.0
+                );
+
+        assertEquals(
+                2_500.0,
+                builder.elapsedSecondsAtChainage(
+                        path,
+                        5_000.0
+                ),
+                0.001
+        );
+    }
+
+
+    @Test
     public void villageKeyRecognitionIsConservative() {
         assertTrue(
                 CaminoTimetablePlanBuilder.isVillagePlaceKey(

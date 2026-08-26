@@ -53,7 +53,8 @@
     "outlineColor": "#3D332C"
   },
   "debug": {
-    "gpsSplineOverlayVisible": true
+    "gpsSplineOverlayVisible": true,
+    "draggableGpsEnabled": true
   },
   "mapStyle": {
     "layerOverrides": {}

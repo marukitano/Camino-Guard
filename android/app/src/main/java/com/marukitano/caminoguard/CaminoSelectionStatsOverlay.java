@@ -858,6 +858,44 @@ final class CaminoSelectionStatsOverlay {
     }
 
 
+    double routeChainageM(
+            MeasurementPath path,
+            LatLng position
+    ) {
+        if (path == null
+                || !Double.isFinite(
+                path.distanceM
+        )
+                || path.distanceM < 0.0) {
+
+            return Double.NaN;
+        }
+
+        RouteProgress progress =
+                locateProgress(
+                        path.profilePoints,
+                        position
+                );
+
+        if (progress == null
+                || !Double.isFinite(
+                progress.fraction
+        )) {
+
+            return Double.NaN;
+        }
+
+        return Math.max(
+                0.0,
+                Math.min(
+                        path.distanceM,
+                        path.distanceM
+                                * progress.fraction
+                )
+        );
+    }
+
+
     private RouteProgress locateProgress(
             List<ProfilePoint> points,
             LatLng position

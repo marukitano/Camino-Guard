@@ -33,7 +33,6 @@ final class CaminoTimetableOverlay {
     private final CaminoTimetablePlanBuilder planBuilder;
     private final CaminoTimetableEngine engine =
             new CaminoTimetableEngine();
-    private final CaminoUiStateStore uiStateStore;
     private final CaminoSettlementTimetableSource settlementSource;
 
     private CaminoTimetableView timetableView;
@@ -50,6 +49,7 @@ final class CaminoTimetableOverlay {
             0.0;
 
 
+
     CaminoTimetableOverlay(
             Activity activity,
             MapView mapView,
@@ -64,11 +64,6 @@ final class CaminoTimetableOverlay {
         this.planBuilder =
                 new CaminoTimetablePlanBuilder(
                         performanceModel
-                );
-
-        this.uiStateStore =
-                new CaminoUiStateStore(
-                        activity
                 );
 
         this.settlementSource =
@@ -164,16 +159,30 @@ final class CaminoTimetableOverlay {
 
     void update(
             MeasurementPath path,
-            boolean locked
+            boolean locked,
+            double currentChainageM
     ) {
         ensureView();
 
         if (!locked
                 || path == null) {
 
+            this.currentChainageM =
+                    0.0;
+
             clearAndHide();
             return;
         }
+
+        this.currentChainageM =
+                Double.isFinite(
+                        currentChainageM
+                )
+                        ? Math.max(
+                        0.0,
+                        currentChainageM
+                )
+                        : 0.0;
 
         MeasurementPath timetablePath =
                 settlementSource.withSettlementStops(
@@ -190,10 +199,37 @@ final class CaminoTimetableOverlay {
             return;
         }
 
-        int startMinutes =
-                uiStateStore.restorePlannedStartMinutes(
-                        0
+        double elapsedSecondsAtCurrent =
+                planBuilder.elapsedSecondsAtChainage(
+                        timetablePath,
+                        this.currentChainageM
                 );
+
+        if (!Double.isFinite(
+                elapsedSecondsAtCurrent
+        )) {
+
+            clearAndHide();
+            return;
+        }
+
+        /*
+         * The pure engine still consumes a route-start clock base. Rebase that
+         * clock so that, at the CURRENT route chainage:
+         *
+         *   stop ETA = wall clock now + remaining walking time to the stop.
+         *
+         * This deliberately uses the current wall clock on every GPS/debug
+         * refresh. A planned/start-time preference must never leak into locked
+         * navigation mode.
+         */
+        int startMinutes =
+                currentClockMinutes()
+                        - (int)
+                        Math.round(
+                                elapsedSecondsAtCurrent
+                                        / 60.0
+                        );
 
         CaminoTimetableState state =
                 engine.build(
@@ -220,6 +256,20 @@ final class CaminoTimetableOverlay {
         );
 
         toggleView.bringToFront();
+    }
+
+
+    private int currentClockMinutes() {
+        java.util.Calendar now =
+                java.util.Calendar.getInstance();
+
+        return now.get(
+                java.util.Calendar.HOUR_OF_DAY
+        )
+                * 60
+                + now.get(
+                java.util.Calendar.MINUTE
+        );
     }
 
 

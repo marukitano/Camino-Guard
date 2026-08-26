@@ -64,6 +64,7 @@ final class CaminoHeightProfileController {
     private final MapView mapView;
     private final CaminoInfoPresenter infoPresenter;
     private final List<CaminoRoute> routes;
+    private final CaminoSettlementTimetableSource settlementSource;
 
     private MapLibreMap map;
     private CaminoHeightProfileView view;
@@ -110,6 +111,11 @@ final class CaminoHeightProfileController {
 
         this.routes =
                 routes;
+
+        this.settlementSource =
+                new CaminoSettlementTimetableSource(
+                        activity
+                );
     }
 
     void attachMap(
@@ -539,6 +545,18 @@ final class CaminoHeightProfileController {
                     selectedSamples
             );
 
+            MeasurementPath settlementPath =
+                    settlementSource.withSettlementStops(
+                            selectedMeasurementPath
+                    );
+
+            view.setVillageSamples(
+                    buildVillageSamples(
+                            selectedMeasurementPath,
+                            settlementPath
+                    )
+            );
+
             view.setLockedPositionSample(
                     lockedSelectionActive
                             ? buildLockedPositionSample(
@@ -557,6 +575,10 @@ final class CaminoHeightProfileController {
 
         view.setMarkedSelectionProfile(
                 false
+        );
+
+        view.setVillageSamples(
+                new ArrayList<>()
         );
 
         view.setLockedPositionSample(
@@ -765,6 +787,271 @@ final class CaminoHeightProfileController {
         }
 
         return result;
+    }
+
+
+    private List<CaminoHeightProfileView.Sample> buildVillageSamples(
+            MeasurementPath profilePath,
+            MeasurementPath settlementPath
+    ) {
+        List<CaminoHeightProfileView.Sample> result =
+                new ArrayList<>();
+
+        if (!hasUsableMeasurementPath(
+                profilePath
+        )
+                || settlementPath == null
+                || settlementPath.timetableStops == null
+                || settlementPath.timetableStops.isEmpty()) {
+
+            return result;
+        }
+
+        List<ProfilePoint> points =
+                profilePath.profilePoints;
+
+        double firstDistanceM =
+                points.get(
+                        0
+                ).distanceM;
+
+        double lastDistanceM =
+                points.get(
+                        points.size() - 1
+                ).distanceM;
+
+        double spanM =
+                lastDistanceM
+                        - firstDistanceM;
+
+        if (!Double.isFinite(
+                spanM
+        )
+                || spanM <= 0.01) {
+
+            return result;
+        }
+
+        for (CaminoTimetablePathStop stop
+                : settlementPath.timetableStops) {
+
+            if (stop == null
+                    || !CaminoTimetablePlanBuilder.isVillagePlaceKey(
+                    stop.placeKey
+            )
+                    || !Double.isFinite(
+                    stop.chainageM
+            )) {
+
+                continue;
+            }
+
+            double routeChainageM =
+                    Math.max(
+                            0.0,
+                            Math.min(
+                                    profilePath.distanceM,
+                                    stop.chainageM
+                            )
+                    );
+
+            double profileDistanceM =
+                    firstDistanceM
+                            + Math.min(
+                            spanM,
+                            routeChainageM
+                    );
+
+            CaminoHeightProfileView.Sample sample =
+                    villageSampleAtDistance(
+                            points,
+                            firstDistanceM,
+                            spanM,
+                            profileDistanceM
+                    );
+
+            if (sample != null) {
+                result.add(
+                        sample
+                );
+            }
+        }
+
+        return result;
+    }
+
+
+    private CaminoHeightProfileView.Sample villageSampleAtDistance(
+            List<ProfilePoint> points,
+            double firstDistanceM,
+            double spanM,
+            double targetDistanceM
+    ) {
+        ProfilePoint previous =
+                null;
+
+        for (ProfilePoint current
+                : points) {
+
+            if (current == null
+                    || current.point == null
+                    || !Double.isFinite(
+                    current.distanceM
+            )
+                    || !Double.isFinite(
+                    current.elevationM
+            )) {
+
+                continue;
+            }
+
+            if (previous == null) {
+                previous =
+                        current;
+
+                if (targetDistanceM
+                        <= current.distanceM) {
+
+                    return villageSample(
+                            current.distanceM,
+                            current.elevationM,
+                            firstDistanceM,
+                            spanM
+                    );
+                }
+
+                continue;
+            }
+
+            if (targetDistanceM
+                    > current.distanceM) {
+
+                previous =
+                        current;
+
+                continue;
+            }
+
+            double segmentSpanM =
+                    current.distanceM
+                            - previous.distanceM;
+
+            if (current.breakBefore
+                    || !Double.isFinite(
+                    segmentSpanM
+            )
+                    || segmentSpanM <= 0.001) {
+
+                ProfilePoint nearest =
+                        Math.abs(
+                                targetDistanceM
+                                        - previous.distanceM
+                        )
+                                <= Math.abs(
+                                current.distanceM
+                                        - targetDistanceM
+                        )
+                                ? previous
+                                : current;
+
+                return villageSample(
+                        nearest.distanceM,
+                        nearest.elevationM,
+                        firstDistanceM,
+                        spanM
+                );
+            }
+
+            double t =
+                    (
+                            targetDistanceM
+                                    - previous.distanceM
+                    )
+                            / segmentSpanM;
+
+            t =
+                    Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    t
+                            )
+                    );
+
+            double elevationM =
+                    previous.elevationM
+                            + t
+                            * (
+                            current.elevationM
+                                    - previous.elevationM
+                    );
+
+            return villageSample(
+                    targetDistanceM,
+                    elevationM,
+                    firstDistanceM,
+                    spanM
+            );
+        }
+
+        if (previous == null) {
+            return null;
+        }
+
+        return villageSample(
+                previous.distanceM,
+                previous.elevationM,
+                firstDistanceM,
+                spanM
+        );
+    }
+
+
+    private CaminoHeightProfileView.Sample villageSample(
+            double profileDistanceM,
+            double elevationM,
+            double firstDistanceM,
+            double spanM
+    ) {
+        if (!Double.isFinite(
+                profileDistanceM
+        )
+                || !Double.isFinite(
+                elevationM
+        )) {
+
+            return null;
+        }
+
+        double progress =
+                (
+                        profileDistanceM
+                                - firstDistanceM
+                )
+                        / spanM;
+
+        progress =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                1.0,
+                                progress
+                        )
+                );
+
+        return new CaminoHeightProfileView.Sample(
+                1.0f,
+                (float)
+                        (
+                                1.0
+                                        - progress
+                        ),
+                elevationM,
+                profileDistanceM
+                        - firstDistanceM,
+                0.0,
+                false
+        );
     }
 
 

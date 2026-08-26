@@ -16,12 +16,14 @@ final class CaminoTimetableState {
     final CaminoTimetableStop nextStop;
     final double distanceToNextM;
     final boolean showDistanceToNext;
+    final boolean hasHiddenStopsBeforeGoal;
 
     CaminoTimetableState(
             List<CaminoTimetableStop> visibleStops,
             CaminoTimetableStop nextStop,
             double distanceToNextM,
-            boolean showDistanceToNext
+            boolean showDistanceToNext,
+            boolean hasHiddenStopsBeforeGoal
     ) {
         this.visibleStops =
                 Collections.unmodifiableList(
@@ -38,6 +40,9 @@ final class CaminoTimetableState {
 
         this.showDistanceToNext =
                 showDistanceToNext;
+
+        this.hasHiddenStopsBeforeGoal =
+                hasHiddenStopsBeforeGoal;
     }
 
     boolean hasNextStop() {

@@ -45,6 +45,7 @@ public final class CaminoController {
     private final CaminoSelectionController selectionController;
     private final CaminoSelectionStatsOverlay selectionStatsOverlay;
     private final CaminoTimetableOverlay timetableOverlay;
+    private final CaminoDebugGpsTool debugGpsTool;
     private final CaminoUiStateStore uiStateStore;
 
     private boolean selectionLocked;
@@ -59,6 +60,7 @@ public final class CaminoController {
      *   true  -> accepted real GPS position from CaminoTrackingService
      */
     private boolean livePositionMode;
+    private boolean debugPositionOverride;
     private Float liveCourseDeg;
     private long lastLiveFixStamp = Long.MIN_VALUE;
     private boolean livePositionListenerRegistered;
@@ -214,6 +216,62 @@ public final class CaminoController {
                         walkingPerformanceModel
                 );
 
+        this.debugGpsTool =
+                new CaminoDebugGpsTool(
+                        activity,
+                        mapView,
+                        new CaminoDebugGpsTool.Host() {
+                            @Override
+                            public boolean debugPositionActive() {
+                                return debugPositionOverride;
+                            }
+
+                            @Override
+                            public void activateDebugPositionAtStart() {
+                                CaminoController.this
+                                        .activateDebugPositionAtStart();
+                            }
+
+                            @Override
+                            public void deactivateDebugPosition() {
+                                CaminoController.this
+                                        .deactivateDebugPositionFromTool();
+                            }
+
+                            @Override
+                            public void placeDebugPosition(
+                                    LatLng mapPosition
+                            ) {
+                                CaminoController.this
+                                        .placeDebugPositionOnRoute(
+                                                mapPosition
+                                        );
+                            }
+
+                            @Override
+                            public double currentDebugChainageM() {
+                                return timetableCurrentChainageM();
+                            }
+
+                            @Override
+                            public double debugRouteDistanceM() {
+                                return currentMeasurementPath == null
+                                        ? Double.NaN
+                                        : currentMeasurementPath.distanceM;
+                            }
+
+                            @Override
+                            public void setDebugChainageM(
+                                    double chainageM
+                            ) {
+                                CaminoController.this
+                                        .setDebugChainageM(
+                                                chainageM
+                                        );
+                            }
+                        }
+                );
+
         this.dragController =
                 new CaminoDragController(
                         activity,
@@ -221,7 +279,22 @@ public final class CaminoController {
                         new CaminoDragController.Host() {
                             @Override
                             public boolean isLivePositionMode() {
-                                return livePositionMode;
+                                return livePositionMode
+                                        && !debugPositionOverride;
+                            }
+
+                            @Override
+                            public boolean isDebugPositionOverride() {
+                                return debugPositionOverride;
+                            }
+
+                            @Override
+                            public LatLng snapDebugPosition(
+                                    LatLng position
+                            ) {
+                                return snapDebugPositionToMeasurementPath(
+                                        position
+                                );
                             }
 
                             @Override
@@ -353,6 +426,8 @@ public final class CaminoController {
     }
 
     public void stopLivePosition() {
+        debugGpsTool.pauseAuto();
+
         if (!livePositionListenerRegistered) {
             return;
         }
@@ -369,6 +444,15 @@ public final class CaminoController {
         if (!livePositionMode
                 || snapshot == null
                 || snapshot.location == null) {
+            return;
+        }
+
+        /*
+         * Explicit debug-GPS override freezes the real GPS source until the
+         * locked selection is released. This is development-only and avoids
+         * the next hardware fix immediately snapping the draggable marker back.
+         */
+        if (debugPositionOverride) {
             return;
         }
 
@@ -496,6 +580,9 @@ public final class CaminoController {
                 map
         );
         dragController.attachMap(
+                map
+        );
+        debugGpsTool.attachMap(
                 map
         );
 
@@ -649,6 +736,7 @@ public final class CaminoController {
         heightProfileController.ensureView();
         selectionStatsOverlay.ensureView();
         timetableOverlay.ensureView();
+        debugGpsTool.ensureView();
 
         interactionRenderer.onStyleLoaded(
                 style,
@@ -831,7 +919,15 @@ public final class CaminoController {
         timetableOverlay.update(
                 currentMeasurementPath,
                 selectionLocked
+                        && marked,
+                timetableCurrentChainageM()
+        );
+
+        debugGpsTool.update(
+                selectionLocked
                         && marked
+                        && currentMeasurementPath != null,
+                debugPositionOverride
         );
 
         heightProfileController.refresh();
@@ -845,7 +941,10 @@ public final class CaminoController {
         }
 
         if (selectionLocked) {
-            return false;
+            return debugPositionOverride
+                    && dragController.handleTouch(
+                    event
+            );
         }
 
         if (selectedStagePoint == null) {
@@ -1546,13 +1645,21 @@ public final class CaminoController {
             selectionLocked =
                     false;
 
+            disableDebugPositionOverride();
+
+            debugGpsTool.update(
+                    false,
+                    false
+            );
+
             selectionStatsOverlay.setLocked(
                     false
             );
 
             timetableOverlay.update(
                     currentMeasurementPath,
-                    false
+                    false,
+                    0.0
             );
 
             uiStateStore.clearLockedSelection();
@@ -1586,7 +1693,13 @@ public final class CaminoController {
 
         timetableOverlay.update(
                 currentMeasurementPath,
-                true
+                true,
+                timetableCurrentChainageM()
+        );
+
+        debugGpsTool.update(
+                true,
+                debugPositionOverride
         );
 
         persistLockedSelection();
@@ -1601,6 +1714,272 @@ public final class CaminoController {
         );
 
         heightProfileController.refresh();
+    }
+
+
+    private void activateDebugPositionAtStart() {
+        setDebugChainageM(
+                0.0
+        );
+    }
+
+
+    private void deactivateDebugPositionFromTool() {
+        disableDebugPositionOverride();
+
+        debugGpsTool.update(
+                selectionLocked
+                        && hasMarkedSelection()
+                        && currentMeasurementPath != null,
+                false
+        );
+    }
+
+
+    private void placeDebugPositionOnRoute(
+            LatLng mapPosition
+    ) {
+        if (!selectionLocked
+                || currentMeasurementPath == null
+                || mapPosition == null) {
+
+            return;
+        }
+
+        double chainageM =
+                selectionStatsOverlay.routeChainageM(
+                        currentMeasurementPath,
+                        mapPosition
+                );
+
+        if (!Double.isFinite(
+                chainageM
+        )) {
+
+            return;
+        }
+
+        setDebugChainageM(
+                chainageM
+        );
+    }
+
+
+    private LatLng snapDebugPositionToMeasurementPath(
+            LatLng mapPosition
+    ) {
+        if (!debugPositionOverride
+                || currentMeasurementPath == null
+                || mapPosition == null) {
+
+            return null;
+        }
+
+        double chainageM =
+                selectionStatsOverlay.routeChainageM(
+                        currentMeasurementPath,
+                        mapPosition
+                );
+
+        if (!Double.isFinite(
+                chainageM
+        )) {
+
+            return null;
+        }
+
+        return debugPositionAtChainageM(
+                chainageM
+        );
+    }
+
+
+    private void setDebugChainageM(
+            double chainageM
+    ) {
+        if (!selectionLocked
+                || currentMeasurementPath == null
+                || !Double.isFinite(
+                chainageM
+        )) {
+
+            return;
+        }
+
+        LatLng position =
+                debugPositionAtChainageM(
+                        chainageM
+                );
+
+        if (position == null) {
+            return;
+        }
+
+        debugPositionOverride =
+                true;
+
+        dummyPosition =
+                position;
+
+        lastLiveFixStamp =
+                Long.MIN_VALUE;
+
+        interactionRenderer.updateDummyPosition(
+                position
+        );
+
+        interactionRenderer.setDummyVisible(
+                true
+        );
+
+        refresh();
+    }
+
+
+    private LatLng debugPositionAtChainageM(
+            double chainageM
+    ) {
+        if (currentMeasurementPath == null
+                || currentMeasurementPath.profilePoints == null
+                || currentMeasurementPath.profilePoints.isEmpty()) {
+
+            return null;
+        }
+
+        java.util.List<ProfilePoint> points =
+                currentMeasurementPath.profilePoints;
+
+        double targetM =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                currentMeasurementPath.distanceM,
+                                chainageM
+                        )
+                );
+
+        ProfilePoint first =
+                points.get(
+                        0
+                );
+
+        if (first == null
+                || first.point == null) {
+
+            return null;
+        }
+
+        if (targetM <= first.distanceM) {
+            return first.point;
+        }
+
+        ProfilePoint previous =
+                first;
+
+        for (int index = 1;
+                index < points.size();
+                index++) {
+
+            ProfilePoint next =
+                    points.get(
+                            index
+                    );
+
+            if (next == null
+                    || next.point == null) {
+
+                continue;
+            }
+
+            if (targetM <= next.distanceM) {
+                double spanM =
+                        next.distanceM
+                                - previous.distanceM;
+
+                if (!Double.isFinite(
+                        spanM
+                )
+                        || spanM <= 0.001
+                        || previous.point == null) {
+
+                    return next.point;
+                }
+
+                double t =
+                        (
+                                targetM
+                                        - previous.distanceM
+                        )
+                                / spanM;
+
+                t =
+                        Math.max(
+                                0.0,
+                                Math.min(
+                                        1.0,
+                                        t
+                                )
+                        );
+
+                double latitude =
+                        previous.point.getLatitude()
+                                + (
+                                next.point.getLatitude()
+                                        - previous.point.getLatitude()
+                        )
+                                * t;
+
+                double longitude =
+                        previous.point.getLongitude()
+                                + (
+                                next.point.getLongitude()
+                                        - previous.point.getLongitude()
+                        )
+                                * t;
+
+                return new LatLng(
+                        latitude,
+                        longitude
+                );
+            }
+
+            previous =
+                    next;
+        }
+
+        return previous.point;
+    }
+
+
+    private void disableDebugPositionOverride() {
+        if (!debugPositionOverride) {
+            return;
+        }
+
+        debugPositionOverride =
+                false;
+
+        lastLiveFixStamp =
+                Long.MIN_VALUE;
+
+        interactionRenderer.setDummyVisible(
+                !livePositionMode
+        );
+    }
+
+
+    private double timetableCurrentChainageM() {
+        double chainageM =
+                selectionStatsOverlay.routeChainageM(
+                        currentMeasurementPath,
+                        dummyPosition
+                );
+
+        return Double.isFinite(
+                chainageM
+        )
+                ? chainageM
+                : 0.0;
     }
 
 

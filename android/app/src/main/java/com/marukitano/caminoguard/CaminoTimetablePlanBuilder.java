@@ -150,6 +150,58 @@ final class CaminoTimetablePlanBuilder {
     }
 
 
+    double elapsedSecondsAtChainage(
+            MeasurementPath path,
+            double chainageM
+    ) {
+        if (path == null
+                || !Double.isFinite(
+                path.distanceM
+        )
+                || path.distanceM < 0.0
+                || !Double.isFinite(
+                chainageM
+        )) {
+
+            return Double.NaN;
+        }
+
+        double targetM =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                path.distanceM,
+                                chainageM
+                        )
+                );
+
+        if (targetM <= DISTANCE_EPSILON_M) {
+            return 0.0;
+        }
+
+        MeasurementPath prefix =
+                prefixPath(
+                        path,
+                        targetM
+                );
+
+        double elapsedSeconds =
+                timeEstimator.estimateSeconds(
+                        prefix
+                );
+
+        if (!Double.isFinite(
+                elapsedSeconds
+        )
+                || elapsedSeconds < 0.0) {
+
+            return Double.NaN;
+        }
+
+        return elapsedSeconds;
+    }
+
+
     private List<DisplayStop> collectDisplayStops(
             MeasurementPath path
     ) {
