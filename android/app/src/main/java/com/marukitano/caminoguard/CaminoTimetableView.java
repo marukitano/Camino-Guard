@@ -36,6 +36,9 @@ final class CaminoTimetableView extends View {
     private static final float PANEL_VERTICAL_PADDING_MM =
             4.0f;
 
+    private static final float PANEL_VERTICAL_SHIFT_MM =
+            31.0f;
+
     private static final float NEAR_STOP_GAP_MM =
             5.0f;
 
@@ -58,6 +61,11 @@ final class CaminoTimetableView extends View {
             14.0f;
 
     private final Paint panelPaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
+    private final Paint panelBorderPaint =
             new Paint(
                     Paint.ANTI_ALIAS_FLAG
             );
@@ -117,6 +125,25 @@ final class CaminoTimetableView extends View {
                         24,
                         27,
                         30
+                )
+        );
+        panelPaint.setStyle(
+                Paint.Style.FILL
+        );
+
+        panelBorderPaint.setColor(
+                Color.rgb(
+                        245,
+                        201,
+                        142
+                )
+        );
+        panelBorderPaint.setStyle(
+                Paint.Style.STROKE
+        );
+        panelBorderPaint.setStrokeWidth(
+                dp(
+                        2.0f
                 )
         );
 
@@ -216,11 +243,10 @@ final class CaminoTimetableView extends View {
         );
 
         distancePaint.setColor(
-                Color.argb(
-                        240,
-                        236,
-                        240,
-                        244
+                Color.rgb(
+                        245,
+                        201,
+                        142
                 )
         );
         distancePaint.setTextSize(
@@ -422,7 +448,10 @@ final class CaminoTimetableView extends View {
 
         float centerY =
                 getHeight()
-                        / 2.0f;
+                        / 2.0f
+                        + mm(
+                        PANEL_VERTICAL_SHIFT_MM
+                );
 
         float[] yPositions =
                 buildStopYPositions(
@@ -476,6 +505,13 @@ final class CaminoTimetableView extends View {
                 panelPaint
         );
 
+        canvas.drawRoundRect(
+                panel,
+                corner,
+                corner,
+                panelBorderPaint
+        );
+
         drawTimetable(
                 canvas,
                 panelWidth
@@ -506,7 +542,10 @@ final class CaminoTimetableView extends View {
 
         float centerY =
                 getHeight()
-                        / 2.0f;
+                        / 2.0f
+                        + mm(
+                        PANEL_VERTICAL_SHIFT_MM
+                );
 
         float lineX =
                 dp(
