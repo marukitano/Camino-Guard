@@ -44,6 +44,7 @@ public final class CaminoController {
     private final CaminoDragController dragController;
     private final CaminoSelectionController selectionController;
     private final CaminoSelectionStatsOverlay selectionStatsOverlay;
+    private final CaminoTimetableOverlay timetableOverlay;
     private final CaminoUiStateStore uiStateStore;
 
     private boolean selectionLocked;
@@ -201,6 +202,13 @@ public final class CaminoController {
 
         this.selectionStatsOverlay =
                 new CaminoSelectionStatsOverlay(
+                        activity,
+                        mapView,
+                        walkingPerformanceModel
+                );
+
+        this.timetableOverlay =
+                new CaminoTimetableOverlay(
                         activity,
                         mapView,
                         walkingPerformanceModel
@@ -640,6 +648,7 @@ public final class CaminoController {
         infoController.ensureView();
         heightProfileController.ensureView();
         selectionStatsOverlay.ensureView();
+        timetableOverlay.ensureView();
 
         interactionRenderer.onStyleLoaded(
                 style,
@@ -817,6 +826,12 @@ public final class CaminoController {
 
         selectionStatsOverlay.setLocked(
                 selectionLocked
+        );
+
+        timetableOverlay.update(
+                currentMeasurementPath,
+                selectionLocked
+                        && marked
         );
 
         heightProfileController.refresh();
@@ -1535,6 +1550,11 @@ public final class CaminoController {
                     false
             );
 
+            timetableOverlay.update(
+                    currentMeasurementPath,
+                    false
+            );
+
             uiStateStore.clearLockedSelection();
 
             infoController.setSelectionLocked(
@@ -1561,6 +1581,11 @@ public final class CaminoController {
                 true;
 
         selectionStatsOverlay.setLocked(
+                true
+        );
+
+        timetableOverlay.update(
+                currentMeasurementPath,
                 true
         );
 

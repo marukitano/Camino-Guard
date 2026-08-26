@@ -359,8 +359,25 @@ final class MeasurementEngine {
         double distanceM =
                 0.0;
 
-        for (CaminoResolvedStageLeg leg
-                : path.legs) {
+        /*
+         * Boundary 0 is the selected start. Boundary N is the exact
+         * cumulative selected-route distance after N resolved legs.
+         */
+        List<Double> legBoundaryDistancesM =
+                new ArrayList<>();
+
+        legBoundaryDistancesM.add(
+                0.0
+        );
+
+        for (int legIndex = 0;
+                legIndex < path.legs.size();
+                legIndex++) {
+
+            CaminoResolvedStageLeg leg =
+                    path.legs.get(
+                            legIndex
+                    );
 
             if (leg == null
                     || leg.track == null
@@ -368,13 +385,17 @@ final class MeasurementEngine {
                     || leg.to == null
                     || leg.track.points.size() < 2) {
 
+                legBoundaryDistancesM.add(
+                        distanceM
+                );
+
                 continue;
             }
 
             /*
              * Resolver joins are snaps between already-existing official GPS
              * geometries (max 25 m). Do not draw or measure an invented
-             * connector. Any non-zero snap simply starts a new profile fragment.
+             * connector. Any non-zero snap starts a new profile fragment.
              */
             if (previousEnd != null
                     && GeoMath.distanceMeters(
@@ -427,6 +448,10 @@ final class MeasurementEngine {
 
             previousEnd =
                     leg.to.point;
+
+            legBoundaryDistancesM.add(
+                    distanceM
+            );
         }
 
         if (result.routeFeatures.isEmpty()) {
@@ -442,7 +467,361 @@ final class MeasurementEngine {
         result.endRoute =
                 path.route;
 
+        appendTimetablePathStops(
+                result,
+                path,
+                legBoundaryDistancesM
+        );
+
         return result;
+    }
+
+
+
+    private void appendTimetablePathStops(
+            MeasurementPath result,
+            CaminoResolvedStagePath path,
+            List<Double> legBoundaryDistancesM
+    ) {
+        if (result == null
+                || path == null
+                || path.legs == null
+                || path.legs.isEmpty()
+                || legBoundaryDistancesM == null
+                || legBoundaryDistancesM.size() < 2) {
+
+            return;
+        }
+
+        /*
+         * v111 only copied semantic resolver waypoints. That preserves shell
+         * boundaries, but a resolved section may physically walk through
+         * additional canonical village track endpoints before the next shell.
+         *
+         * The map / TravelStats village semantics already live on RouteTrack:
+         *
+         *   real endpoint = meaningful fromKey/toKey && !pseudoFrom/pseudoTo
+         *
+         * Collect those SAME canonical endpoints from every actually traversed
+         * leg and merge them with the resolver waypoints.
+         */
+        List<CaminoTimetablePathStop> candidates =
+                new ArrayList<>();
+
+        int legCount =
+                Math.min(
+                        path.legs.size(),
+                        legBoundaryDistancesM.size() - 1
+                );
+
+        for (int legIndex = 0;
+                legIndex < legCount;
+                legIndex++) {
+
+            CaminoResolvedStageLeg leg =
+                    path.legs.get(
+                            legIndex
+                    );
+
+            if (leg == null
+                    || leg.track == null
+                    || leg.from == null
+                    || leg.to == null) {
+
+                continue;
+            }
+
+            addTimetableCandidate(
+                    candidates,
+                    timetablePlaceKeyAtTrackEndpoint(
+                            leg.track,
+                            leg.from
+                    ),
+                    legBoundaryDistancesM.get(
+                            legIndex
+                    )
+            );
+
+            addTimetableCandidate(
+                    candidates,
+                    timetablePlaceKeyAtTrackEndpoint(
+                            leg.track,
+                            leg.to
+                    ),
+                    legBoundaryDistancesM.get(
+                            legIndex + 1
+                    )
+            );
+        }
+
+        /*
+         * Keep resolver waypoints too. They are still required for selected
+         * start/goal and for synthetic fork/merge shells when no named village
+         * exists at that boundary.
+         */
+        if (path.waypoints != null) {
+            for (CaminoResolvedStageWaypoint waypoint
+                    : path.waypoints) {
+
+                if (waypoint == null) {
+                    continue;
+                }
+
+                int boundaryIndex =
+                        waypoint.legBoundaryIndex;
+
+                if (boundaryIndex < 0
+                        || boundaryIndex
+                        >= legBoundaryDistancesM.size()) {
+
+                    continue;
+                }
+
+                addTimetableCandidate(
+                        candidates,
+                        waypoint.placeKey,
+                        legBoundaryDistancesM.get(
+                                boundaryIndex
+                        )
+                );
+            }
+        }
+
+        candidates.sort(
+                Comparator.comparingDouble(
+                        stop ->
+                                stop.chainageM
+                )
+        );
+
+        result.timetableStops.clear();
+
+        for (CaminoTimetablePathStop candidate
+                : candidates) {
+
+            if (candidate == null
+                    || !Double.isFinite(
+                    candidate.chainageM
+            )
+                    || candidate.chainageM < 0.0) {
+
+                continue;
+            }
+
+            if (result.timetableStops.isEmpty()) {
+                result.timetableStops.add(
+                        candidate
+                );
+
+                continue;
+            }
+
+            int lastIndex =
+                    result.timetableStops.size() - 1;
+
+            CaminoTimetablePathStop previous =
+                    result.timetableStops.get(
+                            lastIndex
+                    );
+
+            /*
+             * Different metadata aliases can describe one physical boundary.
+             * If a real village and a synthetic junction share the same
+             * chainage, the real village wins.
+             */
+            if (Math.abs(
+                    previous.chainageM
+                            - candidate.chainageM
+            ) <= 0.5) {
+
+                String preferred =
+                        preferredTimetablePlaceKey(
+                                previous.placeKey,
+                                candidate.placeKey
+                        );
+
+                if (!samePlaceKey(
+                        previous.placeKey,
+                        preferred
+                )) {
+
+                    result.timetableStops.set(
+                            lastIndex,
+                            new CaminoTimetablePathStop(
+                                    preferred,
+                                    previous.chainageM
+                            )
+                    );
+                }
+
+                continue;
+            }
+
+            result.timetableStops.add(
+                    candidate
+            );
+        }
+    }
+
+
+    static String timetablePlaceKeyAtTrackEndpoint(
+            RouteTrack track,
+            ProjectionHit hit
+    ) {
+        if (track == null
+                || hit == null
+                || hit.point == null
+                || track.points == null
+                || track.points.size() < 2) {
+
+            return null;
+        }
+
+        final double endpointMatchM =
+                2.0;
+
+        LatLng first =
+                track.points.get(
+                        0
+                );
+
+        LatLng last =
+                track.points.get(
+                        track.points.size() - 1
+                );
+
+        if (!track.pseudoFrom
+                && meaningfulTimetablePlaceKey(
+                track.fromKey
+        )
+                && GeoMath.distanceMeters(
+                hit.point,
+                first
+        ) <= endpointMatchM) {
+
+            return track.fromKey.trim();
+        }
+
+        if (!track.pseudoTo
+                && meaningfulTimetablePlaceKey(
+                track.toKey
+        )
+                && GeoMath.distanceMeters(
+                hit.point,
+                last
+        ) <= endpointMatchM) {
+
+            return track.toKey.trim();
+        }
+
+        return null;
+    }
+
+
+    private void addTimetableCandidate(
+            List<CaminoTimetablePathStop> output,
+            String placeKey,
+            double chainageM
+    ) {
+        if (output == null
+                || !meaningfulTimetablePlaceKey(
+                placeKey
+        )
+                || !Double.isFinite(
+                chainageM
+        )
+                || chainageM < 0.0) {
+
+            return;
+        }
+
+        output.add(
+                new CaminoTimetablePathStop(
+                        placeKey.trim(),
+                        chainageM
+                )
+        );
+    }
+
+
+    private String preferredTimetablePlaceKey(
+            String first,
+            String second
+    ) {
+        boolean firstSynthetic =
+                syntheticTimetablePlaceKey(
+                        first
+                );
+
+        boolean secondSynthetic =
+                syntheticTimetablePlaceKey(
+                        second
+                );
+
+        if (firstSynthetic
+                && !secondSynthetic) {
+
+            return second;
+        }
+
+        if (!firstSynthetic) {
+            return first;
+        }
+
+        return meaningfulTimetablePlaceKey(
+                second
+        )
+                ? second
+                : first;
+    }
+
+
+    private static boolean meaningfulTimetablePlaceKey(
+            String value
+    ) {
+        return value != null
+                && !value.trim()
+                .isEmpty();
+    }
+
+
+    private boolean syntheticTimetablePlaceKey(
+            String value
+    ) {
+        if (!meaningfulTimetablePlaceKey(
+                value
+        )) {
+
+            return true;
+        }
+
+        String normalized =
+                value.trim()
+                        .toLowerCase(
+                                java.util.Locale.ROOT
+                        );
+
+        return normalized.startsWith(
+                "@"
+        )
+                || normalized.startsWith(
+                "fork_"
+        );
+    }
+
+
+
+    private boolean samePlaceKey(
+            String first,
+            String second
+    ) {
+        if (first == null) {
+            return second == null;
+        }
+
+        return first.equals(
+                second
+        );
     }
 
 
@@ -3551,6 +3930,25 @@ final class ProfilePoint {
 }
 
 
+final class CaminoTimetablePathStop {
+
+    final String placeKey;
+    final double chainageM;
+
+
+    CaminoTimetablePathStop(
+            String placeKey,
+            double chainageM
+    ) {
+        this.placeKey =
+                placeKey;
+
+        this.chainageM =
+                chainageM;
+    }
+}
+
+
 final class MeasurementPath {
 
     final List<Feature> routeFeatures =
@@ -3560,6 +3958,9 @@ final class MeasurementPath {
             new ArrayList<>();
 
     final List<ProfilePoint> profilePoints =
+            new ArrayList<>();
+
+    final List<CaminoTimetablePathStop> timetableStops =
             new ArrayList<>();
 
     double distanceM;

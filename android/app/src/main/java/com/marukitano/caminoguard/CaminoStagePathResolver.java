@@ -252,6 +252,12 @@ final class CaminoStagePathResolver {
                 second.variantPathIds
         );
 
+        List<CaminoResolvedStageWaypoint> waypoints =
+                CaminoResolvedStagePath.mergeWaypoints(
+                        first,
+                        second
+                );
+
         return new CaminoResolvedStagePath(
                 first.id
                         + "++"
@@ -262,7 +268,8 @@ final class CaminoStagePathResolver {
                 first.startHit,
                 second.endHit,
                 legs,
-                variants
+                variants,
+                waypoints
         );
     }
 
@@ -3510,6 +3517,14 @@ final class CaminoResolvedStagePath {
     final List<CaminoResolvedStageLeg> legs;
     final List<String> variantPathIds;
 
+    /*
+     * Semantic shell boundaries in walking order.
+     *
+     * Boundary 0 is the selected start; boundary N is after N resolved legs.
+     * append() therefore no longer loses the villages between start and goal.
+     */
+    final List<CaminoResolvedStageWaypoint> waypoints;
+
 
     CaminoResolvedStagePath(
             String id,
@@ -3520,6 +3535,37 @@ final class CaminoResolvedStagePath {
             ProjectionHit endHit,
             List<CaminoResolvedStageLeg> legs,
             Set<String> variantPathIds
+    ) {
+        this(
+                id,
+                route,
+                startPlaceKey,
+                destinationPlaceKey,
+                startHit,
+                endHit,
+                legs,
+                variantPathIds,
+                endpointWaypoints(
+                        startPlaceKey,
+                        destinationPlaceKey,
+                        legs == null
+                                ? 0
+                                : legs.size()
+                )
+        );
+    }
+
+
+    CaminoResolvedStagePath(
+            String id,
+            CaminoRoute route,
+            String startPlaceKey,
+            String destinationPlaceKey,
+            ProjectionHit startHit,
+            ProjectionHit endHit,
+            List<CaminoResolvedStageLeg> legs,
+            Set<String> variantPathIds,
+            List<CaminoResolvedStageWaypoint> waypoints
     ) {
         this.id =
                 id;
@@ -3552,8 +3598,181 @@ final class CaminoResolvedStagePath {
                                 variantPathIds
                         )
                 );
+
+        this.waypoints =
+                Collections.unmodifiableList(
+                        new ArrayList<>(
+                                waypoints
+                        )
+                );
+    }
+
+
+    static List<CaminoResolvedStageWaypoint> mergeWaypoints(
+            CaminoResolvedStagePath first,
+            CaminoResolvedStagePath second
+    ) {
+        List<CaminoResolvedStageWaypoint> result =
+                new ArrayList<>(
+                        first.waypoints
+                );
+
+        int legOffset =
+                first.legs.size();
+
+        /*
+         * first.destination and second.start are the same append boundary.
+         * Prefer a real village key over a synthetic junction key if the
+         * resolver has two aliases for that physical shell.
+         */
+        if (!result.isEmpty()
+                && !second.waypoints.isEmpty()) {
+
+            int lastIndex =
+                    result.size() - 1;
+
+            CaminoResolvedStageWaypoint left =
+                    result.get(
+                            lastIndex
+                    );
+
+            CaminoResolvedStageWaypoint right =
+                    second.waypoints.get(
+                            0
+                    );
+
+            result.set(
+                    lastIndex,
+                    new CaminoResolvedStageWaypoint(
+                            preferredPlaceKey(
+                                    left.placeKey,
+                                    right.placeKey
+                            ),
+                            left.legBoundaryIndex
+                    )
+            );
+        }
+
+        for (int index = 1;
+                index < second.waypoints.size();
+                index++) {
+
+            CaminoResolvedStageWaypoint waypoint =
+                    second.waypoints.get(
+                            index
+                    );
+
+            result.add(
+                    new CaminoResolvedStageWaypoint(
+                            waypoint.placeKey,
+                            legOffset
+                                    + waypoint.legBoundaryIndex
+                    )
+            );
+        }
+
+        return result;
+    }
+
+
+    private static List<CaminoResolvedStageWaypoint> endpointWaypoints(
+            String startPlaceKey,
+            String destinationPlaceKey,
+            int legCount
+    ) {
+        List<CaminoResolvedStageWaypoint> result =
+                new ArrayList<>();
+
+        result.add(
+                new CaminoResolvedStageWaypoint(
+                        startPlaceKey,
+                        0
+                )
+        );
+
+        result.add(
+                new CaminoResolvedStageWaypoint(
+                        destinationPlaceKey,
+                        Math.max(
+                                0,
+                                legCount
+                        )
+                )
+        );
+
+        return result;
+    }
+
+
+    private static String preferredPlaceKey(
+            String first,
+            String second
+    ) {
+        if (syntheticPlaceKey(
+                first
+        )
+                && !syntheticPlaceKey(
+                second
+        )) {
+
+            return second;
+        }
+
+        if (first == null
+                || first.isEmpty()) {
+
+            return second;
+        }
+
+        return first;
+    }
+
+
+    private static boolean syntheticPlaceKey(
+            String value
+    ) {
+        if (value == null) {
+            return true;
+        }
+
+        String normalized =
+                value.trim()
+                        .toLowerCase(
+                                java.util.Locale.ROOT
+                        );
+
+        return normalized.isEmpty()
+                || normalized.startsWith(
+                "@"
+        )
+                || normalized.startsWith(
+                "fork_"
+        );
     }
 }
+
+
+final class CaminoResolvedStageWaypoint {
+
+    final String placeKey;
+    final int legBoundaryIndex;
+
+
+    CaminoResolvedStageWaypoint(
+            String placeKey,
+            int legBoundaryIndex
+    ) {
+        this.placeKey =
+                placeKey;
+
+        this.legBoundaryIndex =
+                Math.max(
+                        0,
+                        legBoundaryIndex
+                );
+    }
+}
+
 
 
 final class CaminoResolvedStageLeg {
