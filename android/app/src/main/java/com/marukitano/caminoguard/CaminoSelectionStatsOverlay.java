@@ -7,7 +7,6 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.text.format.DateFormat;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -50,10 +49,12 @@ final class CaminoSelectionStatsOverlay {
     private final Activity activity;
     private final MapView mapView;
     private final WalkingPerformanceModel performanceModel;
+    private final CaminoUiStateStore uiStateStore;
 
     private VerticalStatsTextView upperView;
     private VerticalStatsTextView lowerView;
-    private StartTimeScrollView startTimeView;
+    private CaminoStartTimeButton startTimeView;
+    private CaminoStartTimePickerPopup startTimePickerPopup;
 
     private boolean locked;
 
@@ -66,8 +67,7 @@ final class CaminoSelectionStatsOverlay {
      */
     private boolean currentPositionOnSelectedRoute;
 
-    private int plannedStartMinutesOfDay =
-            -1;
+    private int plannedStartMinutesOfDay;
 
     private long accumulatedPauseMs;
     private long activePauseStartedWallMs =
@@ -107,6 +107,16 @@ final class CaminoSelectionStatsOverlay {
 
         this.performanceModel =
                 performanceModel;
+
+        this.uiStateStore =
+                new CaminoUiStateStore(
+                        activity
+                );
+
+        plannedStartMinutesOfDay =
+                uiStateStore.restorePlannedStartMinutes(
+                        0
+                );
     }
 
     void ensureView() {
@@ -128,12 +138,16 @@ final class CaminoSelectionStatsOverlay {
                 createStatsView();
 
         startTimeView =
-                new StartTimeScrollView(
+                new CaminoStartTimeButton(
                         activity
                 );
 
         startTimeView.setVisibility(
                 View.GONE
+        );
+
+        startTimeView.setOnClickListener(
+                ignored -> showStartTimePopup()
         );
 
         FrameLayout.LayoutParams startTimeParams =
@@ -401,6 +415,10 @@ final class CaminoSelectionStatsOverlay {
             );
         }
 
+        if (locked) {
+            dismissStartTimePopup();
+        }
+
         mapView.removeCallbacks(
                 clockTick
         );
@@ -515,20 +533,8 @@ final class CaminoSelectionStatsOverlay {
         )
                 || path.distanceM <= 0.0) {
 
-            plannedStartMinutesOfDay =
-                    -1;
-
             hide();
             return;
-        }
-
-        if (!locked
-                && plannedStartMinutesOfDay < 0) {
-
-            plannedStartMinutesOfDay =
-                    nextHalfHour(
-                            currentMinutesOfDay()
-                    );
         }
 
         renderLastState();
@@ -581,8 +587,8 @@ final class CaminoSelectionStatsOverlay {
 
         if (plannedStartMinutesOfDay < 0) {
             plannedStartMinutesOfDay =
-                    nextHalfHour(
-                            currentMinutesOfDay()
+                    uiStateStore.restorePlannedStartMinutes(
+                            0
                     );
         }
 
@@ -602,17 +608,17 @@ final class CaminoSelectionStatsOverlay {
         );
 
         String upperText =
-                "≈ "
+                "Ankunft "
+                        + formatClockMinutes(
+                        arrivalMinutes
+                )
+                        + "  ·  "
+                        + "≈ "
                         + formatDurationSeconds(
                         estimate.durationSeconds
                 )
                         + "  ·  "
-                        + "Pause 0 min"
-                        + "  ·  "
-                        + "Ankunft "
-                        + formatClockMinutes(
-                        arrivalMinutes
-                );
+                        + "Pause 0 min";
 
         String lowerText =
                 formatDistance(
@@ -798,6 +804,59 @@ final class CaminoSelectionStatsOverlay {
             );
         }
     }
+
+    private void showStartTimePopup() {
+        if (locked
+                || lastPath == null
+                || startTimeView == null) {
+
+            return;
+        }
+
+        dismissStartTimePopup();
+
+        startTimePickerPopup =
+                new CaminoStartTimePickerPopup(
+                        activity,
+                        plannedStartMinutesOfDay,
+                        minutes -> {
+                            plannedStartMinutesOfDay =
+                                    normalizeMinutesOfDay(
+                                            minutes
+                                    );
+
+                            uiStateStore.savePlannedStartMinutes(
+                                    plannedStartMinutesOfDay
+                            );
+
+                            startTimeView.setMinutes(
+                                    plannedStartMinutesOfDay
+                            );
+
+                            renderLastState();
+                        }
+                );
+
+        startTimePickerPopup.show(
+                mapView
+        );
+    }
+
+
+    private void dismissStartTimePopup() {
+        if (startTimePickerPopup == null) {
+            return;
+        }
+
+        CaminoStartTimePickerPopup popup =
+                startTimePickerPopup;
+
+        startTimePickerPopup =
+                null;
+
+        popup.dismiss();
+    }
+
 
     private RouteProgress locateProgress(
             List<ProfilePoint> points,
@@ -1315,39 +1374,6 @@ final class CaminoSelectionStatsOverlay {
         return Double.NaN;
     }
 
-    private int nextHalfHour(
-            int minutes
-    ) {
-        int normalized =
-                normalizeMinutesOfDay(
-                        minutes
-                );
-
-        return normalizeMinutesOfDay(
-                (
-                        (
-                                normalized
-                                        + 29
-                        )
-                                / 30
-                )
-                        * 30
-        );
-    }
-
-    private int currentMinutesOfDay() {
-        java.util.Calendar calendar =
-                java.util.Calendar.getInstance();
-
-        return calendar.get(
-                java.util.Calendar.HOUR_OF_DAY
-        )
-                * 60
-                + calendar.get(
-                java.util.Calendar.MINUTE
-        );
-    }
-
     private int normalizeMinutesOfDay(
             int minutes
     ) {
@@ -1548,8 +1574,7 @@ final class CaminoSelectionStatsOverlay {
         lastPosition =
                 null;
 
-        plannedStartMinutesOfDay =
-                -1;
+        dismissStartTimePopup();
 
         if (upperView != null) {
             upperView.setText(
@@ -1589,363 +1614,6 @@ final class CaminoSelectionStatsOverlay {
                         .density
         );
     }
-
-    private final class StartTimeScrollView
-            extends View {
-
-        private static final int STEP_MINUTES = 30;
-
-        private final android.graphics.Paint mainPaint =
-                new android.graphics.Paint(
-                        android.graphics.Paint.ANTI_ALIAS_FLAG
-                );
-
-        private final android.graphics.Paint previewPaint =
-                new android.graphics.Paint(
-                        android.graphics.Paint.ANTI_ALIAS_FLAG
-                );
-
-        private int minutes;
-        private float lastTouchY;
-        private float dragRemainderPx;
-
-        StartTimeScrollView(
-                Context context
-        ) {
-            super(
-                    context
-            );
-
-            float textSizePx =
-                    13.5f
-                            * getResources()
-                            .getDisplayMetrics()
-                            .scaledDensity;
-
-            mainPaint.setTextSize(
-                    textSizePx
-            );
-
-            mainPaint.setTypeface(
-                    Typeface.create(
-                            Typeface.MONOSPACE,
-                            Typeface.NORMAL
-                    )
-            );
-
-            mainPaint.setColor(
-                    statsTextColor()
-            );
-
-            previewPaint.setTextSize(
-                    textSizePx
-            );
-
-            previewPaint.setTypeface(
-                    Typeface.create(
-                            Typeface.MONOSPACE,
-                            Typeface.NORMAL
-                    )
-            );
-
-            previewPaint.setColor(
-                    Color.rgb(
-                            118,
-                            123,
-                            128
-                    )
-            );
-
-            setClickable(
-                    true
-            );
-        }
-
-        void setMainColor(
-                int color
-        ) {
-            mainPaint.setColor(
-                    color
-            );
-            invalidate();
-        }
-
-        void setMinutes(
-                int value
-        ) {
-            int normalized =
-                    normalizeMinutesOfDay(
-                            value
-                    );
-
-            if (minutes == normalized) {
-                return;
-            }
-
-            minutes =
-                    normalized;
-
-            requestLayout();
-            invalidate();
-        }
-
-        private String currentLabel() {
-            return "Start "
-                    + formatClockMinutes(
-                    minutes
-            );
-        }
-
-        private String previousLabel() {
-            return formatClockMinutes(
-                    minutes
-                            - STEP_MINUTES
-            );
-        }
-
-        @Override
-        protected void onMeasure(
-                int widthMeasureSpec,
-                int heightMeasureSpec
-        ) {
-            android.graphics.Paint.FontMetrics metrics =
-                    mainPaint.getFontMetrics();
-
-            int textHeight =
-                    Math.max(
-                            1,
-                            Math.round(
-                                    metrics.descent
-                                            - metrics.ascent
-                            )
-                    );
-
-            int touchWidth =
-                    Math.max(
-                            textHeight,
-                            dp(
-                                    28
-                            )
-                    );
-
-            int currentWidth =
-                    Math.max(
-                            1,
-                            Math.round(
-                                    mainPaint.measureText(
-                                            currentLabel()
-                                    )
-                            )
-                    );
-
-            int previewWidth =
-                    Math.max(
-                            1,
-                            Math.round(
-                                    previewPaint.measureText(
-                                            previousLabel()
-                                    )
-                            )
-                    );
-
-            int desiredHeight =
-                    currentWidth
-                            + dp(
-                            5
-                    )
-                            + previewWidth;
-
-            setMeasuredDimension(
-                    resolveSize(
-                            touchWidth,
-                            widthMeasureSpec
-                    ),
-                    resolveSize(
-                            desiredHeight,
-                            heightMeasureSpec
-                    )
-            );
-        }
-
-        @Override
-        protected void onDraw(
-                Canvas canvas
-        ) {
-            super.onDraw(
-                    canvas
-            );
-
-            String current =
-                    currentLabel();
-
-            String previous =
-                    previousLabel();
-
-            android.graphics.Paint.FontMetrics metrics =
-                    mainPaint.getFontMetrics();
-
-            float textHeight =
-                    metrics.descent
-                            - metrics.ascent;
-
-            float baseline =
-                    (
-                            getWidth()
-                                    - textHeight
-                    )
-                            / 2.0f
-                            - metrics.ascent;
-
-            int save =
-                    canvas.save();
-
-            canvas.translate(
-                    0.0f,
-                    getHeight()
-            );
-
-            canvas.rotate(
-                    -90.0f
-            );
-
-            canvas.drawText(
-                    current,
-                    0.0f,
-                    baseline,
-                    mainPaint
-            );
-
-            float previewX =
-                    mainPaint.measureText(
-                            current
-                    )
-                            + dp(
-                            5
-                    );
-
-            canvas.drawText(
-                    previous,
-                    previewX,
-                    baseline,
-                    previewPaint
-            );
-
-            canvas.restoreToCount(
-                    save
-            );
-        }
-
-        @Override
-        public boolean onTouchEvent(
-                MotionEvent event
-        ) {
-            if (!isEnabled()
-                    || locked
-                    || lastPath == null) {
-
-                return false;
-            }
-
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    lastTouchY =
-                            event.getY();
-
-                    dragRemainderPx =
-                            0.0f;
-
-                    getParent()
-                            .requestDisallowInterceptTouchEvent(
-                                    true
-                            );
-
-                    return true;
-
-                case MotionEvent.ACTION_MOVE:
-                    float currentY =
-                            event.getY();
-
-                    float delta =
-                            lastTouchY
-                                    - currentY;
-
-                    lastTouchY =
-                            currentY;
-
-                    dragRemainderPx +=
-                            delta;
-
-                    float threshold =
-                            dp(
-                                    22
-                            );
-
-                    boolean changed =
-                            false;
-
-                    while (dragRemainderPx >= threshold) {
-                        plannedStartMinutesOfDay =
-                                normalizeMinutesOfDay(
-                                        plannedStartMinutesOfDay
-                                                + STEP_MINUTES
-                                );
-
-                        dragRemainderPx -=
-                                threshold;
-
-                        changed =
-                                true;
-                    }
-
-                    while (dragRemainderPx <= -threshold) {
-                        plannedStartMinutesOfDay =
-                                normalizeMinutesOfDay(
-                                        plannedStartMinutesOfDay
-                                                - STEP_MINUTES
-                                );
-
-                        dragRemainderPx +=
-                                threshold;
-
-                        changed =
-                                true;
-                    }
-
-                    if (changed) {
-                        renderLastState();
-                    }
-
-                    return true;
-
-                case MotionEvent.ACTION_UP:
-                    getParent()
-                            .requestDisallowInterceptTouchEvent(
-                                    false
-                            );
-
-                    performClick();
-                    return true;
-
-                case MotionEvent.ACTION_CANCEL:
-                    getParent()
-                            .requestDisallowInterceptTouchEvent(
-                                    false
-                            );
-
-                    return true;
-
-                default:
-                    return true;
-            }
-        }
-
-        @Override
-        public boolean performClick() {
-            super.performClick();
-            return true;
-        }
-    }
-
 
     private static final class VerticalStatsTextView
             extends TextView {

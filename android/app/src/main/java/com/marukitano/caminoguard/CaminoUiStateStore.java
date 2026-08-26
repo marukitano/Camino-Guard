@@ -48,6 +48,9 @@ final class CaminoUiStateStore {
     private static final String PREF_CAMERA_TILT =
             "camera_tilt";
 
+    private static final String PREF_PLANNED_START_MINUTES =
+            "planning_start_minutes";
+
     private static final String PREF_SELECTION_LOCKED =
             "selection_locked";
 
@@ -264,6 +267,51 @@ final class CaminoUiStateStore {
                 )
                 .apply();
     }
+
+    int restorePlannedStartMinutes(
+            int fallback
+    ) {
+        int value =
+                preferences.getInt(
+                        PREF_PLANNED_START_MINUTES,
+                        fallback
+                );
+
+        if (value < 0
+                || value >= 24 * 60) {
+
+            return fallback;
+        }
+
+        return value;
+    }
+
+
+    void savePlannedStartMinutes(
+            int minutes
+    ) {
+        int normalized =
+                minutes
+                        % (
+                        24
+                                * 60
+                );
+
+        if (normalized < 0) {
+            normalized +=
+                    24
+                            * 60;
+        }
+
+        preferences
+                .edit()
+                .putInt(
+                        PREF_PLANNED_START_MINUTES,
+                        normalized
+                )
+                .apply();
+    }
+
 
     void saveLockedSelection(
             String startRouteId,
