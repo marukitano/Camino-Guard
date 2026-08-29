@@ -156,6 +156,10 @@ public final class CaminoController {
                 navigationController::cycleMode
         );
 
+        navigationController.setRotationResetHaloListener(
+                infoController::setRotationResetHalo
+        );
+
         infoController.setNavigationMode(
                 navigationController.currentMode()
         );

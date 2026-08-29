@@ -70,6 +70,7 @@ public final class GpsGyroOrientationController
      */
     private android.location.Location foregroundDirectionStartLocation;
     private boolean foregroundDirectionReady;
+    private Runnable foregroundDirectionReadyListener;
 
     private MapLibreMap map;
     private GeoJsonSource posSource;
@@ -191,6 +192,20 @@ public final class GpsGyroOrientationController
 
         render(state!=null?state:CaminoTrackingService.snapshot());
     }
+
+    void setForegroundDirectionReadyListener(
+            Runnable listener
+    ) {
+        foregroundDirectionReadyListener =
+                listener;
+
+        if (foregroundDirectionReady
+                && listener != null) {
+
+            listener.run();
+        }
+    }
+
 
     public void setExternalNavigationMode(
             NavigationController.Mode mode
@@ -1033,6 +1048,10 @@ public final class GpsGyroOrientationController
                 GeoMath.normalizeDegrees(
                         snapshot.courseDeg
                 );
+
+        if (foregroundDirectionReadyListener != null) {
+            foregroundDirectionReadyListener.run();
+        }
     }
 
 

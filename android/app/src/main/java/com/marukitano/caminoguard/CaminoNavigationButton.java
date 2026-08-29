@@ -43,10 +43,17 @@ final class CaminoNavigationButton extends View {
                     Paint.ANTI_ALIAS_FLAG
             );
 
+
+    private final Paint haloPaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
     private NavigationController.Mode mode =
             NavigationController.Mode.MANUAL;
 
     private boolean suspended;
+    private boolean rotationResetHalo;
 
     private double mapBearing;
 
@@ -126,6 +133,30 @@ final class CaminoNavigationButton extends View {
         reticlePaint.setStrokeCap(
                 Paint.Cap.ROUND
         );
+
+
+        haloPaint.setColor(
+                Color.rgb(
+                        74,
+                        144,
+                        226
+                )
+        );
+
+        haloPaint.setStyle(
+                Paint.Style.STROKE
+        );
+
+        /*
+         * Deliberately raw pixels: requested visual halo is 3 px.
+         */
+        haloPaint.setStrokeWidth(
+                3.0f
+        );
+
+        haloPaint.setStrokeCap(
+                Paint.Cap.ROUND
+        );
     }
 
     void setMode(
@@ -144,6 +175,16 @@ final class CaminoNavigationButton extends View {
 
         invalidate();
     }
+
+    void setRotationResetHalo(
+            boolean visible
+    ) {
+        rotationResetHalo =
+                visible;
+
+        invalidate();
+    }
+
 
     void setCompassDrawable(
             Drawable drawable
@@ -213,6 +254,16 @@ final class CaminoNavigationButton extends View {
                 radius,
                 outlinePaint
         );
+
+
+        if (rotationResetHalo) {
+            canvas.drawCircle(
+                    cx,
+                    cy,
+                    radius + 2.5f,
+                    haloPaint
+            );
+        }
 
         if (mode
                 == NavigationController.Mode.MANUAL) {

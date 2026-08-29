@@ -33,6 +33,8 @@ final class CaminoInfoController {
 
     private boolean navigationSuspended;
 
+    private boolean rotationResetHalo;
+
     private Runnable selectionLockAction;
     private boolean selectionLocked;
     private boolean selectionLockAvailable;
@@ -100,6 +102,20 @@ final class CaminoInfoController {
         }
     }
 
+    void setRotationResetHalo(
+            boolean visible
+    ) {
+        rotationResetHalo =
+                visible;
+
+        if (panel != null) {
+            panel.setRotationResetHalo(
+                    visible
+            );
+        }
+    }
+
+
     void setSelectionLockAction(
             Runnable action
     ) {
@@ -162,6 +178,10 @@ final class CaminoInfoController {
         panel.setNavigationMode(
                 navigationMode,
                 navigationSuspended
+        );
+
+        panel.setRotationResetHalo(
+                rotationResetHalo
         );
 
         panel.setSelectionLockAction(

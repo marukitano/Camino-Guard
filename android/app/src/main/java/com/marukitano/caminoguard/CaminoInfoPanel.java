@@ -600,6 +600,15 @@ final class CaminoInfoPanel extends FrameLayout {
         );
     }
 
+
+    void setRotationResetHalo(
+            boolean visible
+    ) {
+        navigationButton.setRotationResetHalo(
+                visible
+        );
+    }
+
     boolean isHidden() {
         return hidden;
     }

@@ -11,6 +11,9 @@ final class NavigationController {
     private static final double FOLLOW_ZOOM =
             16.5;
 
+    private static final long ROTATION_RESET_COOLDOWN_MS =
+            10_000L;
+
     enum Mode {
         MANUAL,
         NORTH_UP,
@@ -32,6 +35,13 @@ final class NavigationController {
         );
     }
 
+
+    interface RotationResetHaloListener {
+        void onRotationResetHaloChanged(
+                boolean visible
+        );
+    }
+
     private final MapView mapView;
     private final PositionProvider positionProvider;
     private final BearingProvider bearingProvider;
@@ -45,6 +55,22 @@ final class NavigationController {
     private boolean followEnabled;
     private boolean northUpFollow;
     private boolean followSuspended;
+
+    private RotationResetHaloListener rotationResetHaloListener;
+    private boolean directionReady;
+    private boolean rotationResetHalo;
+
+    private final Runnable restoreRotationResetHalo =
+            () -> {
+                if (!directionReady) {
+                    return;
+                }
+
+                rotationResetHalo =
+                        true;
+
+                publishRotationResetHalo();
+            };
 
     NavigationController(
             MapView mapView,
@@ -104,8 +130,57 @@ final class NavigationController {
             GpsGyroOrientationController controller
     ) {
         externalController = controller;
+
+        if (externalController != null) {
+            externalController
+                    .setForegroundDirectionReadyListener(
+                            this::onForegroundDirectionReady
+                    );
+        }
+
         syncExternalFollow();
     }
+
+    void setRotationResetHaloListener(
+            RotationResetHaloListener listener
+    ) {
+        rotationResetHaloListener =
+                listener;
+
+        publishRotationResetHalo();
+    }
+
+
+    private void onForegroundDirectionReady() {
+        directionReady =
+                true;
+
+        rotationResetHalo =
+                true;
+
+        mapView.removeCallbacks(
+                restoreRotationResetHalo
+        );
+
+        publishRotationResetHalo();
+    }
+
+
+    private boolean rotationResetHaloVisible() {
+        return rotationResetHalo
+                && !followSuspended;
+    }
+
+
+    private void publishRotationResetHalo() {
+        if (rotationResetHaloListener != null) {
+            rotationResetHaloListener
+                    .onRotationResetHaloChanged(
+                            rotationResetHaloVisible()
+                    );
+        }
+    }
+
 
     void syncExternalFollow() {
         if (!liveMode
@@ -140,11 +215,32 @@ final class NavigationController {
 
     void cycleMode() {
 
-        if (liveMode
+        /*
+         * When the yellow halo is visible this click is exclusively a
+         * foreground-rotation reset. Navigation mode remains untouched.
+         */
+        if (rotationResetHaloVisible()
+                && liveMode
                 && externalController != null) {
 
             externalController
                     .resetForegroundRotation();
+
+            rotationResetHalo =
+                    false;
+
+            publishRotationResetHalo();
+
+            mapView.removeCallbacks(
+                    restoreRotationResetHalo
+            );
+
+            mapView.postDelayed(
+                    restoreRotationResetHalo,
+                    ROTATION_RESET_COOLDOWN_MS
+            );
+
+            return;
         }
 
         /*
@@ -158,6 +254,7 @@ final class NavigationController {
                     false;
 
             publishNavigationMode();
+            publishRotationResetHalo();
 
             if (liveMode
                     && externalController != null) {
@@ -216,12 +313,15 @@ final class NavigationController {
         if (liveMode
                 && externalController != null) {
 
+            /*
+             * The external controller owns continuous live-camera updates.
+             * The button press itself must still use NavigationController's
+             * current position to restore centre and walking zoom immediately.
+             */
             externalController
                     .setExternalNavigationMode(
                             currentMode()
                     );
-
-            return;
         }
 
         if (followEnabled) {
@@ -245,6 +345,7 @@ final class NavigationController {
                 true;
 
         publishNavigationMode();
+        publishRotationResetHalo();
 
         if (liveMode
                 && externalController != null) {
