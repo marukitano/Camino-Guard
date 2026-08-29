@@ -1251,10 +1251,16 @@ final class LibreLinkUpClient
                         nowMs - readingTimeMs
                 );
 
+        /*
+         * Fresh Libre readings do not need an age indicator.
+         * Show it only once the value is more than five full minutes old.
+         */
         long ageMinutes =
-                Math.round(
-                        ageMs / 60_000.0
-                );
+                ageMs / 60_000L;
+
+        if (ageMinutes <= 5L) {
+            return value;
+        }
 
         return value
                 + " "
