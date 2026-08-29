@@ -1,7 +1,11 @@
 package com.marukitano.caminoguard;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.PointF;
+import android.os.Build;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.graphics.RectF;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -49,6 +53,24 @@ public final class CaminoController {
     private final CaminoUiStateStore uiStateStore;
 
     private boolean selectionLocked;
+
+    /*
+     * Runtime navigation state:
+     *
+     * true = current real GPS position is more than the configured
+     * off-route threshold away from the LOCKED MeasurementPath.
+     *
+     * This state is intentionally independent of Android UI so the later
+     * Pebble transport can consume exactly the same condition.
+     */
+    private boolean offRoute;
+
+    /*
+     * Last trustworthy progress on the locked MeasurementPath.
+     * A temporary off-route GPS fix must never look like a jump back to km 0.
+     */
+    private double lastLockedRouteChainageM =
+            Double.NaN;
 
     private MapLibreMap map;
 
@@ -464,8 +486,11 @@ public final class CaminoController {
          * Motion-state publications can arrive without a new GPS timestamp.
          * Handle STATIONARY before the duplicate-fix early return so pauses are
          * excluded from learned walking speed.
+         *
+         * Off-route time is neither walking data nor an on-route pause.
          */
-        if (snapshot.stationary) {
+        if (snapshot.stationary
+                && !offRoute) {
             LatLng stationaryPosition =
                     new LatLng(
                             snapshot.location.getLatitude(),
@@ -522,29 +547,77 @@ public final class CaminoController {
                     liveCourseDeg = course;
 
                     /*
-                     * This handler only reaches here for a new accepted GPS fix.
-                     * Gyro-only snapshots were rejected by lastLiveFixStamp above.
+                     * The orientation controller owns the 20 m direction
+                     * warm-up. Navigation only reads that state here on the
+                     * already-existing GPS update path.
                      */
-                    travelStatsController.noteSample(
+                    navigationController
+                            .syncRotationResetAvailability();
+
+                    boolean wasOffRoute =
+                            offRoute;
+
+                    updateLockedRouteState(
                             position
                     );
 
-                    if (!snapshot.stationary) {
-                        long elapsedMs =
-                                snapshot.location
-                                        .getElapsedRealtimeNanos()
-                                > 0L
-                                        ? snapshot.location
-                                        .getElapsedRealtimeNanos()
-                                        / 1_000_000L
-                                        : snapshot.location
-                                        .getTime();
+                    /*
+                     * Crossing ON ROUTE -> OFF ROUTE breaks both movement
+                     * sample chains exactly once.
+                     *
+                     * Therefore the later return to the route cannot produce
+                     * an artificial segment from the old on-route point to the
+                     * new on-route point.
+                     */
+                    if (!wasOffRoute
+                            && offRoute) {
 
-                        walkingPerformanceModel.noteMovingSample(
-                                position,
-                                elapsedMs
+                        travelStatsController
+                                .breakSampleChain();
+
+                        walkingPerformanceModel
+                                .breakMovingSampleChain(
+                                        position
+                                );
+                    }
+
+                    /*
+                     * This handler only reaches here for a new accepted GPS fix.
+                     * Gyro-only snapshots were rejected by lastLiveFixStamp above.
+                     *
+                     * While outside the selected-route corridor the real GPS
+                     * continues normally, but route walking statistics do not
+                     * consume its movement.
+                     */
+                    if (!offRoute) {
+                        travelStatsController.noteSample(
+                                position
                         );
 
+                        if (!snapshot.stationary) {
+                            long elapsedMs =
+                                    snapshot.location
+                                            .getElapsedRealtimeNanos()
+                                    > 0L
+                                            ? snapshot.location
+                                            .getElapsedRealtimeNanos()
+                                            / 1_000_000L
+                                            : snapshot.location
+                                            .getTime();
+
+                            walkingPerformanceModel.noteMovingSample(
+                                    position,
+                                    elapsedMs
+                            );
+                        }
+                    }
+
+                    /*
+                     * Off-route walking is still movement rather than a hiking
+                     * pause. CaminoSelectionStatsOverlay already knows whether
+                     * the current position belongs to the selected route.
+                     */
+                    if (!snapshot.stationary) {
                         selectionStatsOverlay.noteMotionState(
                                 false
                         );
@@ -867,6 +940,24 @@ public final class CaminoController {
         updateSelectedRoute(
                 startRouteHit
         );
+
+        /*
+         * Migration/restart case:
+         * an already-persisted lock may predate the study-path snapshot.
+         * Locked selections are immutable, so this only writes once.
+         */
+        if (selectionLocked
+                && hasMarkedSelection()
+                && currentMeasurementPath != null
+                && !LockedMeasurementPathStore.hasActivePath(
+                        activity
+                )) {
+
+            LockedMeasurementPathStore.save(
+                    activity,
+                    currentMeasurementPath
+            );
+        }
 
         /*
          * The compact stats card belongs only to an explicit two-point
@@ -1644,10 +1735,139 @@ public final class CaminoController {
     }
 
 
+    boolean isOffRoute() {
+        return offRoute;
+    }
+
+
+    private void updateLockedRouteState(
+            LatLng position
+    ) {
+        /*
+         * Off-route monitoring only belongs to real locked navigation.
+         * Planning and the draggable debug-position must never trigger the
+         * physical route-deviation alarm.
+         */
+        if (!selectionLocked
+                || !livePositionMode
+                || debugPositionOverride
+                || currentMeasurementPath == null
+                || position == null) {
+
+            setOffRoute(
+                    false
+            );
+
+            return;
+        }
+
+        /*
+         * This is the existing selected-path projection.
+         *
+         * CaminoSelectionStatsOverlay.routeChainageM() accepts a projection
+         * only inside navigation.offRouteThresholdMeters (= 20 m).
+         */
+        double chainageM =
+                selectionStatsOverlay.routeChainageM(
+                        currentMeasurementPath,
+                        position
+                );
+
+        if (Double.isFinite(
+                chainageM
+        )) {
+            lastLockedRouteChainageM =
+                    chainageM;
+
+            setOffRoute(
+                    false
+            );
+
+            return;
+        }
+
+        setOffRoute(
+                true
+        );
+    }
+
+
+    private void setOffRoute(
+            boolean value
+    ) {
+        if (offRoute == value) {
+            return;
+        }
+
+        offRoute =
+                value;
+
+        /*
+         * Alarm only on the transition:
+         *
+         * ON ROUTE -> OFF ROUTE
+         *
+         * Remaining outside therefore does not vibrate once per GPS fix.
+         * Returning inside 20 m clears the flag and arms the next departure.
+         */
+        if (offRoute) {
+            vibrateOffRouteAlarm();
+        }
+    }
+
+
+    private void vibrateOffRouteAlarm() {
+        Vibrator vibrator =
+                (Vibrator) activity.getSystemService(
+                        Context.VIBRATOR_SERVICE
+                );
+
+        if (vibrator == null
+                || !vibrator.hasVibrator()) {
+
+            return;
+        }
+
+        /*
+         * Distinct short double pulse.
+         */
+        long[] pattern =
+                new long[]{
+                        0L,
+                        220L,
+                        120L,
+                        320L
+                };
+
+        if (Build.VERSION.SDK_INT
+                >= Build.VERSION_CODES.O) {
+
+            vibrator.vibrate(
+                    VibrationEffect.createWaveform(
+                            pattern,
+                            -1
+                    )
+            );
+
+        } else {
+            vibrator.vibrate(
+                    pattern,
+                    -1
+            );
+        }
+    }
+
+
     private void toggleSelectionLock() {
         if (selectionLocked) {
             selectionLocked =
                     false;
+
+            offRoute =
+                    false;
+
+            lastLockedRouteChainageM =
+                    Double.NaN;
 
             disableDebugPositionOverride();
 
@@ -1664,6 +1884,10 @@ public final class CaminoController {
                     currentMeasurementPath,
                     false,
                     0.0
+            );
+
+            LockedMeasurementPathStore.clear(
+                    activity
             );
 
             uiStateStore.clearLockedSelection();
@@ -1691,6 +1915,16 @@ public final class CaminoController {
         selectionLocked =
                 true;
 
+        offRoute =
+                false;
+
+        lastLockedRouteChainageM =
+                Double.NaN;
+
+        updateLockedRouteState(
+                dummyPosition
+        );
+
         selectionStatsOverlay.setLocked(
                 true
         );
@@ -1707,6 +1941,15 @@ public final class CaminoController {
         );
 
         persistLockedSelection();
+
+        /*
+         * Background walking-study recording must use exactly the currently
+         * locked MeasurementPath, not the globally nearest Camino.
+         */
+        LockedMeasurementPathStore.save(
+                activity,
+                currentMeasurementPath
+        );
 
         infoController.setSelectionLocked(
                 true
@@ -1979,11 +2222,30 @@ public final class CaminoController {
                         dummyPosition
                 );
 
-        return Double.isFinite(
+        if (Double.isFinite(
                 chainageM
-        )
-                ? chainageM
-                : 0.0;
+        )) {
+            if (selectionLocked) {
+                lastLockedRouteChainageM =
+                        chainageM;
+            }
+
+            return chainageM;
+        }
+
+        /*
+         * Outside the 20 m corridor the current route position is unknown.
+         * Never convert that into a false jump back to the route start.
+         */
+        if (selectionLocked
+                && Double.isFinite(
+                lastLockedRouteChainageM
+        )) {
+
+            return lastLockedRouteChainageM;
+        }
+
+        return 0.0;
     }
 
 
@@ -2111,6 +2373,10 @@ public final class CaminoController {
                 || saved.endRouteId == null
                 || saved.endPoint == null) {
 
+            LockedMeasurementPathStore.clear(
+                    activity
+            );
+
             uiStateStore.clearLockedSelection();
 
             selectionLocked =
@@ -2131,6 +2397,10 @@ public final class CaminoController {
 
         if (startRoute == null
                 || endRoute == null) {
+
+            LockedMeasurementPathStore.clear(
+                    activity
+            );
 
             uiStateStore.clearLockedSelection();
 
@@ -2156,6 +2426,10 @@ public final class CaminoController {
                 || endHit == null
                 || startHit.distanceFromQueryM > 50.0
                 || endHit.distanceFromQueryM > 50.0) {
+
+            LockedMeasurementPathStore.clear(
+                    activity
+            );
 
             uiStateStore.clearLockedSelection();
 

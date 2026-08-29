@@ -130,14 +130,6 @@ final class NavigationController {
             GpsGyroOrientationController controller
     ) {
         externalController = controller;
-
-        if (externalController != null) {
-            externalController
-                    .setForegroundDirectionReadyListener(
-                            this::onForegroundDirectionReady
-                    );
-        }
-
         syncExternalFollow();
     }
 
@@ -151,7 +143,16 @@ final class NavigationController {
     }
 
 
-    private void onForegroundDirectionReady() {
+    void syncRotationResetAvailability() {
+        if (directionReady
+                || !liveMode
+                || externalController == null
+                || !externalController
+                        .isForegroundDirectionReady()) {
+
+            return;
+        }
+
         directionReady =
                 true;
 

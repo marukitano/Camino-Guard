@@ -1,7 +1,11 @@
 package com.marukitano.caminoguard;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.os.Bundle;
+import android.text.InputType;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 
 import org.maplibre.android.MapLibre;
 import org.maplibre.android.maps.MapView;
@@ -53,6 +57,171 @@ public final class MainActivity extends Activity {
                 );
 
         mapCoordinator.start();
+
+        showLibreLinkUpSetupIfNeeded();
+    }
+
+
+    /*
+     * Minimal v0.1 setup only.
+     *
+     * Credentials are stored in Camino Guard's private app storage and are
+     * never written to camino-config.json or to the repository.
+     */
+    private void showLibreLinkUpSetupIfNeeded() {
+        LibreLinkUpStore store =
+                new LibreLinkUpStore(
+                        this
+                );
+
+        if (store.hasCredentials()) {
+            return;
+        }
+
+        int padding =
+                Math.round(
+                        20.0f
+                                * getResources()
+                                .getDisplayMetrics()
+                                .density
+                );
+
+        LinearLayout form =
+                new LinearLayout(
+                        this
+                );
+
+        form.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        form.setPadding(
+                padding,
+                padding / 2,
+                padding,
+                0
+        );
+
+
+        EditText email =
+                new EditText(
+                        this
+                );
+
+        email.setHint(
+                "LibreLinkUp E-Mail"
+        );
+
+        email.setSingleLine(
+                true
+        );
+
+        email.setInputType(
+                InputType.TYPE_CLASS_TEXT
+                        | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        );
+
+
+        EditText password =
+                new EditText(
+                        this
+                );
+
+        password.setHint(
+                "LibreLinkUp Passwort"
+        );
+
+        password.setSingleLine(
+                true
+        );
+
+        password.setInputType(
+                InputType.TYPE_CLASS_TEXT
+                        | InputType.TYPE_TEXT_VARIATION_PASSWORD
+        );
+
+
+        form.addView(
+                email
+        );
+
+        form.addView(
+                password
+        );
+
+
+        AlertDialog dialog =
+                new AlertDialog.Builder(
+                        this
+                )
+                        .setTitle(
+                                "LibreLinkUp"
+                        )
+                        .setMessage(
+                                "Camino Guard verwendet den Europe-Server. "
+                                        + "Die Zugangsdaten bleiben lokal "
+                                        + "im privaten App-Speicher."
+                        )
+                        .setView(
+                                form
+                        )
+                        .setPositiveButton(
+                                "Speichern",
+                                null
+                        )
+                        .setNegativeButton(
+                                "Später",
+                                null
+                        )
+                        .create();
+
+
+        dialog.setOnShowListener(
+                ignored -> {
+                    dialog.getButton(
+                            AlertDialog.BUTTON_POSITIVE
+                    ).setOnClickListener(
+                            view -> {
+                                String emailText =
+                                        email.getText()
+                                                .toString()
+                                                .trim();
+
+                                String passwordText =
+                                        password.getText()
+                                                .toString();
+
+                                if (emailText.isEmpty()) {
+                                    email.setError(
+                                            "E-Mail fehlt"
+                                    );
+                                    return;
+                                }
+
+                                if (passwordText.isEmpty()) {
+                                    password.setError(
+                                            "Passwort fehlt"
+                                    );
+                                    return;
+                                }
+
+                                store.saveCredentials(
+                                        emailText,
+                                        passwordText
+                                );
+
+                                CaminoTrackingService
+                                        .requestLibreRefresh(
+                                                this
+                                        );
+
+                                dialog.dismiss();
+                            }
+                    );
+                }
+        );
+
+        dialog.show();
     }
 
 

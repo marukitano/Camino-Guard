@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.marukitano.caminoguard"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.marukitano.caminoguard"
@@ -37,6 +37,7 @@ android {
 
 dependencies {
     implementation("org.maplibre.gl:android-sdk:13.4.1")
+    implementation("io.rebble.pebblekit2:client-java:1.3.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")

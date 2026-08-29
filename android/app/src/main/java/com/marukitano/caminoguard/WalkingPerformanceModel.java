@@ -136,6 +136,42 @@ final class WalkingPerformanceModel {
         loadRecentHistory();
     }
 
+    /*
+     * End the current on-route movement interval without turning the
+     * following off-route interval into walking data or pause data.
+     *
+     * The first later on-route moving sample becomes a fresh anchor.
+     */
+    void breakMovingSampleChain(
+            LatLng position
+    ) {
+        /*
+         * If the walker was stationary immediately before leaving the route,
+         * close that real on-route pause now. Do not carry it across the
+         * off-route interval.
+         */
+        finishActivePause(
+                position
+        );
+
+        /*
+         * Preserve already collected valid on-route learning data, but do not
+         * allow a learning bucket to bridge across an off-route interval.
+         */
+        flushPartialBucket();
+        resetBucket();
+
+        lastPosition =
+                null;
+
+        lastRouteHit =
+                null;
+
+        lastElapsedMs =
+                -1L;
+    }
+
+
     void noteMovingSample(
             LatLng position,
             long elapsedMs

@@ -114,6 +114,27 @@ final class TravelStatsController {
                 elapsedRealtimeMs;
     }
 
+    /*
+     * Break the movement sample chain without declaring a pause.
+     *
+     * Used when locked navigation leaves the selected-route corridor.
+     * The next accepted on-route point becomes a fresh anchor and therefore
+     * cannot create an artificial jump in distance or speed.
+     */
+    void breakSampleChain() {
+        lastTravelSamplePosition =
+                null;
+
+        lastTravelSampleElapsedMs =
+                -1L;
+
+        stationaryNoted =
+                false;
+
+        publishStats();
+    }
+
+
     void noteSample(
             LatLng position
     ) {

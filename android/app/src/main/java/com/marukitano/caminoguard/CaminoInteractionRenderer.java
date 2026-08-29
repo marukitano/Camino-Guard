@@ -68,6 +68,8 @@ final class CaminoInteractionRenderer {
     private static final String ROUTE_GAP_LAYER =
             "camino-route-gap";
 
+    private boolean livePositionMode;
+
     private GeoJsonSource selectedRouteSource;
     private GeoJsonSource connectorSource;
     private GeoJsonSource dummySource;
@@ -82,6 +84,9 @@ final class CaminoInteractionRenderer {
             LatLng dummyPosition,
             boolean livePositionMode
     ) {
+        this.livePositionMode =
+                livePositionMode;
+
         selectedRouteSource =
                 new GeoJsonSource(
                         SELECTED_ROUTE_SOURCE,
@@ -181,8 +186,12 @@ final class CaminoInteractionRenderer {
                 PropertyFactory.lineWidth(
                         2.5f
                 ),
+                /*
+                 * Projection connector stays available internally but is no
+                 * longer part of the normal UI.
+                 */
                 PropertyFactory.lineOpacity(
-                        0.90f
+                        0.0f
                 ),
                 PropertyFactory.lineCap(
                         Property.LINE_CAP_ROUND
@@ -243,37 +252,49 @@ final class CaminoInteractionRenderer {
                 dummySource
         );
 
+        /*
+         * DUMMY_LAYER is the draggable planning/debug marker.
+         *
+         * In live GPS mode dummyPosition contains the real GPS position.
+         * Rendering the dummy marker there produced the large dark circle
+         * underneath the navigation arrow.
+         *
+         * Keep the source and all position logic intact, but do not create
+         * this visual layer in live GPS mode.
+         */
         dummyLayer =
-                new CircleLayer(
-                        DUMMY_LAYER,
-                        DUMMY_SOURCE
-                );
+                null;
 
-        dummyLayer.setProperties(
-                PropertyFactory.circleOpacity(
-                        livePositionMode ? 0.0f : 1.0f
-                ),
-                PropertyFactory.circleRadius(
-                        10.0f
-                ),
-                PropertyFactory.circleColor(
-                        Color.parseColor(
-                                "#F5C98E"
-                        )
-                ),
-                PropertyFactory.circleStrokeColor(
-                        Color.parseColor(
-                                "#3D332C"
-                        )
-                ),
-                PropertyFactory.circleStrokeWidth(
-                        3.0f
-                )
-        );
+        if (!livePositionMode) {
+            dummyLayer =
+                    new CircleLayer(
+                            DUMMY_LAYER,
+                            DUMMY_SOURCE
+                    );
 
-        style.addLayer(
-                dummyLayer
-        );
+            dummyLayer.setProperties(
+                    PropertyFactory.circleRadius(
+                            10.0f
+                    ),
+                    PropertyFactory.circleColor(
+                            Color.parseColor(
+                                    "#F5C98E"
+                            )
+                    ),
+                    PropertyFactory.circleStrokeColor(
+                            Color.parseColor(
+                                    "#3D332C"
+                            )
+                    ),
+                    PropertyFactory.circleStrokeWidth(
+                            3.0f
+                    )
+            );
+
+            style.addLayer(
+                    dummyLayer
+            );
+        }
 
         startSnapSource =
                 new GeoJsonSource(
@@ -285,34 +306,13 @@ final class CaminoInteractionRenderer {
                 startSnapSource
         );
 
-        CircleLayer startSnap =
-                new CircleLayer(
-                        START_SNAP_LAYER,
-                        START_SNAP_SOURCE
-                );
-
-        startSnap.setProperties(
-                PropertyFactory.circleRadius(
-                        5.5f
-                ),
-                PropertyFactory.circleColor(
-                        Color.parseColor(
-                                "#FFF0C8"
-                        )
-                ),
-                PropertyFactory.circleStrokeColor(
-                        Color.parseColor(
-                                "#3D332C"
-                        )
-                ),
-                PropertyFactory.circleStrokeWidth(
-                        2.0f
-                )
-        );
-
-        style.addLayer(
-                startSnap
-        );
+        /*
+         * START_SNAP_SOURCE still receives the nearest projected Camino
+         * position because routing/measurement may use that computation.
+         *
+         * The old START_SNAP_LAYER was only the visible debug circle at that
+         * projected point and is intentionally no longer rendered.
+         */
 
         selectedSource =
                 new GeoJsonSource(
@@ -451,6 +451,7 @@ final class CaminoInteractionRenderer {
         dummyLayer.setProperties(
                 PropertyFactory.circleOpacity(
                         visible
+                                && !livePositionMode
                                 ? 1.0f
                                 : 0.0f
                 )

@@ -58,7 +58,9 @@ final class CaminoHeightProfileController {
      * Camino hundreds or thousands of kilometres away.
      */
     private static final double LOCKED_POSITION_MAX_OFFSET_M =
-            200.0;
+            CaminoConfig.get().doubleValue(
+                    "navigation.offRouteThresholdMeters"
+            );
 
     private final Activity activity;
     private final MapView mapView;
@@ -245,12 +247,27 @@ final class CaminoHeightProfileController {
         view.showProfile();
     }
 
+    /*
+     * Last trustworthy projection on the locked MeasurementPath.
+     *
+     * When real GPS leaves the configured 20 m route corridor, the visible
+     * profile marker stays here until a valid on-route projection exists again.
+     */
+    private CaminoHeightProfileView.Sample
+            lastLockedPositionSample;
+
+
     void setLockedSelectionPosition(
             LatLng position,
             boolean locked
     ) {
         boolean wasLocked =
                 lockedSelectionActive;
+
+        if (!locked) {
+            lastLockedPositionSample =
+                    null;
+        }
 
         lockedSelectionPosition =
                 locked
@@ -557,12 +574,30 @@ final class CaminoHeightProfileController {
                     )
             );
 
-            view.setLockedPositionSample(
+            CaminoHeightProfileView.Sample
+                    currentLockedPositionSample =
                     lockedSelectionActive
                             ? buildLockedPositionSample(
-                            selectedMeasurementPath,
-                            lockedSelectionPosition
-                    )
+                                    selectedMeasurementPath,
+                                    lockedSelectionPosition
+                            )
+                            : null;
+
+            /*
+             * A projection outside the 20 m corridor returns null.
+             * That means "current route position unknown", not "remove the
+             * last known route position".
+             */
+            if (currentLockedPositionSample
+                    != null) {
+
+                lastLockedPositionSample =
+                        currentLockedPositionSample;
+            }
+
+            view.setLockedPositionSample(
+                    lockedSelectionActive
+                            ? lastLockedPositionSample
                             : null
             );
 
@@ -1226,8 +1261,10 @@ final class CaminoHeightProfileController {
 
             /*
              * Important: "nearest" is not the same as "on route".
-             * If the real position is farther than 200 m away, there is no
-             * permanent blue position marker on the selected profile.
+             *
+             * Outside the configured corridor this projection is invalid.
+             * The caller deliberately keeps the last valid locked-position
+             * sample visible until GPS is on route again.
              */
             return null;
         }

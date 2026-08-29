@@ -72,6 +72,9 @@ public final class CaminoTrackingService extends Service
     private static final String CHANNEL = "camino_tracking";
     private static final int NOTIFICATION = 3601;
 
+    private static final String ACTION_REFRESH_LIBRE =
+            "com.marukitano.caminoguard.REFRESH_LIBRE";
+
     private static final float MAX_GPS_ACCURACY_M = 25.0f;
     private static final float TRACK_POINT_SPACING_M = 1.5f;
 
@@ -126,6 +129,29 @@ public final class CaminoTrackingService extends Service
     private volatile WalkingPerformanceModel
             backgroundWalkingPerformanceModel;
 
+    /*
+     * LibreLinkUp lives in the same foreground-service lifecycle as GPS.
+     * It therefore keeps running when MainActivity is paused or the screen
+     * is off. It has its own low-frequency scheduler and does not depend on
+     * GPS fixes arriving.
+     */
+    private volatile LibreLinkUpClient libreLinkUpClient;
+
+    /*
+     * Presentation bridge only. A Pebble failure must never affect GPS,
+     * routing, off-route detection or performance recording.
+     */
+    private volatile CaminoPebbleBridge pebbleBridge;
+
+    /*
+     * Independent four-week raw study.
+     *
+     * It never feeds ETA/prediction. It only writes accepted
+     * MOVING + LOCKED + ON-ROAD samples to its CSV.
+     */
+    private volatile WalkingSpeedStudyRecorder
+            walkingSpeedStudyRecorder;
+
     public static void addListener(Listener listener) {
         if (listener == null) {
             return;
@@ -163,6 +189,42 @@ public final class CaminoTrackingService extends Service
             activity.startService(intent);
         }
     }
+
+    public static void requestLibreRefresh(
+            Activity activity
+    ) {
+        if (activity == null
+                || activity.checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED) {
+
+            return;
+        }
+
+        Intent intent =
+                new Intent(
+                        activity,
+                        CaminoTrackingService.class
+                );
+
+        intent.setAction(
+                ACTION_REFRESH_LIBRE
+        );
+
+        if (Build.VERSION.SDK_INT
+                >= Build.VERSION_CODES.O) {
+
+            activity.startForegroundService(
+                    intent
+            );
+
+        } else {
+            activity.startService(
+                    intent
+            );
+        }
+    }
+
 
     @Override
     public void onCreate() {
@@ -222,6 +284,72 @@ public final class CaminoTrackingService extends Service
         performanceExecutor.execute(
                 this::initializeWalkingPerformanceRecorder
         );
+
+        /*
+         * LibreLinkUp is deliberately started from the foreground service,
+         * not from MainActivity.
+         *
+         * Display off / Home button / another foreground app therefore do
+         * not stop glucose polling.
+         */
+        try {
+            pebbleBridge =
+                    new CaminoPebbleBridge(
+                            getApplicationContext()
+                    );
+
+            LibreLinkUpStore libreStore =
+                    new LibreLinkUpStore(
+                            getApplicationContext()
+                    );
+
+            Integer cachedMgdl =
+                    libreStore.lastGlucoseMgdl();
+
+            long cachedReadingTimeMs =
+                    libreStore.lastReadingTimeMs();
+
+            if (cachedMgdl != null
+                    && cachedReadingTimeMs > 0L) {
+
+                pebbleBridge.sendGlucose(
+                        LibreLinkUpClient
+                                .formatGlucoseDisplay(
+                                        cachedMgdl,
+                                        cachedReadingTimeMs,
+                                        System.currentTimeMillis()
+                                )
+                );
+            }
+
+            libreLinkUpClient =
+                    new LibreLinkUpClient(
+                            getApplicationContext(),
+                            (text, readingTimeMs) -> {
+                                CaminoPebbleBridge bridge =
+                                        pebbleBridge;
+
+                                if (bridge != null) {
+                                    bridge.sendGlucose(
+                                            text
+                                    );
+                                }
+                            }
+                    );
+
+            libreLinkUpClient.start();
+
+        } catch (RuntimeException error) {
+            /*
+             * Pebble/Libre are auxiliary outputs. They must never be able to
+             * take the GPS foreground service down.
+             */
+            Log.w(
+                    "LibreLinkUp",
+                    "Could not initialize LibreLinkUp/Pebble bridge",
+                    error
+            );
+        }
     }
 
     @Override
@@ -230,6 +358,26 @@ public final class CaminoTrackingService extends Service
             int flags,
             int startId
     ) {
+        if (intent != null
+                && ACTION_REFRESH_LIBRE.equals(
+                intent.getAction()
+        )) {
+
+            LibreLinkUpClient client =
+                    libreLinkUpClient;
+
+            if (client != null) {
+                client.requestNow();
+            }
+        }
+
+        /*
+         * Preserve the existing GPS behaviour: Android may recreate this
+         * foreground service after reclaiming the process.
+         *
+         * A recreated Libre client intentionally starts without an auth
+         * token and therefore performs a clean LibreLinkUp login.
+         */
         return START_STICKY;
     }
 
@@ -245,6 +393,36 @@ public final class CaminoTrackingService extends Service
                 locationManager.removeUpdates(this);
             } catch (SecurityException ignored) {
             }
+        }
+
+        WalkingSpeedStudyRecorder studyRecorder =
+                walkingSpeedStudyRecorder;
+
+        if (studyRecorder != null) {
+            studyRecorder.close();
+        }
+
+        walkingSpeedStudyRecorder =
+                null;
+
+        LibreLinkUpClient libreClient =
+                libreLinkUpClient;
+
+        libreLinkUpClient =
+                null;
+
+        if (libreClient != null) {
+            libreClient.close();
+        }
+
+        CaminoPebbleBridge bridge =
+                pebbleBridge;
+
+        pebbleBridge =
+                null;
+
+        if (bridge != null) {
+            bridge.close();
         }
 
         performanceExecutor.shutdownNow();
@@ -300,6 +478,15 @@ public final class CaminoTrackingService extends Service
         recordPerformanceMoving(
                 location
         );
+
+        WalkingSpeedStudyRecorder studyRecorder =
+                walkingSpeedStudyRecorder;
+
+        if (studyRecorder != null) {
+            studyRecorder.noteGpsFix(
+                    location
+            );
+        }
 
         if (lastTrackLocation == null
                 || lastTrackLocation.distanceTo(location)
@@ -389,6 +576,11 @@ public final class CaminoTrackingService extends Service
                 CaminoConfig.initialize(
                         getApplicationContext()
                 );
+
+                walkingSpeedStudyRecorder =
+                        new WalkingSpeedStudyRecorder(
+                                getApplicationContext()
+                        );
 
                 List<CaminoRoute> routes =
                         new CaminoRepository(
@@ -512,6 +704,13 @@ public final class CaminoTrackingService extends Service
     private void recordPerformanceStationary(
             Location location
     ) {
+        WalkingSpeedStudyRecorder studyRecorder =
+                walkingSpeedStudyRecorder;
+
+        if (studyRecorder != null) {
+            studyRecorder.noteNotMoving();
+        }
+
         if (location == null) {
             return;
         }

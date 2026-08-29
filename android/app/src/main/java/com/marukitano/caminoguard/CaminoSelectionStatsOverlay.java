@@ -42,7 +42,9 @@ final class CaminoSelectionStatsOverlay {
      * genuinely near the selected route.
      */
     private static final double MAX_LIVE_ROUTE_OFFSET_M =
-            200.0;
+            CaminoConfig.get().doubleValue(
+                    "navigation.offRouteThresholdMeters"
+            );
 
     private static final long CLOCK_TICK_MS = 30_000L;
 
@@ -660,13 +662,17 @@ final class CaminoSelectionStatsOverlay {
                 progress != null;
 
         if (progress == null) {
-            progress =
-                    new RouteProgress(
-                            0.0,
-                            firstFiniteElevation(
-                                    path.profilePoints
-                            )
-                    );
+            /*
+             * Off route means "current progress unknown", never
+             * "the walker jumped back to the route start".
+             *
+             * Keep the last valid navigation values on screen until a GPS
+             * position is again inside the allowed route corridor.
+             */
+            activePauseStartedWallMs =
+                    -1L;
+
+            return;
         }
 
         double remainingDistanceM =

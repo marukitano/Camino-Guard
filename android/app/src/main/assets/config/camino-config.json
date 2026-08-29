@@ -29,7 +29,8 @@
     "recenterAnimationMs": 1650,
     "cameraBearingTauMs": 2200.0,
     "cameraBearingDeadbandDegrees": 1.25,
-    "displayDelayMs": 1200
+    "displayDelayMs": 1200,
+    "offRouteThresholdMeters": 20.0
   },
   "measurement": {
     "maxSemanticTransferGapMeters": 5000.0,
