@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.view.View;
 
 import java.util.List;
@@ -36,8 +37,8 @@ final class CaminoTimetableView extends View {
     private static final float PANEL_VERTICAL_PADDING_MM =
             4.0f;
 
-    private static final float PANEL_VERTICAL_SHIFT_MM =
-            31.0f;
+    private static final float PANEL_BOTTOM_MARGIN_PX =
+            10.0f;
 
     private static final float NEAR_STOP_GAP_MM =
             5.0f;
@@ -45,20 +46,26 @@ final class CaminoTimetableView extends View {
     private static final float GOAL_GAP_MM =
             15.0f;
 
+    private static final float STOP_GAP_EXTRA_PX =
+            20.0f;
+
     private static final float COLUMN_SHIFT_MM =
-            5.0f;
+            0.0f;
 
     private static final float PANEL_RIGHT_PADDING_DP =
             8.0f;
 
     private static final float LINE_X_DP =
-            55.0f;
+            63.0f;
 
     private static final float NAME_GAP_DP =
-            13.0f;
+            14.0f;
 
     private static final float TIME_GAP_DP =
             14.0f;
+
+    private static final float NAME_ROW_OFFSET_DP =
+            16.0f;
 
     private final Paint panelPaint =
             new Paint(
@@ -90,12 +97,27 @@ final class CaminoTimetableView extends View {
                     Paint.ANTI_ALIAS_FLAG
             );
 
+    private final Paint currentStopFillPaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
+    private final Paint currentStopRingPaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
     private final Paint namePaint =
             new Paint(
                     Paint.ANTI_ALIAS_FLAG
             );
 
     private final Paint timePaint =
+            new Paint(
+                    Paint.ANTI_ALIAS_FLAG
+            );
+
+    private final Paint kilometrePaint =
             new Paint(
                     Paint.ANTI_ALIAS_FLAG
             );
@@ -133,9 +155,9 @@ final class CaminoTimetableView extends View {
 
         panelBorderPaint.setColor(
                 Color.rgb(
-                        245,
-                        201,
-                        142
+                        255,
+                        221,
+                        105
                 )
         );
         panelBorderPaint.setStyle(
@@ -213,6 +235,36 @@ final class CaminoTimetableView extends View {
                 )
         );
 
+        currentStopFillPaint.setColor(
+                Color.rgb(
+                        255,
+                        221,
+                        105
+                )
+        );
+        currentStopFillPaint.setStyle(
+                Paint.Style.FILL
+        );
+
+        currentStopRingPaint.setColor(
+                Color.rgb(
+                        255,
+                        221,
+                        105
+                )
+        );
+        currentStopRingPaint.setStyle(
+                Paint.Style.STROKE
+        );
+        currentStopRingPaint.setStrokeWidth(
+                dp(
+                        2.0f
+                )
+        );
+        currentStopRingPaint.setStrokeCap(
+                Paint.Cap.ROUND
+        );
+
         namePaint.setColor(
                 Color.WHITE
         );
@@ -241,12 +293,57 @@ final class CaminoTimetableView extends View {
         timePaint.setTextAlign(
                 Paint.Align.RIGHT
         );
+        timePaint.setTypeface(
+                Typeface.create(
+                        Typeface.MONOSPACE,
+                        Typeface.BOLD
+                )
+        );
+        timePaint.setFakeBoldText(
+                false
+        );
+        timePaint.setTextScaleX(
+                1.0f
+        );
+        timePaint.setTypeface(
+                Typeface.create(
+                        Typeface.MONOSPACE,
+                        Typeface.BOLD
+                )
+        );
+
+        kilometrePaint.setColor(
+                Color.argb(
+                        240,
+                        236,
+                        240,
+                        244
+                )
+        );
+        kilometrePaint.setTextSize(
+                sp(
+                        12.5f
+                )
+        );
+        kilometrePaint.setTextAlign(
+                Paint.Align.LEFT
+        );
+        kilometrePaint.setTypeface(
+                Typeface.create(
+                        Typeface.DEFAULT,
+                        Typeface.BOLD
+                )
+        );
+
+        namePaint.setFakeBoldText(
+                false
+        );
 
         distancePaint.setColor(
                 Color.rgb(
-                        245,
-                        201,
-                        142
+                        255,
+                        221,
+                        105
                 )
         );
         distancePaint.setTextSize(
@@ -328,10 +425,10 @@ final class CaminoTimetableView extends View {
                         COLUMN_SHIFT_MM
                 );
 
-        float nameX =
+        float contentX =
                 lineX
                         + dp(
-                        NAME_GAP_DP
+                        TIME_GAP_DP
                 );
 
         float required =
@@ -341,71 +438,58 @@ final class CaminoTimetableView extends View {
                 state.showDistanceToNext
                         && state.hasNextStop()
                         && Double.isFinite(
-                        state.distanceToNextM
+                        state.currentChainageM
                 );
 
-        int count =
-                state.visibleStops.size();
-
-        for (int index = 0;
-                index < count;
-                index++) {
-
-            CaminoTimetableStop stop =
-                    state.visibleStops.get(
-                            index
-                    );
+        for (CaminoTimetableStop stop
+                : state.visibleStops) {
 
             if (stop == null) {
                 continue;
             }
 
-            boolean emphasised =
-                    (!showDistanceRow
-                            && index == 0)
-                            || index == count - 1;
-
-            boolean oldFakeBold =
-                    namePaint.isFakeBoldText();
-
-            namePaint.setFakeBoldText(
-                    emphasised
-            );
-
             String name =
-                    stop.name == null
-                            ? ""
-                            : stop.name;
+                    displayStopLabel(
+                            stop
+                    );
+
+            String kilometre =
+                    kilometreMark(
+                            stop
+                    );
 
             required =
                     Math.max(
                             required,
-                            nameX
+                            contentX
                                     + namePaint.measureText(
-                                    normalizeName(
-                                            name
-                                    )
+                                    name
                             )
                                     + dp(
                                     PANEL_RIGHT_PADDING_DP
                             )
                     );
 
-            namePaint.setFakeBoldText(
-                    oldFakeBold
-            );
-        }
-
-        if (showDistanceRow) {
-            String distance =
-                    distanceRowText();
-
             required =
                     Math.max(
                             required,
-                            nameX
+                            contentX
+                                    + kilometrePaint.measureText(
+                                    kilometre
+                            )
+                                    + dp(
+                                    PANEL_RIGHT_PADDING_DP
+                            )
+                    );
+        }
+
+        if (showDistanceRow) {
+            required =
+                    Math.max(
+                            required,
+                            contentX
                                     + distancePaint.measureText(
-                                    distance
+                                    distanceRowText()
                             )
                                     + dp(
                                     PANEL_RIGHT_PADDING_DP
@@ -415,7 +499,6 @@ final class CaminoTimetableView extends View {
 
         return required;
     }
-
 
     @Override
     protected void onDraw(
@@ -440,17 +523,16 @@ final class CaminoTimetableView extends View {
                 state.showDistanceToNext
                         && state.hasNextStop()
                         && Double.isFinite(
-                        state.distanceToNextM
+                        state.currentChainageM
                 );
 
         int stopCount =
                 state.visibleStops.size();
 
         float centerY =
-                getHeight()
-                        / 2.0f
-                        + mm(
-                        PANEL_VERTICAL_SHIFT_MM
+                anchoredCenterY(
+                        stopCount,
+                        showDistanceRow
                 );
 
         float[] yPositions =
@@ -483,6 +565,9 @@ final class CaminoTimetableView extends View {
                 bottomContentY
                         + mm(
                         PANEL_VERTICAL_PADDING_MM
+                )
+                        + dp(
+                        NAME_ROW_OFFSET_DP
                 );
 
         RectF panel =
@@ -537,14 +622,13 @@ final class CaminoTimetableView extends View {
                 state.showDistanceToNext
                         && state.hasNextStop()
                         && Double.isFinite(
-                        state.distanceToNextM
+                        state.currentChainageM
                 );
 
         float centerY =
-                getHeight()
-                        / 2.0f
-                        + mm(
-                        PANEL_VERTICAL_SHIFT_MM
+                anchoredCenterY(
+                        count,
+                        showDistanceRow
                 );
 
         float lineX =
@@ -589,7 +673,9 @@ final class CaminoTimetableView extends View {
                     yPositions[index],
                     panelWidth,
                     emphasised,
-                    index == count - 1
+                    index == count - 1,
+                    !showDistanceRow
+                            && index == 0
             );
         }
 
@@ -688,36 +774,70 @@ final class CaminoTimetableView extends View {
     }
 
 
+    private float anchoredCenterY(
+            int stopCount,
+            boolean showDistanceRow
+    ) {
+        float[] yPositions =
+                buildStopYPositions(
+                        stopCount,
+                        showDistanceRow,
+                        0.0f
+                );
+
+        float bottomContentY =
+                showDistanceRow
+                        ? distanceAnchorY(
+                                stopCount,
+                                0.0f
+                        )
+                        : yPositions[0];
+
+        return getHeight()
+                - PANEL_BOTTOM_MARGIN_PX
+                - mm(
+                        PANEL_VERTICAL_PADDING_MM
+                )
+                - dp(
+                        NAME_ROW_OFFSET_DP
+                )
+                - bottomContentY;
+    }
+
     private float[] buildStopYPositions(
             int count,
             boolean showDistanceRow,
             float centerY
     ) {
+        float goalGap =
+                mm(
+                        GOAL_GAP_MM
+                )
+                        + STOP_GAP_EXTRA_PX;
+
+        float nearGap =
+                mm(
+                        NEAR_STOP_GAP_MM
+                )
+                        + STOP_GAP_EXTRA_PX;
+
         float goalY =
                 centerY
-                        - mm(
-                        GOAL_GAP_MM
-                                / 2.0f
-                );
+                        - goalGap
+                        / 2.0f;
 
         float secondVillageY =
                 centerY
-                        + mm(
-                        GOAL_GAP_MM
-                                / 2.0f
-                );
+                        + goalGap
+                        / 2.0f;
 
         float firstVillageY =
                 secondVillageY
-                        + mm(
-                        NEAR_STOP_GAP_MM
-                );
+                        + nearGap;
 
         float bottomEntryY =
                 firstVillageY
-                        + mm(
-                        NEAR_STOP_GAP_MM
-                );
+                        + nearGap;
 
         if (showDistanceRow) {
             switch (count) {
@@ -770,39 +890,36 @@ final class CaminoTimetableView extends View {
         }
     }
 
-
     private float distanceAnchorY(
             int stopCount,
             float centerY
     ) {
+        float goalGap =
+                mm(
+                        GOAL_GAP_MM
+                )
+                        + STOP_GAP_EXTRA_PX;
+
+        float nearGap =
+                mm(
+                        NEAR_STOP_GAP_MM
+                )
+                        + STOP_GAP_EXTRA_PX;
+
         float secondVillageY =
                 centerY
-                        + mm(
-                        GOAL_GAP_MM
-                                / 2.0f
-                );
+                        + goalGap
+                        / 2.0f;
 
-        if (stopCount <= 1) {
+        if (stopCount <= 2) {
             return secondVillageY
-                    + mm(
-                    NEAR_STOP_GAP_MM
-            );
-        }
-
-        if (stopCount == 2) {
-            return secondVillageY
-                    + mm(
-                    NEAR_STOP_GAP_MM
-            );
+                    + nearGap;
         }
 
         return secondVillageY
-                + mm(
-                NEAR_STOP_GAP_MM
-                        * 2.0f
-        );
+                + nearGap
+                * 2.0f;
     }
-
 
     private void drawStop(
             Canvas canvas,
@@ -811,7 +928,8 @@ final class CaminoTimetableView extends View {
             float y,
             float panelWidth,
             boolean emphasised,
-            boolean isGoal
+            boolean isGoal,
+            boolean bottomRow
     ) {
         float radius =
                 dp(
@@ -820,52 +938,75 @@ final class CaminoTimetableView extends View {
                                 : 4.2f
                 );
 
-        if (emphasised) {
-            Paint.Style originalStyle =
-                    stopFillPaint.getStyle();
-
-            int originalColor =
-                    stopFillPaint.getColor();
-
-            stopFillPaint.setStyle(
-                    Paint.Style.FILL
-            );
-            stopFillPaint.setColor(
-                    Color.argb(
-                            245,
-                            236,
-                            240,
-                            244
-                    )
+        if (bottomRow) {
+            /*
+             * Aktueller/gerade passierter Ort:
+             * gelber Positionspunkt.
+             */
+            canvas.drawCircle(
+                    lineX,
+                    y,
+                    radius,
+                    currentStopFillPaint
             );
 
             canvas.drawCircle(
                     lineX,
                     y,
                     radius,
-                    stopFillPaint
+                    currentStopRingPaint
             );
 
-            stopFillPaint.setColor(
-                    originalColor
-            );
-            stopFillPaint.setStyle(
-                    originalStyle
+        } else {
+            /*
+             * Ziel bleibt wie bisher weiß gefüllt.
+             */
+            if (emphasised) {
+                Paint.Style originalStyle =
+                        stopFillPaint.getStyle();
+
+                int originalColor =
+                        stopFillPaint.getColor();
+
+                stopFillPaint.setStyle(
+                        Paint.Style.FILL
+                );
+
+                stopFillPaint.setColor(
+                        Color.argb(
+                                245,
+                                236,
+                                240,
+                                244
+                        )
+                );
+
+                canvas.drawCircle(
+                        lineX,
+                        y,
+                        radius,
+                        stopFillPaint
+                );
+
+                stopFillPaint.setColor(
+                        originalColor
+                );
+
+                stopFillPaint.setStyle(
+                        originalStyle
+                );
+            }
+
+            /*
+             * Normale Zwischenstationen bleiben hohl.
+             */
+            canvas.drawCircle(
+                    lineX,
+                    y,
+                    radius,
+                    stopRingPaint
             );
         }
-
-        /*
-         * Intermediate stops are genuinely hollow. Their centre shows the
-         * translucent timetable/map background instead of an opaque black disc.
-         * Lines are shortened to the ring edge in drawStopSegments(), so no
-         * route line shines through the transparent centre.
-         */
-        canvas.drawCircle(
-                lineX,
-                y,
-                radius,
-                stopRingPaint
-        );
 
         String time =
                 formatClockMinutes(
@@ -873,12 +1014,21 @@ final class CaminoTimetableView extends View {
                 );
 
         String name =
-                stop.name == null
-                        ? ""
-                        : stop.name;
+                displayStopLabel(
+                        stop
+                );
+
+        String kilometre =
+                bottomRow
+                        ? currentChainageMark()
+                        : kilometreMark(
+                                stop
+                        );
+
+        prepareTimePaint();
 
         Paint.FontMetrics metrics =
-                namePaint.getFontMetrics();
+                timePaint.getFontMetrics();
 
         float baseline =
                 y - (
@@ -887,14 +1037,15 @@ final class CaminoTimetableView extends View {
                 ) / 2.0f;
 
         float timeX =
-                lineX - dp(
+                lineX
+                        - dp(
                         TIME_GAP_DP
                 );
 
-        float nameX =
+        float contentX =
                 lineX
                         + dp(
-                        NAME_GAP_DP
+                        TIME_GAP_DP
                 );
 
         float maxNameWidth =
@@ -906,15 +1057,32 @@ final class CaminoTimetableView extends View {
                                 - dp(
                                 PANEL_RIGHT_PADDING_DP
                         )
-                                - nameX
+                                - contentX
                 );
 
-        if (emphasised) {
-            namePaint.setFakeBoldText(
-                    true
+        int originalNameColor =
+                namePaint.getColor();
+
+        int originalTimeColor =
+                timePaint.getColor();
+
+        int originalKilometreColor =
+                kilometrePaint.getColor();
+
+        if (bottomRow) {
+            int yellow =
+                    panelBorderPaint.getColor();
+
+            namePaint.setColor(
+                    yellow
             );
-            timePaint.setFakeBoldText(
-                    true
+
+            timePaint.setColor(
+                    yellow
+            );
+
+            kilometrePaint.setColor(
+                    yellow
             );
         }
 
@@ -925,24 +1093,38 @@ final class CaminoTimetableView extends View {
                 timePaint
         );
 
+        if (!kilometre.isEmpty()) {
+            canvas.drawText(
+                    kilometre,
+                    contentX,
+                    baseline,
+                    kilometrePaint
+            );
+        }
+
         drawFullName(
                 canvas,
                 name,
-                nameX,
-                y,
+                contentX,
+                y
+                        + dp(
+                        NAME_ROW_OFFSET_DP
+                ),
                 maxNameWidth
         );
 
-        if (emphasised) {
-            namePaint.setFakeBoldText(
-                    false
-            );
-            timePaint.setFakeBoldText(
-                    false
-            );
-        }
-    }
+        namePaint.setColor(
+                originalNameColor
+        );
 
+        timePaint.setColor(
+                originalTimeColor
+        );
+
+        kilometrePaint.setColor(
+                originalKilometreColor
+        );
+    }
 
     private void drawDistanceToNext(
             Canvas canvas,
@@ -951,9 +1133,13 @@ final class CaminoTimetableView extends View {
             float currentY,
             float panelWidth
     ) {
+        /*
+         * Nach Verlassen des Ortes wird dessen großer Stationspunkt
+         * durch einen etwas kleineren gelben Positionspunkt ersetzt.
+         */
         float markerRadius =
                 dp(
-                        3.2f
+                        4.0f
                 );
 
         boolean firstStopIsGoal =
@@ -967,10 +1153,6 @@ final class CaminoTimetableView extends View {
                                 : 4.2f
                 );
 
-        /*
-         * Current marker is below the first upcoming stop. Leave both hollow
-         * centres untouched and connect only circumference-to-circumference.
-         */
         float fromY =
                 currentY
                         - markerRadius;
@@ -980,9 +1162,29 @@ final class CaminoTimetableView extends View {
                         + firstStopRadius;
 
         if (fromY > toY) {
+            float middleY =
+                    (
+                            fromY
+                                    + toY
+                    ) / 2.0f;
+
+            /*
+             * Hälfte direkt an der aktuellen Position gelb.
+             */
             canvas.drawLine(
                     lineX,
                     fromY,
+                    lineX,
+                    middleY,
+                    currentStopRingPaint
+            );
+
+            /*
+             * Hälfte bis zur nächsten Station weiß.
+             */
+            canvas.drawLine(
+                    lineX,
+                    middleY,
                     lineX,
                     toY,
                     solidLinePaint
@@ -993,7 +1195,14 @@ final class CaminoTimetableView extends View {
                 lineX,
                 currentY,
                 markerRadius,
-                stopRingPaint
+                currentStopFillPaint
+        );
+
+        canvas.drawCircle(
+                lineX,
+                currentY,
+                markerRadius,
+                currentStopRingPaint
         );
 
         String text =
@@ -1314,14 +1523,57 @@ final class CaminoTimetableView extends View {
     }
 
 
-    private String distanceRowText() {
-        return "noch "
-                + formatDistance(
-                state.distanceToNextM
-        )
-                + " bis";
+    private String displayStopLabel(
+            CaminoTimetableStop stop
+    ) {
+        if (stop == null) {
+            return "";
+        }
+
+        return normalizeName(
+                stop.name
+        );
     }
 
+
+    private String currentChainageMark() {
+        if (!Double.isFinite(
+                state.currentChainageM
+        ) || state.currentChainageM < 0.0) {
+
+            return "—";
+        }
+
+        return String.format(
+                Locale.GERMANY,
+                "%.1f km",
+                state.currentChainageM / 1000.0
+        );
+    }
+
+
+    private String kilometreMark(
+            CaminoTimetableStop stop
+    ) {
+        if (stop == null
+                || !Double.isFinite(
+                stop.chainageM
+        )
+                || stop.chainageM < 0.0) {
+
+            return "";
+        }
+
+        return String.format(
+                Locale.GERMANY,
+                "%.1f km",
+                stop.chainageM / 1000.0
+        );
+    }
+
+    private String distanceRowText() {
+        return currentChainageMark();
+    }
 
     private String fitDistanceText(
             String text,
@@ -1335,27 +1587,32 @@ final class CaminoTimetableView extends View {
     }
 
 
-    private String formatDistance(
-            double distanceM
-    ) {
-        if (!Double.isFinite(
-                distanceM
-        ) || distanceM < 0.0) {
-            return "—";
-        }
 
-        if (distanceM >= 1000.0) {
-            return String.format(
-                    Locale.GERMANY,
-                    "%.1f km",
-                    distanceM / 1000.0
-            );
-        }
 
-        return String.format(
-                Locale.GERMANY,
-                "%.0f m",
-                distanceM
+    private void prepareTimePaint() {
+        timePaint.setTextSize(
+                sp(
+                        12.5f
+                )
+        );
+
+        timePaint.setTypeface(
+                Typeface.create(
+                        Typeface.MONOSPACE,
+                        Typeface.BOLD
+                )
+        );
+
+        timePaint.setFakeBoldText(
+                false
+        );
+
+        timePaint.setTextScaleX(
+                1.0f
+        );
+
+        timePaint.setTextSkewX(
+                0.0f
         );
     }
 

@@ -11,8 +11,8 @@ import java.util.List;
  * - convert elapsed route time into wall-clock arrival times,
  * - keep route stops in canonical walking order,
  * - keep a passed stop visible for the first kilometre,
- * - afterwards replace the bottom village row by one compact
- *   "noch X km" distance row,
+ * - afterwards replace the bottom village row by the current
+ *   Camino kilometre marker,
  * - show only a compact preview window:
  *     current/passed bottom row,
  *     the next two villages,
@@ -162,16 +162,6 @@ final class CaminoTimetableEngine {
                 )
                         : null;
 
-        double distanceToNextM =
-                nextIndex >= 0
-                        ? Math.max(
-                        0.0,
-                        stopPlans.get(
-                                nextIndex
-                        ).chainageM
-                                - progressM
-                )
-                        : Double.NaN;
 
         boolean hasHiddenStopsBeforeGoal =
                 hasHiddenStopsBeforeGoal(
@@ -183,7 +173,7 @@ final class CaminoTimetableEngine {
         return new CaminoTimetableState(
                 visibleStops,
                 nextStop,
-                distanceToNextM,
+                progressM,
                 showDistanceToNext,
                 hasHiddenStopsBeforeGoal
         );

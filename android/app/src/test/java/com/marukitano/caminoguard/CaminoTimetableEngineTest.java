@@ -76,8 +76,8 @@ public final class CaminoTimetableEngineTest {
         );
 
         assertEquals(
-                7000.0,
-                state.distanceToNextM,
+                1000.0,
+                state.currentChainageM,
                 0.001
         );
 
@@ -139,8 +139,8 @@ public final class CaminoTimetableEngineTest {
         );
 
         assertEquals(
-                6000.0,
-                state.distanceToNextM,
+                9000.0,
+                state.currentChainageM,
                 0.001
         );
     }
@@ -236,10 +236,10 @@ public final class CaminoTimetableEngineTest {
                 state.showDistanceToNext
         );
 
-        assertTrue(
-                Double.isNaN(
-                        state.distanceToNextM
-                )
+        assertEquals(
+                15000.0,
+                state.currentChainageM,
+                0.001
         );
     }
 

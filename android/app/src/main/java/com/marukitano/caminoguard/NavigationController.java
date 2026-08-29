@@ -140,6 +140,13 @@ final class NavigationController {
 
     void cycleMode() {
 
+        if (liveMode
+                && externalController != null) {
+
+            externalController
+                    .resetForegroundRotation();
+        }
+
         /*
          * A manually moved follow map is PARKED, not in another navigation
          * mode. Tapping the reticle resumes exactly the previous mode.

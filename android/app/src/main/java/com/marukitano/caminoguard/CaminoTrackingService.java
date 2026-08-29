@@ -10,17 +10,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.PowerManager;
 import android.os.SystemClock;
 import android.util.Log;
 
@@ -34,24 +29,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Camino Guard tracking service.
+ * Camino Guard background GPS tracking service.
  *
- * Direction logic:
- *
- * MOVING:
- *   - GPS track/course are authoritative for walking direction.
- *   - relative handset yaw from TYPE_GAME_ROTATION_VECTOR is added continuously
- *     to that walking course for the visible direction arrow.
- *
- * STATIONARY:
- *   - GPS position/course are frozen.
- *   - the exact same relative handset-yaw logic continues.
- *
- * The map's COURSE_UP rotation remains GPS-course-only.
- * No magnetometer is used.
+ * Background tracking is deliberately GPS-only. High-frequency handset
+ * orientation sensors belong to the foreground Activity and are disabled
+ * whenever Camino Guard is paused or the screen is off.
  */
 public final class CaminoTrackingService extends Service
-        implements LocationListener, SensorEventListener {
+        implements LocationListener {
 
     public interface Listener {
         void onTrackingStateChanged(Snapshot snapshot);
@@ -109,10 +94,6 @@ public final class CaminoTrackingService extends Service
             );
 
     private LocationManager locationManager;
-    private SensorManager sensorManager;
-    private Sensor gameRotationVector;
-    private Sensor linearAcceleration;
-
     private final List<Location> track = new ArrayList<>();
 
     /*
@@ -127,22 +108,11 @@ public final class CaminoTrackingService extends Service
     private Location acceptedLocation;
     private Location lastTrackLocation;
 
-    private final MotionStateDetector motionStateDetector =
-            new MotionStateDetector();
-
     private final CaminoDirectionTracker directionTracker =
             new CaminoDirectionTracker(
                     TRACK_POINT_SPACING_M,
                     COURSE_BASELINE_M
             );
-
-    private long lastSensorPublishMs;
-
-    /*
-     * The foreground service owns recording. Activity listeners are allowed to
-     * disappear on screen-off/onPause without stopping statistics.
-     */
-    private PowerManager.WakeLock trackingWakeLock;
 
     private final ExecutorService performanceExecutor =
             Executors.newSingleThreadExecutor();
@@ -224,45 +194,11 @@ public final class CaminoTrackingService extends Service
             );
         }
 
-        acquireTrackingWakeLock();
-
         locationManager =
                 (LocationManager)
                         getSystemService(
                                 Context.LOCATION_SERVICE
                         );
-
-        sensorManager =
-                (SensorManager)
-                        getSystemService(
-                                Context.SENSOR_SERVICE
-                        );
-
-        gameRotationVector =
-                sensorManager.getDefaultSensor(
-                        Sensor.TYPE_GAME_ROTATION_VECTOR
-                );
-
-        linearAcceleration =
-                sensorManager.getDefaultSensor(
-                        Sensor.TYPE_LINEAR_ACCELERATION
-                );
-
-        if (gameRotationVector != null) {
-            sensorManager.registerListener(
-                    this,
-                    gameRotationVector,
-                    SensorManager.SENSOR_DELAY_GAME
-            );
-        }
-
-        if (linearAcceleration != null) {
-            sensorManager.registerListener(
-                    this,
-                    linearAcceleration,
-                    SensorManager.SENSOR_DELAY_GAME
-            );
-        }
 
         if (checkSelfPermission(
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -304,10 +240,6 @@ public final class CaminoTrackingService extends Service
 
     @Override
     public void onDestroy() {
-        if (sensorManager != null) {
-            sensorManager.unregisterListener(this);
-        }
-
         if (locationManager != null) {
             try {
                 locationManager.removeUpdates(this);
@@ -316,8 +248,6 @@ public final class CaminoTrackingService extends Service
         }
 
         performanceExecutor.shutdownNow();
-
-        releaseTrackingWakeLock();
 
         super.onDestroy();
     }
@@ -328,10 +258,6 @@ public final class CaminoTrackingService extends Service
             return;
         }
 
-        /*
-         * The first trustworthy fix gives us an initial map position.
-         * After that, GPS is gated completely by the accelerometer state.
-         */
         if (acceptedLocation == null) {
             acceptedLocation =
                     new Location(location);
@@ -339,33 +265,31 @@ public final class CaminoTrackingService extends Service
             track.add(
                     new Location(location)
             );
-            publishedTrackDirty = true;
+
+            publishedTrackDirty =
+                    true;
 
             lastTrackLocation =
                     new Location(location);
+
+            /*
+             * Feed the very first point into the GPS-course history so the
+             * second/third useful point can establish the walking tangent.
+             */
+            directionTracker.acceptMovingLocation(
+                    location
+            );
 
             publish();
             return;
         }
 
-        /*
-         * STATIONARY / UNKNOWN:
-         * ignore this GPS packet completely.
-         *
-         * MOVING:
-         * process the fix normally.
-         *
-         * GPS speed/distance no longer participates in motion-state
-         * classification.
-         */
-        if (motionStateDetector.state() != MotionStateDetector.State.MOVING) {
-            return;
-        }
+        acceptMovingLocation(
+                location
+        );
 
-        acceptMovingLocation(location);
         publish();
     }
-
 
     private void acceptMovingLocation(
             Location location
@@ -394,91 +318,6 @@ public final class CaminoTrackingService extends Service
         );
     }
 
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        if (event.sensor.getType()
-                == Sensor.TYPE_LINEAR_ACCELERATION) {
-            handleLinearAcceleration(event);
-            return;
-        }
-
-        if (event.sensor.getType()
-                != Sensor.TYPE_GAME_ROTATION_VECTOR) {
-            return;
-        }
-
-        directionTracker.updateRawCameraYaw(
-                event
-        );
-
-        /*
-         * Handset rotation augments the GPS walking course in BOTH movement
-         * states. This is relative gyro orientation only; it does not introduce
-         * magnetic north and it never rotates the COURSE_UP map itself.
-         */
-        directionTracker.updateGyroAugmentedHeading();
-
-        long now =
-                SystemClock.elapsedRealtime();
-
-        if (now - lastSensorPublishMs >= 50L) {
-            lastSensorPublishMs =
-                    now;
-
-            publish();
-        }
-    }
-
-    private void handleLinearAcceleration(
-            SensorEvent event
-    ) {
-        float x = event.values[0];
-        float y = event.values[1];
-        float z = event.values[2];
-
-        float magnitudeSq = x * x + y * y + z * z;
-
-        MotionStateDetector.State previous =
-                motionStateDetector.state();
-
-        MotionStateDetector.State current =
-                motionStateDetector.updateMagnitudeSquared(
-                        magnitudeSq,
-                        SystemClock.elapsedRealtime()
-                );
-
-        if (current == previous) {
-            return;
-        }
-
-        if (current == MotionStateDetector.State.STATIONARY) {
-            enterStationary();
-            return;
-        }
-
-        if (current == MotionStateDetector.State.MOVING) {
-            enterMoving();
-        }
-    }
-
-    private void enterMoving() {
-        directionTracker.enterMoving(
-                acceptedLocation
-        );
-
-        publish();
-    }
-
-    private void enterStationary() {
-        directionTracker.enterStationary();
-
-        recordPerformanceStationary(
-                acceptedLocation
-        );
-
-        publish();
-    }
-
     private boolean isGoodGpsFix(
             Location location
     ) {
@@ -493,9 +332,8 @@ public final class CaminoTrackingService extends Service
                         acceptedLocation,
                         snapshotTrack(),
                         directionTracker.courseDeg(),
-                        directionTracker.phoneHeadingDeg(),
-                        motionStateDetector.state()
-                                == MotionStateDetector.State.STATIONARY
+                        null,
+                        false
                 );
 
         latestSnapshot = snapshot;
@@ -531,38 +369,6 @@ public final class CaminoTrackingService extends Service
         publishedTrackDirty = false;
 
         return publishedTrack;
-    }
-
-    private void acquireTrackingWakeLock() {
-        PowerManager powerManager =
-                (PowerManager)
-                        getSystemService(
-                                Context.POWER_SERVICE
-                        );
-
-        if (powerManager == null) {
-            return;
-        }
-
-        trackingWakeLock =
-                powerManager.newWakeLock(
-                        PowerManager.PARTIAL_WAKE_LOCK,
-                        "CaminoGuard:background-tracking"
-                );
-
-        trackingWakeLock.setReferenceCounted(
-                false
-        );
-
-        trackingWakeLock.acquire();
-    }
-
-    private void releaseTrackingWakeLock() {
-        if (trackingWakeLock != null
-                && trackingWakeLock.isHeld()) {
-
-            trackingWakeLock.release();
-        }
     }
 
     private void initializeWalkingPerformanceRecorder() {
@@ -814,13 +620,6 @@ public final class CaminoTrackingService extends Service
         manager.createNotificationChannel(
                 channel
         );
-    }
-
-    @Override
-    public void onAccuracyChanged(
-            Sensor sensor,
-            int accuracy
-    ) {
     }
 
     @Override

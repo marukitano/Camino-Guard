@@ -372,9 +372,10 @@ final class LiveNavigationCameraController {
                 FOLLOW_ZOOM;
 
         /*
-         * Rotate the whole map ONLY from the GPS walking course.
-         * Phone/gyro orientation may still animate the arrow while stationary,
-         * but it can never bounce the map.
+         * Map rotation is deliberately GPS-course-only.
+         *
+         * Relative handset rotation affects the direction arrow, never the
+         * map camera.
          */
         Double desiredCourse =
                 courseDeg != null

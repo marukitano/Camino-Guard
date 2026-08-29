@@ -28,6 +28,9 @@ final class CaminoTimetableOverlay {
     private static final long ANIMATION_MS =
             180L;
 
+    private static final float PANEL_LEFT_DP =
+            58.0f;
+
     private final Activity activity;
     private final MapView mapView;
     private final CaminoTimetablePlanBuilder planBuilder;
@@ -328,7 +331,9 @@ final class CaminoTimetableOverlay {
 
                     timetableView.animate()
                             .translationX(
-                                    0.0f
+                                    dp(
+                                            PANEL_LEFT_DP
+                                    )
                             )
                             .setDuration(
                                     ANIMATION_MS

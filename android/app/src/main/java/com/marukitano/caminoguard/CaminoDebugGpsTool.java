@@ -66,6 +66,9 @@ final class CaminoDebugGpsTool {
     private static final int PANEL_HEIGHT_DP =
             46;
 
+    private static final int SPEED_PANEL_EXTRA_BOTTOM_DP =
+            72;
+
     private static final long AUTO_TICK_MS =
             50L;
 
@@ -429,6 +432,7 @@ final class CaminoDebugGpsTool {
         panelParams.bottomMargin =
                 dp(
                         CONTROL_BOTTOM_DP
+                                + SPEED_PANEL_EXTRA_BOTTOM_DP
                 );
 
         parent.addView(

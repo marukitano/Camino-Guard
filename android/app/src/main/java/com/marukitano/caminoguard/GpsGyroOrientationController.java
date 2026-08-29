@@ -3,12 +3,18 @@ package com.marukitano.caminoguard;
 import android.Manifest;
 import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.SystemClock;
 
 import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
@@ -27,13 +33,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class GpsGyroOrientationController
-        implements CaminoTrackingService.Listener {
+        implements CaminoTrackingService.Listener,
+        SensorEventListener {
 
     public static final int LOCATION_PERMISSION_REQUEST =
             4207;
 
     private static final int MAX_PLAYBACK_POINTS =
             3;
+
+    private static final float FOREGROUND_DIRECTION_WARMUP_M =
+            20.0f;
 
     private static final String POS_SRC="camino-user-location";
     private static final String DOT="camino-user-location-dot";
@@ -43,6 +53,24 @@ public final class GpsGyroOrientationController
     private static final String TRACK_SRC="camino-debug-gps-track";
     private static final String TRACK="camino-debug-gps-track-line";
     private final Activity activity;
+
+    private final SensorManager sensorManager;
+    private final Sensor gameRotationVector;
+
+    private boolean gyroRegistered;
+    private Float lastRawGyroYawDeg;
+    private float gyroOffsetDeg;
+    private Float gyroCourseAnchorDeg;
+    private long lastGyroRenderMs = Long.MIN_VALUE;
+
+    /*
+     * A newly created foreground controller must earn a fresh GPS direction.
+     * Do NOT reset these fields from onPause/onResume: screen-off only resets
+     * the gyro, not the already-established GPS walking direction.
+     */
+    private android.location.Location foregroundDirectionStartLocation;
+    private boolean foregroundDirectionReady;
+
     private MapLibreMap map;
     private GeoJsonSource posSource;
     private GeoJsonSource trackSource;
@@ -72,7 +100,6 @@ public final class GpsGyroOrientationController
 
     private ValueAnimator playbackAnimator;
 
-    private boolean previousStationary;
     private Double departureHeadingDeg;
     private boolean started;
     private boolean asked;
@@ -82,6 +109,19 @@ public final class GpsGyroOrientationController
     ) {
         this.activity =
                 activity;
+
+        sensorManager =
+                (SensorManager)
+                        activity.getSystemService(
+                                Context.SENSOR_SERVICE
+                        );
+
+        gameRotationVector =
+                sensorManager == null
+                        ? null
+                        : sensorManager.getDefaultSensor(
+                                Sensor.TYPE_GAME_ROTATION_VECTOR
+                        );
 
         liveNavigationCameraController =
                 new LiveNavigationCameraController(
@@ -113,7 +153,13 @@ public final class GpsGyroOrientationController
         line.setProperties(
                 PropertyFactory.lineColor(Color.parseColor("#D04432")),
                 PropertyFactory.lineWidth(4f),
-                PropertyFactory.lineOpacity(.88f),
+
+                /*
+                 * Keep the proven GPS/track pipeline intact.
+                 * The former debug track is simply invisible.
+                 */
+                PropertyFactory.lineOpacity(0f),
+
                 PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                 PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND));
         style.addLayer(line);
@@ -160,19 +206,48 @@ public final class GpsGyroOrientationController
                 suspended);
     }
 
-    public void start(){
-        if(started)return; started=true;
-        if(activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED){
-            if(!asked){
-                asked=true;
-                activity.requestPermissions(new String[]{
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION},LOCATION_PERMISSION_REQUEST);
-            }
+    public void start() {
+        if (started) {
             return;
         }
-        CaminoTrackingService.addListener(this);
-        CaminoTrackingService.start(activity);
+
+        started =
+                true;
+
+        /*
+         * A new foreground session always starts exactly on the current
+         * GPS walking tangent. The first gyro sample becomes zero degrees.
+         */
+        resetForegroundSession();
+        registerForegroundGyro();
+
+        if (activity.checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED) {
+
+            if (!asked) {
+                asked =
+                        true;
+
+                activity.requestPermissions(
+                        new String[]{
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                        },
+                        LOCATION_PERMISSION_REQUEST
+                );
+            }
+
+            return;
+        }
+
+        CaminoTrackingService.addListener(
+                this
+        );
+
+        CaminoTrackingService.start(
+                activity
+        );
     }
 
     public void stop() {
@@ -183,20 +258,34 @@ public final class GpsGyroOrientationController
         started =
                 false;
 
-        /*
-         * The process-wide tracking service may still have other listeners.
-         * Stopping this controller therefore only detaches its own listener.
-         */
+        unregisterForegroundGyro();
+
+        if (playbackAnimator != null) {
+            playbackAnimator.cancel();
+            playbackAnimator = null;
+        }
+
+        resetGyroOffset();
+
         CaminoTrackingService.removeListener(
                 this
         );
     }
 
     public void onLocationPermissionResult(int requestCode,String[] p,int[] g){
-        if(requestCode==LOCATION_PERMISSION_REQUEST
-                && activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED){
-            CaminoTrackingService.addListener(this);
-            CaminoTrackingService.start(activity);
+        if (requestCode == LOCATION_PERMISSION_REQUEST
+                && started
+                && activity.checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED) {
+
+            CaminoTrackingService.addListener(
+                    this
+            );
+
+            CaminoTrackingService.start(
+                    activity
+            );
         }
     }
 
@@ -207,46 +296,49 @@ public final class GpsGyroOrientationController
     private void render(CaminoTrackingService.Snapshot s){
         if(s==null)return;
 
-        liveNavigationCameraController.setCourseDeg(
-                s.courseDeg);
         if(trackSource!=null && s.track!=renderedTrack){
             renderedTrack=s.track;
 
             if(s.track.size()>=2){
                 List<Point> pts=new ArrayList<>();
+
                 for(android.location.Location l:s.track)
-                    pts.add(Point.fromLngLat(l.getLongitude(),l.getLatitude()));
-                trackSource.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(pts)));
-            }
-        }
-        if(previousStationary && !s.stationary){
-            Double base=
-                    displayedBearing!=null
-                            ? displayedBearing
-                            : s.courseDeg!=null
-                                    ? (double)s.courseDeg
-                                    : null;
+                    pts.add(
+                            Point.fromLngLat(
+                                    l.getLongitude(),
+                                    l.getLatitude()
+                            )
+                    );
 
-            if(base!=null){
-                double gyroOffset=0.0;
-
-                if(s.courseDeg!=null
-                        && s.phoneHeadingDeg!=null){
-                    gyroOffset=GeoMath.shortestAngleDegrees(
-                            s.courseDeg,
-                            s.phoneHeadingDeg);
-                }
-
-                departureHeadingDeg=
-                        GeoMath.normalizeDegrees(base+gyroOffset);
-
-                displayedBearing=
-                        departureHeadingDeg;
+                trackSource.setGeoJson(
+                        Feature.fromGeometry(
+                                LineString.fromLngLats(
+                                        pts
+                                )
+                        )
+                );
             }
         }
 
-        previousStationary=s.stationary;
+        updateForegroundDirectionReadiness(
+                s
+        );
 
+        if (foregroundDirectionReady) {
+            compensateGyroForGpsCourse(
+                    s.courseDeg
+            );
+        }
+
+        /*
+         * Map rotation is GPS-only, but even the map must not use a stale
+         * course from before this foreground session has established movement.
+         */
+        liveNavigationCameraController.setCourseDeg(
+                foregroundDirectionReady
+                        ? s.courseDeg
+                        : null
+        );
         updateArrow();
 
         if(s.location!=null && s.location.getTime()!=lastFollowLocationTime){
@@ -255,50 +347,85 @@ public final class GpsGyroOrientationController
         }
     }
 
-    private void updateArrow(){
-        if(map==null || arrowLayer==null || state==null)
-            return;
+    private void updateArrow() {
+        if (map == null
+                || arrowLayer == null
+                || state == null) {
 
-        Double baseCourse=displayedBearing;
-
-        if(baseCourse==null && state.courseDeg!=null)
-            baseCourse=(double)state.courseDeg;
-
-        if(baseCourse==null){
-            arrowLayer.setProperties(
-                    PropertyFactory.iconImage(ARROW_IMG),
-                    PropertyFactory.iconOpacity(0f));
             return;
         }
-
-        double worldHeading=baseCourse;
-        String image=
-                state.stationary
-                        ? ARROW_IMG_STATIONARY
-                        : ARROW_IMG;
 
         /*
-         * GPS/displayedBearing remains the walking-direction base.
-         * phoneHeadingDeg contains only the GPS-anchored RELATIVE handset
-         * rotation. Apply that offset whether moving or stationary.
+         * During the first 20 m of a fresh foreground controller we show only
+         * the existing location dot. A direction arrow would imply knowledge
+         * that we deliberately do not trust yet.
          */
-        if(state.courseDeg!=null
-                && state.phoneHeadingDeg!=null){
-            double gyroOffset=GeoMath.shortestAngleDegrees(
-                    state.courseDeg,
-                    state.phoneHeadingDeg);
+        if (!foregroundDirectionReady) {
+            arrowLayer.setProperties(
+                    PropertyFactory.iconImage(
+                            ARROW_IMG
+                    ),
+                    PropertyFactory.iconOpacity(
+                            0f
+                    )
+            );
 
-            worldHeading=GeoMath.normalizeDegrees(
-                    baseCourse+gyroOffset);
+            return;
         }
 
-        float screenAngle=(float)GeoMath.normalizeDegrees(
-                worldHeading-map.getCameraPosition().bearing);
+        Double baseCourse =
+                null;
+
+        if (state.courseDeg != null) {
+            baseCourse =
+                    Double.valueOf(
+                            state.courseDeg
+                    );
+
+        } else if (displayedBearing != null) {
+            baseCourse =
+                    displayedBearing;
+        }
+
+        if (baseCourse == null) {
+            arrowLayer.setProperties(
+                    PropertyFactory.iconImage(
+                            ARROW_IMG
+                    ),
+                    PropertyFactory.iconOpacity(
+                            0f
+                    )
+            );
+
+            return;
+        }
+
+        /*
+         * GPS tangent is the walking-direction base.
+         * Only the visible arrow receives the relative foreground gyro offset.
+         */
+        double worldHeading =
+                augmentedHeading(
+                        baseCourse
+                );
+
+        float screenAngle =
+                (float) GeoMath.normalizeDegrees(
+                        worldHeading
+                                - map.getCameraPosition().bearing
+                );
 
         arrowLayer.setProperties(
-                PropertyFactory.iconImage(image),
-                PropertyFactory.iconRotate(screenAngle),
-                PropertyFactory.iconOpacity(1f));
+                PropertyFactory.iconImage(
+                        ARROW_IMG
+                ),
+                PropertyFactory.iconRotate(
+                        screenAngle
+                ),
+                PropertyFactory.iconOpacity(
+                        1f
+                )
+        );
     }
 
     private void animateToSnapshot(CaminoTrackingService.Snapshot s){
@@ -352,10 +479,11 @@ public final class GpsGyroOrientationController
                                     newest.getLongitude(),
                                     newest.getLatitude())));
 
-            updateArrow();
-
             liveNavigationCameraController.onPose(
-                    newest);
+                    newest
+            );
+
+            updateArrow();
 
             return;
         }
@@ -653,10 +781,372 @@ public final class GpsGyroOrientationController
                                 pos.getLatitude())));
 
         liveNavigationCameraController.onPose(
-                pos);
+                pos
+        );
 
         updateArrow();
     }
+
+    private void registerForegroundGyro() {
+        if (gyroRegistered
+                || sensorManager == null
+                || gameRotationVector == null) {
+
+            return;
+        }
+
+        gyroRegistered =
+                sensorManager.registerListener(
+                        this,
+                        gameRotationVector,
+                        SensorManager.SENSOR_DELAY_UI
+                );
+    }
+
+
+    private void unregisterForegroundGyro() {
+        if (!gyroRegistered
+                || sensorManager == null) {
+
+            return;
+        }
+
+        sensorManager.unregisterListener(
+                this,
+                gameRotationVector
+        );
+
+        gyroRegistered =
+                false;
+    }
+
+
+    private void resetForegroundSession() {
+        resetGyroOffset();
+
+        playbackPoints.clear();
+
+        displayedPosition =
+                null;
+
+        displayedBearing =
+                null;
+
+        departureHeadingDeg =
+                null;
+
+        lastFollowLocationTime =
+                Long.MIN_VALUE;
+    }
+
+
+    private void resetGyroOffset() {
+        lastRawGyroYawDeg =
+                null;
+
+        gyroOffsetDeg =
+                0.0f;
+
+        gyroCourseAnchorDeg =
+                null;
+
+        lastGyroRenderMs =
+                Long.MIN_VALUE;
+    }
+
+
+    @Override
+    public void onSensorChanged(
+            SensorEvent event
+    ) {
+        if (!started
+                || event == null
+                || event.sensor == null
+                || event.sensor.getType()
+                != Sensor.TYPE_GAME_ROTATION_VECTOR) {
+
+            return;
+        }
+
+        Float rawYaw =
+                rawCameraYawDegrees(
+                        event
+                );
+
+        if (rawYaw == null) {
+            return;
+        }
+
+        /*
+         * First foreground sensor sample defines zero. Therefore reopening
+         * Camino Guard always starts again from the pure GPS tangent.
+         */
+        if (lastRawGyroYawDeg == null) {
+            lastRawGyroYawDeg =
+                    rawYaw;
+
+            gyroOffsetDeg =
+                    0.0f;
+
+            applyForegroundOrientation();
+            return;
+        }
+
+        float delta =
+                GeoMath.shortestAngleDegrees(
+                        lastRawGyroYawDeg,
+                        rawYaw
+                );
+
+        lastRawGyroYawDeg =
+                rawYaw;
+
+        gyroOffsetDeg =
+                signedDegrees(
+                        gyroOffsetDeg
+                                + delta
+                );
+
+        /*
+         * SENSOR_DELAY_UI plus a 50 ms render throttle gives responsive map
+         * rotation without driving MapLibre at raw sensor frequency.
+         */
+        long now =
+                SystemClock.elapsedRealtime();
+
+        if (lastGyroRenderMs != Long.MIN_VALUE
+                && now - lastGyroRenderMs < 50L) {
+
+            return;
+        }
+
+        lastGyroRenderMs =
+                now;
+
+        applyForegroundOrientation();
+    }
+
+
+    @Override
+    public void onAccuracyChanged(
+            Sensor sensor,
+            int accuracy
+    ) {
+        // Rotation-vector accuracy changes need no special handling.
+    }
+
+
+    private Float rawCameraYawDegrees(
+            SensorEvent event
+    ) {
+        float[] rotation =
+                new float[9];
+
+        SensorManager.getRotationMatrixFromVector(
+                rotation,
+                event.values
+        );
+
+        float worldX =
+                rotation[1];
+
+        float worldY =
+                rotation[4];
+
+        if (Math.hypot(
+                worldX,
+                worldY
+        ) < 0.18) {
+
+            return null;
+        }
+
+        return GeoMath.normalizeDegrees(
+                (float) Math.toDegrees(
+                        Math.atan2(
+                                worldX,
+                                worldY
+                        )
+                )
+        );
+    }
+
+
+    private float signedDegrees(
+            float degrees
+    ) {
+        float normalized =
+                GeoMath.normalizeDegrees(
+                        degrees
+                );
+
+        return normalized > 180.0f
+                ? normalized - 360.0f
+                : normalized;
+    }
+
+
+    private void updateForegroundDirectionReadiness(
+            CaminoTrackingService.Snapshot snapshot
+    ) {
+        if (foregroundDirectionReady
+                || snapshot == null
+                || snapshot.location == null) {
+
+            return;
+        }
+
+        if (foregroundDirectionStartLocation == null) {
+            foregroundDirectionStartLocation =
+                    new android.location.Location(
+                            snapshot.location
+                    );
+
+            return;
+        }
+
+        if (snapshot.courseDeg == null) {
+            return;
+        }
+
+        float distanceM =
+                foregroundDirectionStartLocation.distanceTo(
+                        snapshot.location
+                );
+
+        if (distanceM < FOREGROUND_DIRECTION_WARMUP_M) {
+            return;
+        }
+
+        /*
+         * We now trust the GPS walking tangent.
+         *
+         * Throw away every handset rotation collected while direction was
+         * unknown. The arrow appears exactly on the GPS tangent.
+         */
+        foregroundDirectionReady =
+                true;
+
+        resetGyroOffset();
+
+        gyroCourseAnchorDeg =
+                GeoMath.normalizeDegrees(
+                        snapshot.courseDeg
+                );
+    }
+
+
+    void resetForegroundRotation() {
+        /*
+         * Used by the navigation/compass button and by no GPS state.
+         * GPS course and track remain untouched; only handset rotation is
+         * zeroed.
+         */
+        resetGyroOffset();
+
+        if (foregroundDirectionReady
+                && state != null
+                && state.courseDeg != null) {
+
+            gyroCourseAnchorDeg =
+                    GeoMath.normalizeDegrees(
+                            state.courseDeg
+                    );
+        }
+
+        updateArrow();
+    }
+
+
+    private void compensateGyroForGpsCourse(
+            Float courseDeg
+    ) {
+        if (courseDeg == null) {
+            return;
+        }
+
+        float normalizedCourse =
+                GeoMath.normalizeDegrees(
+                        courseDeg
+                );
+
+        if (gyroCourseAnchorDeg == null) {
+            gyroCourseAnchorDeg =
+                    normalizedCourse;
+
+            return;
+        }
+
+        float courseDelta =
+                GeoMath.shortestAngleDegrees(
+                        gyroCourseAnchorDeg,
+                        normalizedCourse
+                );
+
+        gyroCourseAnchorDeg =
+                normalizedCourse;
+
+        gyroOffsetDeg =
+                signedDegrees(
+                        gyroOffsetDeg
+                                - courseDelta
+                );
+    }
+
+
+    private double augmentedHeading(
+            double baseCourse
+    ) {
+        return GeoMath.normalizeDegrees(
+                baseCourse
+                        + gyroOffsetDeg
+        );
+    }
+
+
+    private Float augmentedCourse(
+            Float baseCourse
+    ) {
+        if (baseCourse == null) {
+            return null;
+        }
+
+        return (float) augmentedHeading(
+                baseCourse.doubleValue()
+        );
+    }
+
+
+    private Float augmentedCourse(
+            Double baseCourse
+    ) {
+        if (baseCourse == null) {
+            return null;
+        }
+
+        return (float) augmentedHeading(
+                baseCourse
+        );
+    }
+
+
+    private Float augmentedCourse(
+            double baseCourse
+    ) {
+        return (float) augmentedHeading(
+                baseCourse
+        );
+    }
+
+
+    private void applyForegroundOrientation() {
+        /*
+         * Foreground gyro affects ONLY the direction arrow.
+         * Map rotation remains GPS-course-only.
+         */
+        updateArrow();
+    }
+
 
     private Bitmap arrowBitmap(int fillColor){
         int size=Math.max(64,Math.round(40*activity.getResources().getDisplayMetrics().density));
