@@ -32,7 +32,6 @@ final class CaminoDragController {
 
         void refresh();
         void refreshDragPreview(boolean draggingDummy);
-        void noteTravelSample(LatLng position);
         void followIfActive();
     }
 
@@ -320,10 +319,6 @@ final class CaminoDragController {
                 host.refresh();
 
                 if (!host.isDebugPositionOverride()) {
-                    host.noteTravelSample(
-                            fingerPosition
-                    );
-
                     host.followIfActive();
                 }
             }

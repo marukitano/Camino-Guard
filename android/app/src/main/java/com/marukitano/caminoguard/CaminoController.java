@@ -43,7 +43,6 @@ public final class CaminoController {
     private final CaminoInfoController infoController;
     private final CaminoInteractionRenderer interactionRenderer;
     private final CaminoHeightProfileController heightProfileController;
-    private final TravelStatsController travelStatsController;
     private final WalkingPerformanceModel walkingPerformanceModel;
     private final CaminoDragController dragController;
     private final CaminoSelectionController selectionController;
@@ -237,16 +236,6 @@ public final class CaminoController {
                         routes
                 );
 
-        this.travelStatsController =
-                new TravelStatsController(
-                        routes,
-                        projectionEngine,
-                        measurementEngine,
-                        () -> dummyPosition,
-                        () -> currentMeasurementPath,
-                        infoPresenter::setSpeedStats
-                );
-
         this.selectionController =
                 new CaminoSelectionController(
                         routes,
@@ -420,15 +409,6 @@ public final class CaminoController {
                             }
 
                             @Override
-                            public void noteTravelSample(
-                                    LatLng position
-                            ) {
-                                travelStatsController.noteSample(
-                                        position
-                                );
-                            }
-
-                            @Override
                             public void followIfActive() {
                                 navigationController.followIfActive(
                                         true
@@ -519,29 +499,15 @@ public final class CaminoController {
 
         /*
          * Motion-state publications can arrive without a new GPS timestamp.
-         * Handle STATIONARY before the duplicate-fix early return so pauses are
-         * excluded from learned walking speed.
+         * SelectionStatsOverlay still needs the stationary transition even
+         * when the GPS timestamp itself has not changed.
          *
-         * Off-route time is neither walking data nor an on-route pause.
+         * Persistent walking-performance learning remains owned exclusively
+         * by CaminoTrackingService.
          */
         if (snapshot.stationary
                 && !offRoute) {
-            LatLng stationaryPosition =
-                    new LatLng(
-                            snapshot.location.getLatitude(),
-                            snapshot.location.getLongitude()
-                    );
 
-            travelStatsController.noteStationary(
-                    stationaryPosition
-            );
-
-            /*
-             * Persistent walking-performance learning is owned by the
-             * TrackingService. The foreground model is prediction-only.
-             * Writing the same physical sample here as well would double its
-             * statistical weight while the Activity is visible.
-             */
             activity.runOnUiThread(
                     () -> selectionStatsOverlay.noteMotionState(
                             true
@@ -591,41 +557,9 @@ public final class CaminoController {
                     navigationController
                             .syncRotationResetAvailability();
 
-                    boolean wasOffRoute =
-                            offRoute;
-
                     updateLockedRouteState(
                             position
                     );
-
-                    /*
-                     * Crossing ON ROUTE -> OFF ROUTE breaks both movement
-                     * sample chains exactly once.
-                     *
-                     * Therefore the later return to the route cannot produce
-                     * an artificial segment from the old on-route point to the
-                     * new on-route point.
-                     */
-                    if (!wasOffRoute
-                            && offRoute) {
-
-                        travelStatsController
-                                .breakSampleChain();
-                    }
-
-                    /*
-                     * This handler only reaches here for a new accepted GPS fix.
-                     * Gyro-only snapshots were rejected by lastLiveFixStamp above.
-                     *
-                     * While outside the selected-route corridor the real GPS
-                     * continues normally, but route walking statistics do not
-                     * consume its movement.
-                     */
-                    if (!offRoute) {
-                        travelStatsController.noteSample(
-                                position
-                        );
-                    }
 
                     /*
                      * Off-route walking is still movement rather than a hiking
