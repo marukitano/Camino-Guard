@@ -1161,10 +1161,20 @@ final class CaminoHeightProfileController {
             MeasurementPath path,
             LatLng position
     ) {
-        if (!hasUsableMeasurementPath(
-                path
-        )
-                || position == null) {
+        MeasurementPathProjection.Result projection =
+                MeasurementPathProjection.projectHeightProfileWithin(
+                        path,
+                        position,
+                        LOCKED_POSITION_MAX_OFFSET_M
+                );
+
+        if (projection == null
+                || !Double.isFinite(
+                        projection.fraction
+                )
+                || !Double.isFinite(
+                        projection.elevationM
+                )) {
 
             return null;
         }
@@ -1177,317 +1187,19 @@ final class CaminoHeightProfileController {
                         0
                 ).distanceM;
 
-        double lastDistanceM =
-                points.get(
-                        points.size() - 1
-                ).distanceM;
-
-        double spanM =
-                lastDistanceM
-                        - firstDistanceM;
-
-        if (!Double.isFinite(
-                spanM
-        )
-                || spanM <= 0.01) {
-
-            return null;
-        }
-
-        double bestOffsetM =
-                Double.POSITIVE_INFINITY;
-
-        double bestDistanceM =
-                Double.NaN;
-
-        double bestElevationM =
-                Double.NaN;
-
-        for (int index = 1;
-                index < points.size();
-                index++) {
-
-            ProfilePoint a =
-                    points.get(
-                            index - 1
-                    );
-
-            ProfilePoint b =
-                    points.get(
-                            index
-                    );
-
-            if (a == null
-                    || b == null
-                    || a.point == null
-                    || b.point == null
-                    || b.breakBefore
-                    || !Double.isFinite(
-                    a.distanceM
-            )
-                    || !Double.isFinite(
-                    b.distanceM
-            )
-                    || !Double.isFinite(
-                    a.elevationM
-            )
-                    || !Double.isFinite(
-                    b.elevationM
-            )) {
-
-                continue;
-            }
-
-            PositionProjection projection =
-                    projectPositionToSegment(
-                            position,
-                            a.point,
-                            b.point
-                    );
-
-            if (projection == null
-                    || projection.offsetM
-                    >= bestOffsetM) {
-
-                continue;
-            }
-
-            bestOffsetM =
-                    projection.offsetM;
-
-            bestDistanceM =
-                    a.distanceM
-                            + projection.t
-                            * (
-                            b.distanceM
-                                    - a.distanceM
-                    );
-
-            bestElevationM =
-                    a.elevationM
-                            + projection.t
-                            * (
-                            b.elevationM
-                                    - a.elevationM
-                    );
-        }
-
-        if (!Double.isFinite(
-                bestDistanceM
-        )) {
-
-            for (ProfilePoint point
-                    : points) {
-
-                if (point == null
-                        || point.point == null
-                        || !Double.isFinite(
-                        point.distanceM
-                )
-                        || !Double.isFinite(
-                        point.elevationM
-                )) {
-
-                    continue;
-                }
-
-                double offsetM =
-                        GeoMath.distanceMeters(
-                                position,
-                                point.point
-                        );
-
-                if (offsetM
-                        >= bestOffsetM) {
-
-                    continue;
-                }
-
-                bestOffsetM =
-                        offsetM;
-
-                bestDistanceM =
-                        point.distanceM;
-
-                bestElevationM =
-                        point.elevationM;
-            }
-        }
-
-        if (!Double.isFinite(
-                bestDistanceM
-        )
-                || !Double.isFinite(
-                bestElevationM
-        )
-                || !Double.isFinite(
-                bestOffsetM
-        )
-                || bestOffsetM
-                > LOCKED_POSITION_MAX_OFFSET_M) {
-
-            /*
-             * Important: "nearest" is not the same as "on route".
-             *
-             * Outside the configured corridor this projection is invalid.
-             * The caller deliberately keeps the last valid locked-position
-             * sample visible until GPS is on route again.
-             */
-            return null;
-        }
-
-        double progress =
-                (
-                        bestDistanceM
-                                - firstDistanceM
-                )
-                        / spanM;
-
-        progress =
-                Math.max(
-                        0.0,
-                        Math.min(
-                                1.0,
-                                progress
-                        )
-                );
-
         return new CaminoHeightProfileView.Sample(
                 1.0f,
                 (float)
                         (
                                 1.0
-                                        - progress
+                                        - projection.fraction
                         ),
-                bestElevationM,
-                bestDistanceM
+                projection.elevationM,
+                projection.chainageM
                         - firstDistanceM,
                 0.0,
                 false
         );
-    }
-
-
-    private PositionProjection projectPositionToSegment(
-            LatLng query,
-            LatLng a,
-            LatLng b
-    ) {
-        double refLat =
-                Math.toRadians(
-                        (
-                                query.getLatitude()
-                                        + a.getLatitude()
-                                        + b.getLatitude()
-                        )
-                                / 3.0
-                );
-
-        double cosLat =
-                Math.max(
-                        0.20,
-                        Math.cos(
-                                refLat
-                        )
-                );
-
-        double metresPerRad =
-                6_371_000.0;
-
-        double ax =
-                Math.toRadians(
-                        a.getLongitude()
-                                - query.getLongitude()
-                )
-                        * metresPerRad
-                        * cosLat;
-
-        double ay =
-                Math.toRadians(
-                        a.getLatitude()
-                                - query.getLatitude()
-                )
-                        * metresPerRad;
-
-        double bx =
-                Math.toRadians(
-                        b.getLongitude()
-                                - query.getLongitude()
-                )
-                        * metresPerRad
-                        * cosLat;
-
-        double by =
-                Math.toRadians(
-                        b.getLatitude()
-                                - query.getLatitude()
-                )
-                        * metresPerRad;
-
-        double vx =
-                bx - ax;
-
-        double vy =
-                by - ay;
-
-        double lengthSq =
-                vx * vx
-                        + vy * vy;
-
-        double t =
-                0.0;
-
-        if (lengthSq > 1e-9) {
-            t =
-                    -(
-                            ax * vx
-                                    + ay * vy
-                    )
-                            / lengthSq;
-
-            t =
-                    Math.max(
-                            0.0,
-                            Math.min(
-                                    1.0,
-                                    t
-                            )
-                    );
-        }
-
-        double px =
-                ax
-                        + t * vx;
-
-        double py =
-                ay
-                        + t * vy;
-
-        return new PositionProjection(
-                t,
-                Math.hypot(
-                        px,
-                        py
-                )
-        );
-    }
-
-
-    private static final class PositionProjection {
-
-        final double t;
-        final double offsetM;
-
-        PositionProjection(
-                double t,
-                double offsetM
-        ) {
-            this.t =
-                    t;
-
-            this.offsetM =
-                    offsetM;
-        }
     }
 
 

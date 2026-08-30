@@ -185,6 +185,139 @@ public final class MeasurementPathProjectionTest {
     }
 
 
+
+    @Test
+    public void heightProfileRequiresTwoFiniteElevationsForSegmentInterpolation() {
+        MeasurementPath path =
+                new MeasurementPath();
+
+        path.distanceM =
+                1000.0;
+
+        path.profilePoints.add(
+                new ProfilePoint(
+                        new LatLng(
+                                47.0,
+                                8.0
+                        ),
+                        0.0,
+                        123.0,
+                        false
+                )
+        );
+
+        path.profilePoints.add(
+                new ProfilePoint(
+                        new LatLng(
+                                47.001,
+                                8.0
+                        ),
+                        1000.0,
+                        Double.NaN,
+                        false
+                )
+        );
+
+        /*
+         * Normal projection preserves its historical one-endpoint fallback.
+         */
+        MeasurementPathProjection.Result normal =
+                MeasurementPathProjection.projectWithin(
+                        path,
+                        new LatLng(
+                                47.0005,
+                                8.0
+                        ),
+                        100.0
+                );
+
+        assertNotNull(
+                normal
+        );
+
+        assertEquals(
+                500.0,
+                normal.chainageM,
+                1.0
+        );
+
+        /*
+         * Height-profile projection preserves the older controller behaviour:
+         * no interpolated segment without two finite elevations. It therefore
+         * falls back to the finite endpoint.
+         */
+        MeasurementPathProjection.Result profile =
+                MeasurementPathProjection.projectHeightProfileWithin(
+                        path,
+                        new LatLng(
+                                47.0005,
+                                8.0
+                        ),
+                        100.0
+                );
+
+        assertNotNull(
+                profile
+        );
+
+        assertEquals(
+                0.0,
+                profile.chainageM,
+                0.001
+        );
+
+        assertEquals(
+                123.0,
+                profile.elevationM,
+                0.001
+        );
+    }
+
+
+    @Test
+    public void heightProfileDoesNotCrossBreakBeforeGap() {
+        MeasurementPath path =
+                new MeasurementPath();
+
+        path.distanceM =
+                1000.0;
+
+        path.profilePoints.add(
+                new ProfilePoint(
+                        new LatLng(
+                                47.0,
+                                8.0
+                        ),
+                        0.0,
+                        100.0,
+                        false
+                )
+        );
+
+        path.profilePoints.add(
+                new ProfilePoint(
+                        new LatLng(
+                                47.001,
+                                8.0
+                        ),
+                        1000.0,
+                        200.0,
+                        true
+                )
+        );
+
+        assertNull(
+                MeasurementPathProjection.projectHeightProfileWithin(
+                        path,
+                        new LatLng(
+                                47.0005,
+                                8.0
+                        ),
+                        20.0
+                )
+        );
+    }
+
     private MeasurementPath simplePath(
             double firstDistanceM,
             double lastDistanceM,

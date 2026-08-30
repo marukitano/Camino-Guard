@@ -53,6 +53,368 @@ final class MeasurementPathProjection {
     }
 
 
+    static Result projectHeightProfileWithin(
+            MeasurementPath path,
+            LatLng position,
+            double maxOffsetM
+    ) {
+        if (path == null
+                || position == null
+                || path.profilePoints == null
+                || path.profilePoints.size() < 2
+                || !Double.isFinite(
+                        maxOffsetM
+                )
+                || maxOffsetM < 0.0) {
+
+            return null;
+        }
+
+        List<ProfilePoint> points =
+                path.profilePoints;
+
+        ProfilePoint first =
+                points.get(
+                        0
+                );
+
+        ProfilePoint last =
+                points.get(
+                        points.size() - 1
+                );
+
+        if (first == null
+                || last == null
+                || !Double.isFinite(
+                        first.distanceM
+                )
+                || !Double.isFinite(
+                        last.distanceM
+                )) {
+
+            return null;
+        }
+
+        double spanM =
+                last.distanceM
+                        - first.distanceM;
+
+        if (!Double.isFinite(
+                spanM
+        )
+                || spanM <= 0.01) {
+
+            return null;
+        }
+
+        double bestOffsetM =
+                Double.POSITIVE_INFINITY;
+
+        double bestDistanceM =
+                Double.NaN;
+
+        double bestElevationM =
+                Double.NaN;
+
+        /*
+         * Preserve the old height-profile rule:
+         * interpolate only across a segment whose BOTH endpoint elevations
+         * are finite.
+         */
+        for (int index = 1;
+                index < points.size();
+                index++) {
+
+            ProfilePoint a =
+                    points.get(
+                            index - 1
+                    );
+
+            ProfilePoint b =
+                    points.get(
+                            index
+                    );
+
+            if (a == null
+                    || b == null
+                    || a.point == null
+                    || b.point == null
+                    || b.breakBefore
+                    || !Double.isFinite(
+                            a.distanceM
+                    )
+                    || !Double.isFinite(
+                            b.distanceM
+                    )
+                    || !Double.isFinite(
+                            a.elevationM
+                    )
+                    || !Double.isFinite(
+                            b.elevationM
+                    )) {
+
+                continue;
+            }
+
+            SegmentProjection segment =
+                    projectToSegment(
+                            position,
+                            a.point,
+                            b.point
+                    );
+
+            if (segment == null
+                    || segment.offsetM
+                    >= bestOffsetM) {
+
+                continue;
+            }
+
+            bestOffsetM =
+                    segment.offsetM;
+
+            bestDistanceM =
+                    a.distanceM
+                            + segment.t
+                            * (
+                            b.distanceM
+                                    - a.distanceM
+                    );
+
+            bestElevationM =
+                    a.elevationM
+                            + segment.t
+                            * (
+                            b.elevationM
+                                    - a.elevationM
+                    );
+        }
+
+        /*
+         * Historical fallback: only when NO finite-elevation segment anywhere
+         * was usable, snap to the nearest individual finite profile point.
+         */
+        if (!Double.isFinite(
+                bestDistanceM
+        )) {
+
+            for (ProfilePoint point
+                    : points) {
+
+                if (point == null
+                        || point.point == null
+                        || !Double.isFinite(
+                                point.distanceM
+                        )
+                        || !Double.isFinite(
+                                point.elevationM
+                        )) {
+
+                    continue;
+                }
+
+                double offsetM =
+                        GeoMath.distanceMeters(
+                                position,
+                                point.point
+                        );
+
+                if (!Double.isFinite(
+                        offsetM
+                )
+                        || offsetM
+                        >= bestOffsetM) {
+
+                    continue;
+                }
+
+                bestOffsetM =
+                        offsetM;
+
+                bestDistanceM =
+                        point.distanceM;
+
+                bestElevationM =
+                        point.elevationM;
+            }
+        }
+
+        if (!Double.isFinite(
+                bestDistanceM
+        )
+                || !Double.isFinite(
+                        bestElevationM
+                )
+                || !Double.isFinite(
+                        bestOffsetM
+                )
+                || bestOffsetM > maxOffsetM) {
+
+            return null;
+        }
+
+        double fraction =
+                (
+                        bestDistanceM
+                                - first.distanceM
+                )
+                        / spanM;
+
+        fraction =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                1.0,
+                                fraction
+                        )
+                );
+
+        return new Result(
+                bestOffsetM,
+                bestDistanceM,
+                bestElevationM,
+                fraction
+        );
+    }
+
+
+    private static SegmentProjection projectToSegment(
+            LatLng query,
+            LatLng a,
+            LatLng b
+    ) {
+        if (query == null
+                || a == null
+                || b == null) {
+
+            return null;
+        }
+
+        double refLatRad =
+                Math.toRadians(
+                        (
+                                a.getLatitude()
+                                        + b.getLatitude()
+                                        + query.getLatitude()
+                        )
+                                / 3.0
+                );
+
+        double lonScale =
+                Math.cos(
+                        refLatRad
+                );
+
+        double ax =
+                a.getLongitude()
+                        * lonScale;
+
+        double ay =
+                a.getLatitude();
+
+        double bx =
+                b.getLongitude()
+                        * lonScale;
+
+        double by =
+                b.getLatitude();
+
+        double px =
+                query.getLongitude()
+                        * lonScale;
+
+        double py =
+                query.getLatitude();
+
+        double dx =
+                bx - ax;
+
+        double dy =
+                by - ay;
+
+        double lengthSquared =
+                dx * dx
+                        + dy * dy;
+
+        double t =
+                lengthSquared <= 1e-15
+                        ? 0.0
+                        : (
+                        (
+                                px - ax
+                        )
+                                * dx
+                                + (
+                                py - ay
+                        )
+                                * dy
+                )
+                        / lengthSquared;
+
+        t =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                1.0,
+                                t
+                        )
+                );
+
+        LatLng projected =
+                new LatLng(
+                        a.getLatitude()
+                                + (
+                                b.getLatitude()
+                                        - a.getLatitude()
+                        )
+                                * t,
+                        a.getLongitude()
+                                + (
+                                b.getLongitude()
+                                        - a.getLongitude()
+                        )
+                                * t
+                );
+
+        double offsetM =
+                GeoMath.distanceMeters(
+                        query,
+                        projected
+                );
+
+        if (!Double.isFinite(
+                offsetM
+        )) {
+
+            return null;
+        }
+
+        return new SegmentProjection(
+                t,
+                offsetM
+        );
+    }
+
+
+    private static final class SegmentProjection {
+
+        final double t;
+        final double offsetM;
+
+
+        SegmentProjection(
+                double t,
+                double offsetM
+        ) {
+            this.t =
+                    t;
+
+            this.offsetM =
+                    offsetM;
+        }
+    }
+
+
     static Result projectWithin(
             MeasurementPath path,
             LatLng position,
@@ -117,97 +479,22 @@ final class MeasurementPathProjection {
                 continue;
             }
 
-            double refLatRad =
-                    Math.toRadians(
-                            (
-                                    a.point.getLatitude()
-                                            + b.point.getLatitude()
-                                            + userLat
-                            )
-                                    / 3.0
+            SegmentProjection segment =
+                    projectToSegment(
+                            position,
+                            a.point,
+                            b.point
                     );
 
-            double lonScale =
-                    Math.cos(
-                            refLatRad
-                    );
-
-            double ax =
-                    a.point.getLongitude()
-                            * lonScale;
-
-            double ay =
-                    a.point.getLatitude();
-
-            double bx =
-                    b.point.getLongitude()
-                            * lonScale;
-
-            double by =
-                    b.point.getLatitude();
-
-            double px =
-                    userLon
-                            * lonScale;
-
-            double py =
-                    userLat;
-
-            double dx =
-                    bx - ax;
-
-            double dy =
-                    by - ay;
-
-            double lengthSquared =
-                    dx * dx
-                            + dy * dy;
+            if (segment == null) {
+                continue;
+            }
 
             double t =
-                    lengthSquared <= 1e-15
-                            ? 0.0
-                            : (
-                            (
-                                    px - ax
-                            )
-                                    * dx
-                                    + (
-                                    py - ay
-                            )
-                                    * dy
-                    )
-                            / lengthSquared;
-
-            t =
-                    Math.max(
-                            0.0,
-                            Math.min(
-                                    1.0,
-                                    t
-                            )
-                    );
-
-            LatLng projected =
-                    new LatLng(
-                            a.point.getLatitude()
-                                    + (
-                                    b.point.getLatitude()
-                                            - a.point.getLatitude()
-                            )
-                                    * t,
-                            a.point.getLongitude()
-                                    + (
-                                    b.point.getLongitude()
-                                            - a.point.getLongitude()
-                            )
-                                    * t
-                    );
+                    segment.t;
 
             double offsetM =
-                    GeoMath.distanceMeters(
-                            position,
-                            projected
-                    );
+                    segment.offsetM;
 
             if (!Double.isFinite(
                     offsetM
