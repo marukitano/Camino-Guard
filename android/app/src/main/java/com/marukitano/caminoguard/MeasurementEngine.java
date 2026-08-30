@@ -3417,7 +3417,16 @@ final class MeasurementEngine {
                         routeHit.hit.trackIndex
                 );
 
-        return track.networkIndex
+        int networkIndex =
+                network.networkIndex(
+                        track
+                );
+
+        if (networkIndex < 0) {
+            return -1;
+        }
+
+        return networkIndex
                 * 2
                 + side;
     }

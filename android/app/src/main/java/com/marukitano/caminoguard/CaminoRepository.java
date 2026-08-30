@@ -536,9 +536,6 @@ final class RouteTrack {
     final LatLng boundsCenter;
     final double boundsRadiusM;
 
-    int networkIndex =
-            -1;
-
     double baseChainageM;
     double lengthM;
 

@@ -5,7 +5,9 @@ import org.maplibre.android.geometry.LatLng;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 
 /**
@@ -22,6 +24,14 @@ final class CaminoNetwork {
     private final List<List<GraphEdge>> graph =
             new ArrayList<>();
 
+    /*
+     * Network indices belong to this CaminoNetwork instance, not to the
+     * canonical RouteTrack domain objects. This keeps parsed Camino geometry
+     * safe to share between independent UI/background networks.
+     */
+    private final Map<RouteTrack, Integer> trackIndices =
+            new IdentityHashMap<>();
+
     List<NetworkTrack> tracks() {
         return tracks;
     }
@@ -31,6 +41,7 @@ final class CaminoNetwork {
     ) {
         tracks.clear();
         graph.clear();
+        trackIndices.clear();
 
         for (CaminoRoute route
                 : routes) {
@@ -44,8 +55,13 @@ final class CaminoNetwork {
                                 trackIndex
                         );
 
-                track.networkIndex =
+                int networkIndex =
                         tracks.size();
+
+                trackIndices.put(
+                        track,
+                        networkIndex
+                );
 
                 tracks.add(
                         new NetworkTrack(
@@ -75,7 +91,9 @@ final class CaminoNetwork {
                 : tracks) {
 
             int startNode =
-                    reference.track.networkIndex
+                    networkIndex(
+                            reference.track
+                    )
                             * 2;
 
             int endNode =
@@ -113,11 +131,15 @@ final class CaminoNetwork {
                         );
 
                 int firstEndNode =
-                        first.networkIndex
+                        networkIndex(
+                                first
+                        )
                                 * 2 + 1;
 
                 int secondStartNode =
-                        second.networkIndex
+                        networkIndex(
+                                second
+                        )
                                 * 2;
 
                 addUndirectedEdge(
@@ -197,6 +219,20 @@ final class CaminoNetwork {
             }
         }
     }
+
+    int networkIndex(
+            RouteTrack track
+    ) {
+        Integer index =
+                trackIndices.get(
+                        track
+                );
+
+        return index == null
+                ? -1
+                : index;
+    }
+
 
     NetworkPath findPath(
             int startNode,
