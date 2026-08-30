@@ -167,20 +167,6 @@ final class CaminoTimetableOverlay {
     ) {
         ensureView();
 
-        // DIAG-CAMINO-TIMETABLE
-        android.util.Log.d(
-                "CaminoTimetable",
-                "UPDATE locked=" + locked
-                        + " chainage=" + currentChainageM
-                        + " path="
-                        + (path == null
-                        ? "NULL"
-                        : "dist=" + path.distanceM
-                        + " profile=" + path.profilePoints.size()
-                        + " rawStops=" + path.timetableStops.size())
-        );
-
-
         if (!locked
                 || path == null) {
 
@@ -211,24 +197,6 @@ final class CaminoTimetableOverlay {
                         timetablePath
                 );
 
-        android.util.Log.d(
-                "CaminoTimetable",
-                "PLAN timetableStops="
-                        + (timetablePath == null
-                        ? -1
-                        : timetablePath.timetableStops.size())
-                        + " profile="
-                        + (timetablePath == null
-                        ? -1
-                        : timetablePath.profilePoints.size())
-                        + " distance="
-                        + (timetablePath == null
-                        ? Double.NaN
-                        : timetablePath.distanceM)
-                        + " plans=" + plans.size()
-        );
-
-
         if (plans.size() < 2) {
             clearAndHide();
             return;
@@ -239,15 +207,6 @@ final class CaminoTimetableOverlay {
                         timetablePath,
                         this.currentChainageM
                 );
-
-        android.util.Log.d(
-                "CaminoTimetable",
-                "ELAPSED chainage="
-                        + this.currentChainageM
-                        + " seconds="
-                        + elapsedSecondsAtCurrent
-        );
-
 
         if (!Double.isFinite(
                 elapsedSecondsAtCurrent
@@ -426,17 +385,6 @@ final class CaminoTimetableOverlay {
 
 
     private void clearAndHide() {
-        // DIAG-CAMINO-TIMETABLE
-        android.util.Log.d(
-                "CaminoTimetable",
-                "CLEAR open="
-                        + open
-                        + " chainage="
-                        + currentChainageM,
-                new Throwable(
-                        "clearAndHide caller"
-                )
-        );
         open =
                 false;
 
