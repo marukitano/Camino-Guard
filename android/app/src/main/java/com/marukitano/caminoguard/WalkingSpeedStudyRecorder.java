@@ -71,6 +71,13 @@ final class WalkingSpeedStudyRecorder {
     private static final double MAX_GPS_SEGMENT_M =
             250.0;
 
+    /*
+     * Navigation may still use the normal application GPS tolerance.
+     * Long-term personal walking data is deliberately more conservative.
+     */
+    private static final float MAX_STUDY_GPS_ACCURACY_M =
+            12.0f;
+
 
     private final Context context;
 
@@ -87,6 +94,9 @@ final class WalkingSpeedStudyRecorder {
     private double anchorElevationM =
             Double.NaN;
 
+    private double anchorChainageM =
+            Double.NaN;
+
     private long anchorElapsedMs =
             -1L;
 
@@ -97,6 +107,18 @@ final class WalkingSpeedStudyRecorder {
     private long bucketMovingMs;
 
     private double bucketDistanceM;
+
+    /*
+     * Plausibility signals only. CSV schema and recorded GPS distance remain
+     * unchanged.
+     */
+    private double bucketRouteTravelM;
+
+    private double bucketStartChainageM =
+            Double.NaN;
+
+    private double bucketEndChainageM =
+            Double.NaN;
 
     private long bucketStartedWallMs;
 
@@ -178,6 +200,26 @@ final class WalkingSpeedStudyRecorder {
         }
 
         /*
+         * HARD STUDY-ACCURACY GATE.
+         *
+         * Four-week training data fails closed unless Android reports a
+         * substantially better fix than the general navigation limit.
+         */
+        if (!location.hasAccuracy()
+                || !Float.isFinite(
+                        location.getAccuracy()
+                )
+                || location.getAccuracy()
+                > MAX_STUDY_GPS_ACCURACY_M) {
+
+            breakSampleChain(
+                    true
+            );
+
+            return;
+        }
+
+        /*
          * HARD LOCKED GATE.
          *
          * The service supplied the authoritative persisted lock snapshot for
@@ -207,6 +249,24 @@ final class WalkingSpeedStudyRecorder {
             breakSampleChain(
                     true
             );
+            return;
+        }
+
+        /*
+         * Study samples need both real route elevation and trustworthy
+         * selected-path chainage.
+         */
+        if (!Double.isFinite(
+                projection.elevationM
+        )
+                || !Double.isFinite(
+                projection.chainageM
+        )) {
+
+            breakSampleChain(
+                    true
+            );
+
             return;
         }
 
@@ -251,25 +311,13 @@ final class WalkingSpeedStudyRecorder {
             return;
         }
 
-        /*
-         * Grade analysis needs route elevation.
-         * Never invent elevation.
-         */
-        if (!Double.isFinite(
-                projection.elevationM
-        )) {
-            breakSampleChain(
-                    true
-            );
-            return;
-        }
-
         if (anchorPosition == null
                 || anchorElapsedMs < 0L) {
 
             setAnchor(
                     position,
                     projection.elevationM,
+                    projection.chainageM,
                     elapsedMs,
                     wallMs
             );
@@ -293,6 +341,7 @@ final class WalkingSpeedStudyRecorder {
             setAnchor(
                     position,
                     projection.elevationM,
+                    projection.chainageM,
                     elapsedMs,
                     wallMs
             );
@@ -319,6 +368,31 @@ final class WalkingSpeedStudyRecorder {
             setAnchor(
                     position,
                     projection.elevationM,
+                    projection.chainageM,
+                    elapsedMs,
+                    wallMs
+            );
+
+            return;
+        }
+
+        double routeSegmentM =
+                Math.abs(
+                        projection.chainageM
+                                - anchorChainageM
+                );
+
+        if (!Double.isFinite(
+                routeSegmentM
+        )) {
+            breakSampleChain(
+                    true
+            );
+
+            setAnchor(
+                    position,
+                    projection.elevationM,
+                    projection.chainageM,
                     elapsedMs,
                     wallMs
             );
@@ -333,6 +407,9 @@ final class WalkingSpeedStudyRecorder {
             bucketStartElevationM =
                     anchorElevationM;
 
+            bucketStartChainageM =
+                    anchorChainageM;
+
             bucketStartLat =
                     anchorPosition.getLatitude();
 
@@ -345,6 +422,12 @@ final class WalkingSpeedStudyRecorder {
 
         bucketDistanceM +=
                 segmentM;
+
+        bucketRouteTravelM +=
+                routeSegmentM;
+
+        bucketEndChainageM =
+                projection.chainageM;
 
         bucketEndElevationM =
                 projection.elevationM;
@@ -365,6 +448,7 @@ final class WalkingSpeedStudyRecorder {
         setAnchor(
                 position,
                 projection.elevationM,
+                projection.chainageM,
                 elapsedMs,
                 wallMs
         );
@@ -423,6 +507,21 @@ final class WalkingSpeedStudyRecorder {
                 || !Double.isFinite(
                         bucketEndElevationM
                 )) {
+
+            return;
+        }
+
+        double routeNetProgressM =
+                Math.abs(
+                        bucketEndChainageM
+                                - bucketStartChainageM
+                );
+
+        if (!WalkingStudyProgressGate.accepts(
+                bucketDistanceM,
+                bucketRouteTravelM,
+                routeNetProgressM
+        )) {
 
             return;
         }
@@ -637,6 +736,7 @@ final class WalkingSpeedStudyRecorder {
     private void setAnchor(
             LatLng position,
             double elevationM,
+            double chainageM,
             long elapsedMs,
             long wallMs
     ) {
@@ -648,6 +748,9 @@ final class WalkingSpeedStudyRecorder {
 
         anchorElevationM =
                 elevationM;
+
+        anchorChainageM =
+                chainageM;
 
         anchorElapsedMs =
                 elapsedMs;
@@ -664,6 +767,9 @@ final class WalkingSpeedStudyRecorder {
         anchorElevationM =
                 Double.NaN;
 
+        anchorChainageM =
+                Double.NaN;
+
         anchorElapsedMs =
                 -1L;
 
@@ -678,6 +784,15 @@ final class WalkingSpeedStudyRecorder {
 
         bucketDistanceM =
                 0.0;
+
+        bucketRouteTravelM =
+                0.0;
+
+        bucketStartChainageM =
+                Double.NaN;
+
+        bucketEndChainageM =
+                Double.NaN;
 
         bucketStartedWallMs =
                 0L;
