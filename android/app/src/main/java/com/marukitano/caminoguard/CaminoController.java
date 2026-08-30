@@ -2001,6 +2001,15 @@ public final class CaminoController {
 
             uiStateStore.clearLockedSelection();
 
+            /*
+             * Route validity is a state transition, not GPS telemetry.
+             * Tell Pebble immediately that there is no locked route instead
+             * of waiting for another location update.
+             */
+            CaminoTrackingService.notifyLockedRouteChanged(
+                    activity
+            );
+
             infoController.setSelectionLocked(
                     false
             );
@@ -2082,6 +2091,10 @@ public final class CaminoController {
         LockedMeasurementPathStore.save(
                 activity,
                 currentMeasurementPath
+        );
+
+        CaminoTrackingService.notifyLockedRouteChanged(
+                activity
         );
 
         infoController.setSelectionLocked(

@@ -73,6 +73,9 @@ public final class CaminoTrackingService extends Service
     private static final String ACTION_SET_APP_FOREGROUND =
             "com.marukitano.caminoguard.SET_APP_FOREGROUND";
 
+    private static final String ACTION_LOCKED_ROUTE_CHANGED =
+            "com.marukitano.caminoguard.LOCKED_ROUTE_CHANGED";
+
     private static final String EXTRA_APP_FOREGROUND =
             "app_foreground";
 
@@ -287,6 +290,42 @@ public final class CaminoTrackingService extends Service
     }
 
 
+    public static void notifyLockedRouteChanged(
+            Activity activity
+    ) {
+        if (activity == null
+                || activity.checkSelfPermission(
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED) {
+
+            return;
+        }
+
+        Intent intent =
+                new Intent(
+                        activity,
+                        CaminoTrackingService.class
+                );
+
+        intent.setAction(
+                ACTION_LOCKED_ROUTE_CHANGED
+        );
+
+        if (Build.VERSION.SDK_INT
+                >= Build.VERSION_CODES.O) {
+
+            activity.startForegroundService(
+                    intent
+            );
+
+        } else {
+            activity.startService(
+                    intent
+            );
+        }
+    }
+
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -429,6 +468,12 @@ public final class CaminoTrackingService extends Service
                                 EXTRA_APP_FOREGROUND,
                                 false
                         );
+
+            } else if (ACTION_LOCKED_ROUTE_CHANGED.equals(
+                    intent.getAction()
+            )) {
+
+                publishCurrentLockedRouteState();
 
             } else if (ACTION_REFRESH_LIBRE.equals(
                     intent.getAction()
@@ -725,6 +770,31 @@ public final class CaminoTrackingService extends Service
         }
     }
 
+    private void publishCurrentLockedRouteState() {
+        CaminoPebbleRoutePublisher publisher =
+                pebbleRoutePublisher;
+
+        if (publisher == null) {
+            return;
+        }
+
+        LockedMeasurementPathStore.Snapshot locked =
+                currentServiceLockedPath();
+
+        MeasurementPathProjection.Result lockedProjection =
+                projectServiceLockedPath(
+                        locked,
+                        acceptedLocation
+                );
+
+        publisher.onGpsFix(
+                acceptedLocation,
+                locked,
+                lockedProjection
+        );
+    }
+
+
     private LockedMeasurementPathStore.Snapshot
             currentServiceLockedPath() {
 
@@ -931,22 +1001,20 @@ public final class CaminoTrackingService extends Service
                     "Pebble route publisher ready"
             );
 
-            if (acceptedLocation != null) {
-                LockedMeasurementPathStore.Snapshot locked =
-                        currentServiceLockedPath();
+            LockedMeasurementPathStore.Snapshot locked =
+                    currentServiceLockedPath();
 
-                MeasurementPathProjection.Result lockedProjection =
-                        projectServiceLockedPath(
-                                locked,
-                                acceptedLocation
-                        );
+            MeasurementPathProjection.Result lockedProjection =
+                    projectServiceLockedPath(
+                            locked,
+                            acceptedLocation
+                    );
 
-                pebbleRoutePublisher.onGpsFix(
-                        acceptedLocation,
-                        locked,
-                        lockedProjection
-                );
-            }
+            pebbleRoutePublisher.onGpsFix(
+                    acceptedLocation,
+                    locked,
+                    lockedProjection
+            );
 
         } catch (RuntimeException error) {
             Log.w(

@@ -68,10 +68,6 @@ final class CaminoPebbleRoutePublisher {
             LockedMeasurementPathStore.Snapshot locked,
             MeasurementPathProjection.Result projection
     ) {
-        if (location == null) {
-            return;
-        }
-
         if (locked == null
                 || locked.path == null) {
 
@@ -95,6 +91,15 @@ final class CaminoPebbleRoutePublisher {
                     false
             );
 
+            return;
+        }
+
+        /*
+         * NO_ROUTE is independent of GPS availability. A real locked route,
+         * however, still requires a physical position before ON_ROUTE or
+         * OFF_ROUTE can be determined.
+         */
+        if (location == null) {
             return;
         }
 
