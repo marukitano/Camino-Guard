@@ -14052,16 +14052,6 @@
         -79.24,
         -49.239999999999995
       ]
-    },
-    "camino_guard_one_global_camino_pipeline_v34": {
-      "route_source": "camino-tracks",
-      "route_asset": "asset://camino/tracks-global-debug.geojson",
-      "removed_debug_source": "camino-tracks-schaffhausen",
-      "removed_debug_layers": [
-        "camino-route-casing-schaffhausen",
-        "camino-routes-schaffhausen"
-      ],
-      "principle": "Spain and Schaffhausen use the exact same Camino rendering layers"
     }
   }
 }

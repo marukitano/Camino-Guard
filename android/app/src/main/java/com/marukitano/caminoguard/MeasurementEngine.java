@@ -494,15 +494,15 @@ final class MeasurementEngine {
         }
 
         /*
-         * v111 only copied semantic resolver waypoints. That preserves shell
-         * boundaries, but a resolved section may physically walk through
-         * additional canonical village track endpoints before the next shell.
+         * Semantic resolver waypoints preserve shell boundaries, but a
+         * resolved section may physically walk through additional canonical
+         * village track endpoints before the next shell.
          *
-         * The map / TravelStats village semantics already live on RouteTrack:
+         * Canonical village endpoint semantics already live on RouteTrack:
          *
          *   real endpoint = meaningful fromKey/toKey && !pseudoFrom/pseudoTo
          *
-         * Collect those SAME canonical endpoints from every actually traversed
+         * Collect those same canonical endpoints from every actually traversed
          * leg and merge them with the resolver waypoints.
          */
         List<CaminoTimetablePathStop> candidates =

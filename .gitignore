@@ -14,3 +14,4 @@ __pycache__/
 .patch-backups/
 *.orig
 *.rej
+*.bak-before-*
