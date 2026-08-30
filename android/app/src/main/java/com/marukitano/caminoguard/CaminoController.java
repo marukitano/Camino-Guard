@@ -2364,29 +2364,14 @@ public final class CaminoController {
                 && saved.stagePoint != null
                 && saved.resolvedPathId != null) {
 
-            List<StageRouteSelection> choices =
-                    findOutgoingStages(
+            StageRouteSelection choice =
+                    restoreResolvedStageSelection(
                             saved.stagePlaceKey,
-                            saved.stagePoint
+                            saved.stagePoint,
+                            saved.resolvedPathId
                     );
 
-            for (int index = 0;
-                    index < choices.size();
-                    index++) {
-
-                StageRouteSelection choice =
-                        choices.get(
-                                index
-                        );
-
-                if (choice.resolvedPath == null
-                        || !saved.resolvedPathId.equals(
-                        choice.resolvedPath.id
-                )) {
-
-                    continue;
-                }
-
+            if (choice != null) {
                 selectedStagePoint =
                         saved.stagePoint;
 
@@ -2397,7 +2382,11 @@ public final class CaminoController {
                         saved.stagePlaceKey;
 
                 selectedStageChoiceIndex =
-                        index;
+                        restoredInitialChoiceIndex(
+                                saved.stagePlaceKey,
+                                saved.stagePoint,
+                                saved.resolvedPathId
+                        );
 
                 selectedStageSelection =
                         choice;
@@ -2414,6 +2403,22 @@ public final class CaminoController {
 
                 return;
             }
+
+            /*
+             * A saved semantic stage path must never silently degrade into a
+             * generic two-point route. That would lose its shell waypoints and
+             * produce a different timetable after restart.
+             */
+            LockedMeasurementPathStore.clear(
+                    activity
+            );
+
+            uiStateStore.clearLockedSelection();
+
+            selectionLocked =
+                    false;
+
+            return;
         }
 
         if (saved.startRouteId == null
@@ -2498,6 +2503,185 @@ public final class CaminoController {
 
         selectionLocked =
                 true;
+    }
+
+
+    private StageRouteSelection restoreResolvedStageSelection(
+            String startPlaceKey,
+            LatLng startPoint,
+            String resolvedPathId
+    ) {
+        if (startPlaceKey == null
+                || startPoint == null
+                || resolvedPathId == null
+                || resolvedPathId.trim()
+                .isEmpty()) {
+
+            return null;
+        }
+
+        String[] pathIds =
+                resolvedPathId.split(
+                        "\\+\\+",
+                        -1
+                );
+
+        if (pathIds.length == 0) {
+            return null;
+        }
+
+        for (String pathId
+                : pathIds) {
+
+            if (pathId == null
+                    || pathId.trim()
+                    .isEmpty()) {
+
+                return null;
+            }
+        }
+
+        List<StageRouteSelection> choices =
+                findOutgoingStages(
+                        startPlaceKey,
+                        startPoint
+                );
+
+        StageRouteSelection combined =
+                findStageChoiceByResolvedId(
+                        choices,
+                        pathIds[0]
+                );
+
+        if (combined == null) {
+            return null;
+        }
+
+        for (int index = 1;
+                index < pathIds.length;
+                index++) {
+
+            if (combined.resolvedPath == null
+                    || combined.destinationPlaceKey == null
+                    || combined.endHit == null
+                    || combined.endHit.point == null) {
+
+                return null;
+            }
+
+            List<StageRouteSelection> nextChoices =
+                    findOutgoingStages(
+                            combined.destinationPlaceKey,
+                            combined.endHit.point
+                    );
+
+            StageRouteSelection next =
+                    findStageChoiceByResolvedId(
+                            nextChoices,
+                            pathIds[index]
+                    );
+
+            if (next == null) {
+                return null;
+            }
+
+            combined =
+                    appendStageSelection(
+                            combined,
+                            next
+                    );
+
+            if (combined == null) {
+                return null;
+            }
+        }
+
+        if (combined.resolvedPath == null
+                || !resolvedPathId.equals(
+                combined.resolvedPath.id
+        )) {
+
+            return null;
+        }
+
+        return combined;
+    }
+
+
+    private StageRouteSelection findStageChoiceByResolvedId(
+            List<StageRouteSelection> choices,
+            String resolvedPathId
+    ) {
+        if (choices == null
+                || resolvedPathId == null) {
+
+            return null;
+        }
+
+        for (StageRouteSelection choice
+                : choices) {
+
+            if (choice != null
+                    && choice.resolvedPath != null
+                    && resolvedPathId.equals(
+                    choice.resolvedPath.id
+            )) {
+
+                return choice;
+            }
+        }
+
+        return null;
+    }
+
+
+    private int restoredInitialChoiceIndex(
+            String startPlaceKey,
+            LatLng startPoint,
+            String resolvedPathId
+    ) {
+        String firstId =
+                resolvedPathId;
+
+        int separator =
+                resolvedPathId.indexOf(
+                        "++"
+                );
+
+        if (separator >= 0) {
+            firstId =
+                    resolvedPathId.substring(
+                            0,
+                            separator
+                    );
+        }
+
+        List<StageRouteSelection> choices =
+                findOutgoingStages(
+                        startPlaceKey,
+                        startPoint
+                );
+
+        for (int index = 0;
+                index < choices.size();
+                index++) {
+
+            StageRouteSelection choice =
+                    choices.get(
+                            index
+                    );
+
+            if (choice != null
+                    && choice.resolvedPath != null
+                    && firstId.equals(
+                    choice.resolvedPath.id
+            )) {
+
+                return index;
+            }
+        }
+
+        return 0;
     }
 
 

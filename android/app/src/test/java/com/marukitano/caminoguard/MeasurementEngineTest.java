@@ -334,6 +334,180 @@ public final class MeasurementEngineTest {
         );
     }
 
+    @Test
+    public void resolvedStageWaypointsBecomeTimetableStopsInWalkingOrder() {
+        CaminoRoute route =
+                new CaminoRoute(
+                        "beringen-test",
+                        "Beringen Test",
+                        "#6a994e"
+                );
+
+        LatLng start =
+                point(
+                        47.0,
+                        8.0
+                );
+
+        LatLng middle =
+                point(
+                        47.001,
+                        8.0
+                );
+
+        LatLng goal =
+                point(
+                        47.002,
+                        8.0
+                );
+
+        RouteTrack first =
+                track(
+                        "00a",
+                        0,
+                        Arrays.asList(
+                                start,
+                                middle
+                        ),
+                        Arrays.asList(
+                                100.0,
+                                110.0
+                        ),
+                        route
+                );
+
+        RouteTrack second =
+                track(
+                        "01a",
+                        1,
+                        Arrays.asList(
+                                middle,
+                                goal
+                        ),
+                        Arrays.asList(
+                                110.0,
+                                120.0
+                        ),
+                        route
+                );
+
+        prepareRoute(
+                route,
+                Arrays.asList(
+                        first,
+                        second
+                )
+        );
+
+        MeasurementEngine engine =
+                new MeasurementEngine(
+                        networkFor(
+                                route
+                        )
+                );
+
+        ProjectionHit startHit =
+                hitOnSingleSegment(
+                        first,
+                        0,
+                        0.0
+                );
+
+        ProjectionHit middleFromFirst =
+                hitOnSingleSegment(
+                        first,
+                        0,
+                        1.0
+                );
+
+        ProjectionHit middleFromSecond =
+                hitOnSingleSegment(
+                        second,
+                        1,
+                        0.0
+                );
+
+        ProjectionHit goalHit =
+                hitOnSingleSegment(
+                        second,
+                        1,
+                        1.0
+                );
+
+        CaminoResolvedStagePath resolved =
+                new CaminoResolvedStagePath(
+                        "first++second",
+                        route,
+                        "beringen_start",
+                        "beringen_ziel",
+                        startHit,
+                        goalHit,
+                        Arrays.asList(
+                                new CaminoResolvedStageLeg(
+                                        first,
+                                        startHit,
+                                        middleFromFirst
+                                ),
+                                new CaminoResolvedStageLeg(
+                                        second,
+                                        middleFromSecond,
+                                        goalHit
+                                )
+                        ),
+                        Collections.emptySet(),
+                        Arrays.asList(
+                                new CaminoResolvedStageWaypoint(
+                                        "beringen_start",
+                                        0
+                                ),
+                                new CaminoResolvedStageWaypoint(
+                                        "beringen_mitte",
+                                        1
+                                ),
+                                new CaminoResolvedStageWaypoint(
+                                        "beringen_ziel",
+                                        2
+                                )
+                        )
+                );
+
+        MeasurementPath result =
+                engine.buildResolvedStagePath(
+                        resolved
+                );
+
+        assertNotNull(
+                result
+        );
+
+        assertEquals(
+                3,
+                result.timetableStops.size()
+        );
+
+        assertEquals(
+                "beringen_start",
+                result.timetableStops.get(
+                        0
+                ).placeKey
+        );
+
+        assertEquals(
+                "beringen_mitte",
+                result.timetableStops.get(
+                        1
+                ).placeKey
+        );
+
+        assertEquals(
+                "beringen_ziel",
+                result.timetableStops.get(
+                        2
+                ).placeKey
+        );
+    }
+
+
     private static boolean hasProfileBreakNear(
             MeasurementPath path,
             double distanceM

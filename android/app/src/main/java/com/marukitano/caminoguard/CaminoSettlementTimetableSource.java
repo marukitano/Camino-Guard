@@ -9,12 +9,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Reads the SAME precomputed settlement marker source that is drawn on the map.
@@ -40,12 +38,6 @@ final class CaminoSettlementTimetableSource {
 
     private static final double DUPLICATE_CHAINAGE_M =
             25.0;
-
-    private static final double NAMED_ENDPOINT_SEARCH_M =
-            2500.0;
-
-    private static final double SYNTHETIC_ENDPOINT_SEARCH_M =
-            40.0;
 
     private final Context context;
 
@@ -86,10 +78,14 @@ final class CaminoSettlementTimetableSource {
                         path
                 );
 
-        addTimetableStops(
-                result,
-                path,
-                located
+        result.timetableStops.addAll(
+                CaminoTimetablePathStops.mergeSettlements(
+                        path.distanceM,
+                        path.timetableStops,
+                        supplementalStops(
+                                located
+                        )
+                )
         );
 
         cachedInputPath =
@@ -110,6 +106,12 @@ final class CaminoSettlementTimetableSource {
 
         result.distanceM =
                 source.distanceM;
+
+        result.startRoute =
+                source.startRoute;
+
+        result.endRoute =
+                source.endRoute;
 
         result.profilePoints.addAll(
                 source.profilePoints
@@ -296,258 +298,39 @@ final class CaminoSettlementTimetableSource {
     }
 
 
-    private void addTimetableStops(
-            MeasurementPath output,
-            MeasurementPath original,
+    private List<CaminoTimetablePathStops.SupplementalStop> supplementalStops(
             List<LocatedSettlement> located
     ) {
-        output.timetableStops.clear();
+        List<CaminoTimetablePathStops.SupplementalStop> result =
+                new ArrayList<>();
 
-        List<LocatedSettlement> mutable =
-                new ArrayList<>(
-                        located
-                );
-
-        CaminoTimetablePathStop originalStart =
-                firstOriginalStop(
-                        original
-                );
-
-        CaminoTimetablePathStop originalGoal =
-                lastOriginalStop(
-                        original
-                );
-
-        String startKey =
-                originalStart == null
-                        ? "@start"
-                        : originalStart.placeKey;
-
-        String goalKey =
-                originalGoal == null
-                        ? "@goal"
-                        : originalGoal.placeKey;
-
-        String startName =
-                consumeEndpointSettlement(
-                        mutable,
-                        startKey,
-                        0.0
-                );
-
-        if (!meaningful(
-                startName
-        )) {
-
-            startName =
-                    meaningful(
-                            startKey
-                    )
-                            ? startKey
-                            : "@start";
+        if (located == null) {
+            return result;
         }
 
-        output.timetableStops.add(
-                new CaminoTimetablePathStop(
-                        startName,
-                        0.0
-                )
-        );
-
-        /*
-         * Resolve/remove the goal marker BEFORE emitting intermediate stops.
-         * A settlement marker can legitimately lie a little before the stage
-         * shell; without this ordering the same town could appear once as an
-         * intermediate stop and once again as the goal.
-         */
-        String goalName =
-                consumeEndpointSettlement(
-                        mutable,
-                        goalKey,
-                        original.distanceM
-                );
-
         for (LocatedSettlement settlement
-                : mutable) {
+                : located) {
 
-            if (settlement.chainageM <= 0.5
-                    || settlement.chainageM
-                    >= original.distanceM - 0.5) {
+            if (settlement == null
+                    || !meaningful(
+                    settlement.name
+            )
+                    || !Double.isFinite(
+                    settlement.chainageM
+            )) {
 
                 continue;
             }
 
-            output.timetableStops.add(
-                    new CaminoTimetablePathStop(
+            result.add(
+                    new CaminoTimetablePathStops.SupplementalStop(
                             settlement.name,
                             settlement.chainageM
                     )
             );
         }
 
-        if (!meaningful(
-                goalName
-        )) {
-
-            goalName =
-                    meaningful(
-                            goalKey
-                    )
-                            ? goalKey
-                            : "@goal";
-        }
-
-        if (original.distanceM <= 0.5) {
-            if (output.timetableStops.size() == 1) {
-                output.timetableStops.add(
-                        new CaminoTimetablePathStop(
-                                goalName,
-                                original.distanceM
-                        )
-                );
-            }
-
-            return;
-        }
-
-        output.timetableStops.add(
-                new CaminoTimetablePathStop(
-                        goalName,
-                        original.distanceM
-                )
-        );
-    }
-
-
-    private String consumeEndpointSettlement(
-            List<LocatedSettlement> settlements,
-            String endpointKey,
-            double endpointChainageM
-    ) {
-        if (settlements.isEmpty()) {
-            return null;
-        }
-
-        boolean namedEndpoint =
-                CaminoTimetablePlanBuilder.isVillagePlaceKey(
-                        endpointKey
-                );
-
-        String endpointNameKey =
-                canonicalNameKey(
-                        endpointKey
-                );
-
-        int bestIndex =
-                -1;
-
-        double bestDistanceM =
-                Double.POSITIVE_INFINITY;
-
-        for (int index = 0;
-                index < settlements.size();
-                index++) {
-
-            LocatedSettlement candidate =
-                    settlements.get(
-                            index
-                    );
-
-            double edgeDistanceM =
-                    Math.abs(
-                            candidate.chainageM
-                                    - endpointChainageM
-                    );
-
-            double limitM =
-                    namedEndpoint
-                            ? NAMED_ENDPOINT_SEARCH_M
-                            : SYNTHETIC_ENDPOINT_SEARCH_M;
-
-            if (edgeDistanceM > limitM) {
-                continue;
-            }
-
-            if (namedEndpoint
-                    && !endpointNameKey.equals(
-                    canonicalNameKey(
-                            candidate.name
-                    )
-            )) {
-
-                continue;
-            }
-
-            if (edgeDistanceM
-                    < bestDistanceM) {
-
-                bestIndex =
-                        index;
-
-                bestDistanceM =
-                        edgeDistanceM;
-            }
-        }
-
-        if (bestIndex < 0) {
-            return null;
-        }
-
-        LocatedSettlement selected =
-                settlements.remove(
-                        bestIndex
-                );
-
-        return selected.name;
-    }
-
-
-    private CaminoTimetablePathStop firstOriginalStop(
-            MeasurementPath path
-    ) {
-        if (path == null
-                || path.timetableStops == null) {
-
-            return null;
-        }
-
-        for (CaminoTimetablePathStop stop
-                : path.timetableStops) {
-
-            if (stop != null) {
-                return stop;
-            }
-        }
-
-        return null;
-    }
-
-
-    private CaminoTimetablePathStop lastOriginalStop(
-            MeasurementPath path
-    ) {
-        if (path == null
-                || path.timetableStops == null) {
-
-            return null;
-        }
-
-        for (int index =
-                path.timetableStops.size() - 1;
-                index >= 0;
-                index--) {
-
-            CaminoTimetablePathStop stop =
-                    path.timetableStops.get(
-                            index
-                    );
-
-            if (stop != null) {
-                return stop;
-            }
-        }
-
-        return null;
+        return result;
     }
 
 
@@ -1047,46 +830,9 @@ final class CaminoSettlementTimetableSource {
     static String canonicalNameKey(
             String value
     ) {
-        if (value == null) {
-            return "";
-        }
-
-        String normalized =
-                Normalizer.normalize(
-                        value,
-                        Normalizer.Form.NFD
-                )
-                        .replaceAll(
-                                "\\p{M}+",
-                                ""
-                        )
-                        .toLowerCase(
-                                Locale.ROOT
-                        );
-
-        StringBuilder result =
-                new StringBuilder();
-
-        for (int index = 0;
-                index < normalized.length();
-                index++) {
-
-            char c =
-                    normalized.charAt(
-                            index
-                    );
-
-            if (Character.isLetterOrDigit(
-                    c
-            )) {
-
-                result.append(
-                        c
-                );
-            }
-        }
-
-        return result.toString();
+        return CaminoTimetablePathStops.canonicalNameKey(
+                value
+        );
     }
 
 

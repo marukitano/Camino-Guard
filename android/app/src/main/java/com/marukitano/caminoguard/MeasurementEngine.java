@@ -587,80 +587,14 @@ final class MeasurementEngine {
             }
         }
 
-        candidates.sort(
-                Comparator.comparingDouble(
-                        stop ->
-                                stop.chainageM
-                )
-        );
-
         result.timetableStops.clear();
 
-        for (CaminoTimetablePathStop candidate
-                : candidates) {
-
-            if (candidate == null
-                    || !Double.isFinite(
-                    candidate.chainageM
-            )
-                    || candidate.chainageM < 0.0) {
-
-                continue;
-            }
-
-            if (result.timetableStops.isEmpty()) {
-                result.timetableStops.add(
-                        candidate
-                );
-
-                continue;
-            }
-
-            int lastIndex =
-                    result.timetableStops.size() - 1;
-
-            CaminoTimetablePathStop previous =
-                    result.timetableStops.get(
-                            lastIndex
-                    );
-
-            /*
-             * Different metadata aliases can describe one physical boundary.
-             * If a real village and a synthetic junction share the same
-             * chainage, the real village wins.
-             */
-            if (Math.abs(
-                    previous.chainageM
-                            - candidate.chainageM
-            ) <= 0.5) {
-
-                String preferred =
-                        preferredTimetablePlaceKey(
-                                previous.placeKey,
-                                candidate.placeKey
-                        );
-
-                if (!samePlaceKey(
-                        previous.placeKey,
-                        preferred
-                )) {
-
-                    result.timetableStops.set(
-                            lastIndex,
-                            new CaminoTimetablePathStop(
-                                    preferred,
-                                    previous.chainageM
-                            )
-                    );
-                }
-
-                continue;
-            }
-
-            result.timetableStops.add(
-                    candidate
-            );
-        }
+        result.timetableStops.addAll(
+                CaminoTimetablePathStops.normalizeRouteStops(
+                        result.distanceM,
+                        candidates
+                )
+        );
     }
 
 
@@ -744,84 +678,12 @@ final class MeasurementEngine {
     }
 
 
-    private String preferredTimetablePlaceKey(
-            String first,
-            String second
-    ) {
-        boolean firstSynthetic =
-                syntheticTimetablePlaceKey(
-                        first
-                );
-
-        boolean secondSynthetic =
-                syntheticTimetablePlaceKey(
-                        second
-                );
-
-        if (firstSynthetic
-                && !secondSynthetic) {
-
-            return second;
-        }
-
-        if (!firstSynthetic) {
-            return first;
-        }
-
-        return meaningfulTimetablePlaceKey(
-                second
-        )
-                ? second
-                : first;
-    }
-
-
     private static boolean meaningfulTimetablePlaceKey(
             String value
     ) {
         return value != null
                 && !value.trim()
                 .isEmpty();
-    }
-
-
-    private boolean syntheticTimetablePlaceKey(
-            String value
-    ) {
-        if (!meaningfulTimetablePlaceKey(
-                value
-        )) {
-
-            return true;
-        }
-
-        String normalized =
-                value.trim()
-                        .toLowerCase(
-                                java.util.Locale.ROOT
-                        );
-
-        return normalized.startsWith(
-                "@"
-        )
-                || normalized.startsWith(
-                "fork_"
-        );
-    }
-
-
-
-    private boolean samePlaceKey(
-            String first,
-            String second
-    ) {
-        if (first == null) {
-            return second == null;
-        }
-
-        return first.equals(
-                second
-        );
     }
 
 

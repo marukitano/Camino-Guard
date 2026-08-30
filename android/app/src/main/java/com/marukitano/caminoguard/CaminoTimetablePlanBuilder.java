@@ -300,27 +300,8 @@ final class CaminoTimetablePlanBuilder {
     static boolean isVillagePlaceKey(
             String placeKey
     ) {
-        if (placeKey == null) {
-            return false;
-        }
-
-        String value =
-                placeKey.trim();
-
-        if (value.isEmpty()) {
-            return false;
-        }
-
-        String lower =
-                value.toLowerCase(
-                        Locale.ROOT
-                );
-
-        return !lower.startsWith(
-                "@"
-        )
-                && !lower.startsWith(
-                "fork_"
+        return CaminoTimetablePathStops.isNamedPlaceKey(
+                placeKey
         );
     }
 
