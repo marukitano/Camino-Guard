@@ -53,10 +53,6 @@
     "stationaryArrowColor": "#4A90E2",
     "outlineColor": "#3D332C"
   },
-  "debug": {
-    "gpsSplineOverlayVisible": true,
-    "draggableGpsEnabled": true
-  },
   "mapStyle": {
     "layerOverrides": {}
   }
