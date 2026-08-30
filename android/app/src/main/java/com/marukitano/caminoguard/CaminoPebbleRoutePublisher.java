@@ -27,6 +27,23 @@ final class CaminoPebbleRoutePublisher {
     private final CaminoTimetableEngine timetableEngine =
             new CaminoTimetableEngine();
 
+    /*
+     * Same ETA cadence as the Android timetable:
+     *
+     * MOVING     -> recalibrate every 15 minutes
+     * STATIONARY -> recalibrate every minute
+     *
+     * Distance and speed remain live independently.
+     */
+    private final TimetableEtaClock etaClock =
+            new TimetableEtaClock();
+
+    private List<CaminoTimetableStopPlan> etaPlans;
+
+    private int etaStartMinutes;
+
+    private boolean etaWasOnRoute;
+
     private final CaminoPebbleBridge bridge;
 
     private int pathVersion =
@@ -66,7 +83,8 @@ final class CaminoPebbleRoutePublisher {
     synchronized void onGpsFix(
             Location location,
             LockedMeasurementPathStore.Snapshot locked,
-            MeasurementPathProjection.Result projection
+            MeasurementPathProjection.Result projection,
+            boolean stationary
     ) {
         if (locked == null
                 || locked.path == null) {
@@ -76,6 +94,8 @@ final class CaminoPebbleRoutePublisher {
 
             lastGoodChainageM =
                     Double.NaN;
+
+            resetEtaState();
 
             /*
              * The watch clears route + speed when ROUTE_VALID becomes false.
@@ -112,6 +132,8 @@ final class CaminoPebbleRoutePublisher {
 
             lastGoodChainageM =
                     Double.NaN;
+
+            resetEtaState();
         }
 
         MeasurementPath path =
@@ -139,6 +161,9 @@ final class CaminoPebbleRoutePublisher {
          * The watch hides route values while the alarm is active.
          */
         if (alarmActive) {
+            etaWasOnRoute =
+                    false;
+
             if (stateChanged) {
                 sendIfChanged(
                         "--",
@@ -163,6 +188,13 @@ final class CaminoPebbleRoutePublisher {
 
         lastEvaluationElapsedMs =
                 nowElapsed;
+
+        boolean forceEtaRefresh =
+                pathChanged
+                        || !etaWasOnRoute;
+
+        etaWasOnRoute =
+                true;
 
         /*
          * During OFF ROUTE the selected-path chainage freezes at the last
@@ -192,7 +224,9 @@ final class CaminoPebbleRoutePublisher {
             Values values =
                     buildValues(
                             path,
-                            chainageM
+                            chainageM,
+                            stationary,
+                            forceEtaRefresh
                     );
 
             if (values != null) {
@@ -212,7 +246,8 @@ final class CaminoPebbleRoutePublisher {
                 nextDistance,
                 nextTime,
                 formatSpeed(
-                        location
+                        location,
+                        stationary
                 ),
                 false,
                 true
@@ -222,17 +257,10 @@ final class CaminoPebbleRoutePublisher {
 
     private Values buildValues(
             MeasurementPath path,
-            double chainageM
+            double chainageM,
+            boolean stationary,
+            boolean forceEtaRefresh
     ) {
-        List<CaminoTimetableStopPlan> plans =
-                planBuilder.build(
-                        path
-                );
-
-        if (plans.size() < 2) {
-            return null;
-        }
-
         double elapsedSecondsAtCurrent =
                 planBuilder.elapsedSecondsAtChainage(
                         path,
@@ -249,17 +277,48 @@ final class CaminoPebbleRoutePublisher {
         int nowMinutes =
                 currentClockMinutes();
 
-        int startMinutes =
-                nowMinutes
-                        - (int) Math.round(
-                        elapsedSecondsAtCurrent
-                                / 60.0
+        long revisionBefore =
+                etaClock.revision();
+
+        etaStartMinutes =
+                etaClock.startMinutes(
+                        SystemClock.elapsedRealtime(),
+                        nowMinutes,
+                        elapsedSecondsAtCurrent,
+                        stationary,
+                        forceEtaRefresh
                 );
+
+        boolean etaRefreshed =
+                etaClock.revision()
+                        != revisionBefore;
+
+        /*
+         * WalkingPerformanceModel can learn much more frequently than ETA is
+         * allowed to change. Keep the stop plan frozen between ETA refreshes.
+         */
+        if (etaPlans == null
+                || etaRefreshed) {
+
+            etaPlans =
+                    planBuilder.build(
+                            path
+                    );
+        }
+
+        List<CaminoTimetableStopPlan> plans =
+                etaPlans;
+
+        if (plans == null
+                || plans.size() < 2) {
+
+            return null;
+        }
 
         CaminoTimetableState state =
                 timetableEngine.build(
                         plans,
-                        startMinutes,
+                        etaStartMinutes,
                         chainageM
                 );
 
@@ -294,6 +353,20 @@ final class CaminoPebbleRoutePublisher {
                         remainingMinutes
                 )
         );
+    }
+
+
+    private void resetEtaState() {
+        etaClock.reset();
+
+        etaPlans =
+                null;
+
+        etaStartMinutes =
+                0;
+
+        etaWasOnRoute =
+                false;
     }
 
 
@@ -505,8 +578,13 @@ final class CaminoPebbleRoutePublisher {
 
 
     private static String formatSpeed(
-            Location location
+            Location location,
+            boolean stationary
     ) {
+        if (stationary) {
+            return "0.0 km/h";
+        }
+
         if (location == null
                 || !location.hasSpeed()
                 || !Float.isFinite(

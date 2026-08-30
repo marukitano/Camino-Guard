@@ -977,7 +977,8 @@ public final class CaminoTrackingService extends Service
             publisher.onGpsFix(
                     acceptedLocation,
                     locked,
-                    lockedProjection
+                    lockedProjection,
+                    snapshot.stationary
             );
         }
     }
@@ -1002,7 +1003,9 @@ public final class CaminoTrackingService extends Service
         publisher.onGpsFix(
                 acceptedLocation,
                 locked,
-                lockedProjection
+                lockedProjection,
+                gpsMotionStateDetector.state()
+                        == GpsMotionStateDetector.State.STATIONARY
         );
     }
 
@@ -1225,7 +1228,9 @@ public final class CaminoTrackingService extends Service
             pebbleRoutePublisher.onGpsFix(
                     acceptedLocation,
                     locked,
-                    lockedProjection
+                    lockedProjection,
+                    gpsMotionStateDetector.state()
+                            == GpsMotionStateDetector.State.STATIONARY
             );
 
         } catch (RuntimeException error) {
