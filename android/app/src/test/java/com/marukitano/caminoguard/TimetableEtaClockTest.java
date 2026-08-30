@@ -224,6 +224,57 @@ public final class TimetableEtaClockTest {
     }
 
 
+    @Test
+    public void revisionChangesOnlyWhenEtaIsRecalibrated() {
+        TimetableEtaClock clock =
+                new TimetableEtaClock();
+
+        assertEquals(
+                0L,
+                clock.revision()
+        );
+
+        clock.startMinutes(
+                1_000L,
+                600,
+                600.0,
+                false,
+                false
+        );
+
+        assertEquals(
+                1L,
+                clock.revision()
+        );
+
+        clock.startMinutes(
+                1_000L + 5L * 60L * 1000L,
+                605,
+                720.0,
+                false,
+                false
+        );
+
+        assertEquals(
+                1L,
+                clock.revision()
+        );
+
+        clock.startMinutes(
+                1_000L + 15L * 60L * 1000L,
+                615,
+                900.0,
+                false,
+                false
+        );
+
+        assertEquals(
+                2L,
+                clock.revision()
+        );
+    }
+
+
     @Test(expected = IllegalArgumentException.class)
     public void nonFiniteElapsedTimeIsRejected() {
         TimetableEtaClock clock =

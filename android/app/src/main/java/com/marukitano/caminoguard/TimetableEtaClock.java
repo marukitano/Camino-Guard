@@ -29,6 +29,13 @@ final class TimetableEtaClock {
 
     private int startMinutes;
 
+    private long revision;
+
+
+    long revision() {
+        return revision;
+    }
+
 
     int startMinutes(
             long nowElapsedMs,
@@ -85,6 +92,8 @@ final class TimetableEtaClock {
 
             lastRefreshElapsedMs =
                     nowElapsedMs;
+
+            revision++;
         }
 
         return startMinutes;
@@ -103,5 +112,8 @@ final class TimetableEtaClock {
 
         startMinutes =
                 0;
+
+        revision =
+                0L;
     }
 }

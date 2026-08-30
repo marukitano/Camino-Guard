@@ -1,6 +1,7 @@
 package com.marukitano.caminoguard;
 
 import android.app.Activity;
+import android.os.SystemClock;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -51,6 +52,25 @@ final class CaminoTimetableOverlay {
     private double currentChainageM =
             0.0;
 
+    /*
+     * Locked ETA snapshot.
+     *
+     * Distance/progress may move continuously, while the timetable's walking
+     * model + wall-clock anchor are deliberately refreshed only according to
+     * TimetableEtaClock.
+     */
+    private final TimetableEtaClock etaClock =
+            new TimetableEtaClock();
+
+    private MeasurementPath etaSourcePath;
+
+    private MeasurementPath etaTimetablePath;
+
+    private List<CaminoTimetableStopPlan> etaPlans;
+
+    private int etaStartMinutes;
+
+    private boolean etaWasOnRoute;
 
 
     CaminoTimetableOverlay(
@@ -163,6 +183,8 @@ final class CaminoTimetableOverlay {
     void update(
             MeasurementPath path,
             boolean locked,
+            boolean onRoute,
+            boolean stationary,
             double currentChainageM
     ) {
         ensureView();
@@ -172,6 +194,8 @@ final class CaminoTimetableOverlay {
 
             this.currentChainageM =
                     0.0;
+
+            resetEtaState();
 
             clearAndHide();
             return;
@@ -187,58 +211,119 @@ final class CaminoTimetableOverlay {
                 )
                         : 0.0;
 
-        MeasurementPath timetablePath =
-                settlementSource.withSettlementStops(
-                        path
-                );
+        boolean pathChanged =
+                etaSourcePath != path;
 
-        List<CaminoTimetableStopPlan> plans =
-                planBuilder.build(
-                        timetablePath
-                );
+        if (pathChanged) {
+            resetEtaState();
 
-        if (plans.size() < 2) {
-            clearAndHide();
-            return;
+            etaSourcePath =
+                    path;
+
+            etaTimetablePath =
+                    settlementSource.withSettlementStops(
+                            path
+                    );
         }
 
-        double elapsedSecondsAtCurrent =
-                planBuilder.elapsedSecondsAtChainage(
-                        timetablePath,
-                        this.currentChainageM
-                );
+        MeasurementPath timetablePath =
+                etaTimetablePath;
 
-        if (!Double.isFinite(
-                elapsedSecondsAtCurrent
-        )) {
-
+        if (timetablePath == null) {
             clearAndHide();
             return;
         }
 
         /*
-         * The pure engine still consumes a route-start clock base. Rebase that
-         * clock so that, at the CURRENT route chainage:
+         * While OFF ROUTE an already-established timetable stays frozen.
+         * Re-entry forces one immediate recalibration.
          *
-         *   stop ETA = wall clock now + remaining walking time to the stop.
-         *
-         * This deliberately uses the current wall clock on every GPS/debug
-         * refresh. A planned/start-time preference must never leak into locked
-         * navigation mode.
+         * If the route was locked while already off-route, build one initial
+         * timetable snapshot so the Android panel still has valid content.
          */
-        int startMinutes =
-                currentClockMinutes()
-                        - (int)
-                        Math.round(
-                                elapsedSecondsAtCurrent
-                                        / 60.0
+        boolean forceEtaRefresh =
+                pathChanged
+                        || (
+                        onRoute
+                                && !etaWasOnRoute
+                );
+
+        boolean mayRefreshEta =
+                onRoute
+                        || etaPlans == null;
+
+        if (mayRefreshEta) {
+            double elapsedSecondsAtCurrent =
+                    planBuilder.elapsedSecondsAtChainage(
+                            timetablePath,
+                            this.currentChainageM
+                    );
+
+            if (!Double.isFinite(
+                    elapsedSecondsAtCurrent
+            )) {
+
+                if (etaPlans == null) {
+                    clearAndHide();
+                }
+
+                etaWasOnRoute =
+                        onRoute;
+
+                return;
+            }
+
+            long revisionBefore =
+                    etaClock.revision();
+
+            etaStartMinutes =
+                    etaClock.startMinutes(
+                            SystemClock.elapsedRealtime(),
+                            currentClockMinutes(),
+                            elapsedSecondsAtCurrent,
+                            stationary,
+                            forceEtaRefresh
+                    );
+
+            boolean etaRefreshed =
+                    etaClock.revision()
+                            != revisionBefore;
+
+            /*
+             * WalkingPerformanceModel may learn every minute, but arrival
+             * estimates must not follow that generation immediately.
+             *
+             * Rebuild the complete stop plan only when the ETA clock itself
+             * authorizes a refresh.
+             */
+            if (etaPlans == null
+                    || etaRefreshed) {
+
+                etaPlans =
+                        planBuilder.build(
+                                timetablePath
                         );
+            }
+        }
+
+        etaWasOnRoute =
+                onRoute;
+
+        List<CaminoTimetableStopPlan> plans =
+                etaPlans;
+
+        if (plans == null
+                || plans.size() < 2) {
+
+            clearAndHide();
+            return;
+        }
 
         CaminoTimetableState state =
                 engine.build(
                         plans,
-                        startMinutes,
-                        currentChainageM
+                        etaStartMinutes,
+                        this.currentChainageM
                 );
 
         /*
@@ -266,6 +351,26 @@ final class CaminoTimetableOverlay {
         );
 
         toggleView.bringToFront();
+    }
+
+
+    private void resetEtaState() {
+        etaClock.reset();
+
+        etaSourcePath =
+                null;
+
+        etaTimetablePath =
+                null;
+
+        etaPlans =
+                null;
+
+        etaStartMinutes =
+                0;
+
+        etaWasOnRoute =
+                false;
     }
 
 

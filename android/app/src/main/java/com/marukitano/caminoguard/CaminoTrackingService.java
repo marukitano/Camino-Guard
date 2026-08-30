@@ -83,6 +83,13 @@ public final class CaminoTrackingService extends Service
     private static final float TRACK_POINT_SPACING_M = 1.5f;
 
     /*
+     * Stationary position stays frozen, but timetable ETA must receive one
+     * wall-clock tick per minute while a pause continues.
+     */
+    private static final long STATIONARY_PUBLISH_INTERVAL_MS =
+            60_000L;
+
+    /*
      * Fixed spatial direction window.
      * The heading is the continuation of roughly the last 10 m walked.
      */
@@ -124,6 +131,9 @@ public final class CaminoTrackingService extends Service
             new GpsMotionStateDetector();
 
     private Location lastMotionFix;
+
+    private long lastStationaryPublishElapsedMs =
+            Long.MIN_VALUE;
 
     private final CaminoDirectionTracker directionTracker =
             new CaminoDirectionTracker(
@@ -650,6 +660,9 @@ public final class CaminoTrackingService extends Service
         lastMotionFix =
                 null;
 
+        lastStationaryPublishElapsedMs =
+                Long.MIN_VALUE;
+
         /*
          * Direction history from before a GPS-off interval must not be used as
          * the spatial baseline for movement after resume.
@@ -738,14 +751,34 @@ public final class CaminoTrackingService extends Service
              * Freeze GPS position/course while standing. Raw stationary GNSS
              * jitter must not move the map, route progress or off-route state.
              */
-            if (previousMotionState
-                    != GpsMotionStateDetector.State.STATIONARY) {
+            boolean enteredStationary =
+                    previousMotionState
+                            != GpsMotionStateDetector.State.STATIONARY;
 
+            if (enteredStationary) {
                 recordPerformanceStationary(
                         acceptedLocation
                 );
 
                 directionTracker.enterStationary();
+            }
+
+            /*
+             * The frozen Location intentionally keeps its original timestamp.
+             * Publishing it once per minute gives timetable presentation a
+             * wall-clock tick without accepting stationary GPS jitter.
+             */
+            boolean stationaryPublishDue =
+                    enteredStationary
+                            || lastStationaryPublishElapsedMs
+                            == Long.MIN_VALUE
+                            || motionElapsedMs
+                            - lastStationaryPublishElapsedMs
+                            >= STATIONARY_PUBLISH_INTERVAL_MS;
+
+            if (stationaryPublishDue) {
+                lastStationaryPublishElapsedMs =
+                        motionElapsedMs;
 
                 publish(
                         locked,
@@ -768,6 +801,9 @@ public final class CaminoTrackingService extends Service
 
             return;
         }
+
+        lastStationaryPublishElapsedMs =
+                Long.MIN_VALUE;
 
         if (previousMotionState
                 != GpsMotionStateDetector.State.MOVING) {

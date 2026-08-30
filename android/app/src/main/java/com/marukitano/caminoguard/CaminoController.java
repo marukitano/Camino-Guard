@@ -119,6 +119,13 @@ public final class CaminoController {
 
     private boolean debugPositionOverride;
     private Float liveCourseDeg;
+
+    /*
+     * Comes exclusively from CaminoTrackingService's GPS-only classifier.
+     * Foreground gyro never participates in pause detection.
+     */
+    private boolean liveStationary;
+
     private long lastLiveFixStamp = Long.MIN_VALUE;
     private boolean livePositionListenerRegistered;
 
@@ -523,6 +530,9 @@ public final class CaminoController {
         hasLiveGpsFix =
                 true;
 
+        liveStationary =
+                snapshot.stationary;
+
         /*
          * Motion-state publications can arrive without a new GPS timestamp.
          * SelectionStatsOverlay still needs the stationary transition even
@@ -552,6 +562,13 @@ public final class CaminoController {
          */
         if (stamp == lastLiveFixStamp) {
             liveCourseDeg = snapshot.courseDeg;
+
+            if (snapshot.stationary) {
+                activity.runOnUiThread(
+                        this::refreshStationaryTimetable
+                );
+            }
+
             return;
         }
 
@@ -1029,6 +1046,8 @@ public final class CaminoController {
                 currentMeasurementPath,
                 selectionLocked
                         && marked,
+                !offRoute,
+                timetableStationary(),
                 timetableCurrentChainageM(
                         routeProjection
                 )
@@ -1043,6 +1062,30 @@ public final class CaminoController {
 
         heightProfileController.refresh();
     }
+
+    private boolean timetableStationary() {
+        return livePositionMode
+                && !debugPositionOverride
+                && liveStationary;
+    }
+
+
+    private void refreshStationaryTimetable() {
+        boolean marked =
+                hasMarkedSelection();
+
+        timetableOverlay.update(
+                currentMeasurementPath,
+                selectionLocked
+                        && marked,
+                !offRoute,
+                true,
+                timetableCurrentChainageM(
+                        null
+                )
+        );
+    }
+
 
     private boolean handleMapTouch(
             MotionEvent event
@@ -1992,6 +2035,8 @@ public final class CaminoController {
             timetableOverlay.update(
                     currentMeasurementPath,
                     false,
+                    false,
+                    false,
                     0.0
             );
 
@@ -2072,6 +2117,8 @@ public final class CaminoController {
         timetableOverlay.update(
                 currentMeasurementPath,
                 true,
+                !offRoute,
+                timetableStationary(),
                 timetableCurrentChainageM(
                         routeProjection
                 )
