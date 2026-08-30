@@ -22,6 +22,7 @@ import android.util.Log;
 import org.maplibre.android.geometry.LatLng;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -47,11 +48,19 @@ public final class CaminoTrackingService extends Service
         public final Float phoneHeadingDeg;
         public final boolean stationary;
 
+        /*
+         * Immutable real-navigation timetable state calculated by the
+         * foreground GPS service. Android and Pebble will consume this exact
+         * same object rather than maintaining separate ETA clocks.
+         */
+        final CaminoTimetableState timetableState;
+
         Snapshot(
                 Location location,
                 Float courseDeg,
                 Float phoneHeadingDeg,
-                boolean stationary
+                boolean stationary,
+                CaminoTimetableState timetableState
         ) {
             this.location =
                     location == null
@@ -61,6 +70,8 @@ public final class CaminoTrackingService extends Service
             this.courseDeg = courseDeg;
             this.phoneHeadingDeg = phoneHeadingDeg;
             this.stationary = stationary;
+            this.timetableState =
+                    timetableState;
         }
     }
 
@@ -103,7 +114,8 @@ public final class CaminoTrackingService extends Service
                     null,
                     null,
                     null,
-                    false
+                    false,
+                    null
             );
 
     private LocationManager locationManager;
@@ -169,6 +181,15 @@ public final class CaminoTrackingService extends Service
 
     private volatile CaminoPebbleRoutePublisher
             pebbleRoutePublisher;
+
+    /*
+     * Single real-navigation ETA authority.
+     *
+     * WalkingPerformanceModel, ETA cadence and timetable state are evaluated
+     * here once; presentation consumers must not rebuild them independently.
+     */
+    private volatile LockedTimetableEtaAuthority
+            lockedTimetableEtaAuthority;
 
     /*
      * Independent four-week raw study.
@@ -415,9 +436,7 @@ public final class CaminoTrackingService extends Service
                             getApplicationContext()
                     );
 
-            ensurePebbleRoutePublisher(
-                    backgroundWalkingPerformanceModel
-            );
+            ensurePebbleRoutePublisher();
 
             LibreLinkUpStore libreStore =
                     new LibreLinkUpStore(
@@ -571,6 +590,9 @@ public final class CaminoTrackingService extends Service
         }
 
         pebbleRoutePublisher =
+                null;
+
+        lockedTimetableEtaAuthority =
                 null;
 
         CaminoPebbleBridge bridge =
@@ -951,13 +973,24 @@ public final class CaminoTrackingService extends Service
             LockedMeasurementPathStore.Snapshot locked,
             MeasurementPathProjection.Result lockedProjection
     ) {
+        boolean stationary =
+                gpsMotionStateDetector.state()
+                        == GpsMotionStateDetector.State.STATIONARY;
+
+        CaminoTimetableState timetableState =
+                authoritativeTimetableState(
+                        locked,
+                        lockedProjection,
+                        stationary
+                );
+
         Snapshot snapshot =
                 new Snapshot(
                         acceptedLocation,
                         directionTracker.courseDeg(),
                         null,
-                        gpsMotionStateDetector.state()
-                                == GpsMotionStateDetector.State.STATIONARY
+                        stationary,
+                        timetableState
                 );
 
         latestSnapshot = snapshot;
@@ -971,26 +1004,18 @@ public final class CaminoTrackingService extends Service
         CaminoPebbleRoutePublisher publisher =
                 pebbleRoutePublisher;
 
-        if (publisher != null
-                && acceptedLocation != null) {
-
+        if (publisher != null) {
             publisher.onGpsFix(
                     acceptedLocation,
                     locked,
-                    lockedProjection,
-                    snapshot.stationary
+                    lockedProjection != null,
+                    timetableState,
+                    stationary
             );
         }
     }
 
     private void publishCurrentLockedRouteState() {
-        CaminoPebbleRoutePublisher publisher =
-                pebbleRoutePublisher;
-
-        if (publisher == null) {
-            return;
-        }
-
         LockedMeasurementPathStore.Snapshot locked =
                 currentServiceLockedPath();
 
@@ -1000,12 +1025,67 @@ public final class CaminoTrackingService extends Service
                         acceptedLocation
                 );
 
-        publisher.onGpsFix(
-                acceptedLocation,
+        publish(
                 locked,
-                lockedProjection,
-                gpsMotionStateDetector.state()
-                        == GpsMotionStateDetector.State.STATIONARY
+                lockedProjection
+        );
+    }
+
+
+    private CaminoTimetableState authoritativeTimetableState(
+            LockedMeasurementPathStore.Snapshot locked,
+            MeasurementPathProjection.Result projection,
+            boolean stationary
+    ) {
+        LockedTimetableEtaAuthority authority =
+                lockedTimetableEtaAuthority;
+
+        if (authority == null) {
+            return null;
+        }
+
+        if (locked == null
+                || locked.path == null) {
+
+            authority.reset();
+
+            return null;
+        }
+
+        boolean onRoute =
+                acceptedLocation != null
+                        && projection != null;
+
+        double chainageM =
+                onRoute
+                        ? LockedTimetableEtaAuthority.routeChainageM(
+                                locked.path,
+                                projection
+                        )
+                        : Double.NaN;
+
+        return authority.update(
+                locked.version,
+                locked.path,
+                chainageM,
+                onRoute,
+                stationary,
+                SystemClock.elapsedRealtime(),
+                currentClockMinutes()
+        );
+    }
+
+
+    private static int currentClockMinutes() {
+        Calendar now =
+                Calendar.getInstance();
+
+        return now.get(
+                Calendar.HOUR_OF_DAY
+        )
+                * 60
+                + now.get(
+                Calendar.MINUTE
         );
     }
 
@@ -1187,17 +1267,17 @@ public final class CaminoTrackingService extends Service
                     model;
         }
 
-        ensurePebbleRoutePublisher(
-                model
-        );
+        lockedTimetableEtaAuthority =
+                new LockedTimetableEtaAuthority(
+                        model
+                );
+
+        ensurePebbleRoutePublisher();
     }
 
 
-    private synchronized void ensurePebbleRoutePublisher(
-            WalkingPerformanceModel model
-    ) {
+    private synchronized void ensurePebbleRoutePublisher() {
         if (pebbleRoutePublisher != null
-                || model == null
                 || pebbleBridge == null) {
 
             return;
@@ -1206,8 +1286,6 @@ public final class CaminoTrackingService extends Service
         try {
             pebbleRoutePublisher =
                     new CaminoPebbleRoutePublisher(
-                            getApplicationContext(),
-                            model,
                             pebbleBridge
                     );
 
@@ -1225,12 +1303,23 @@ public final class CaminoTrackingService extends Service
                             acceptedLocation
                     );
 
+            boolean stationary =
+                    gpsMotionStateDetector.state()
+                            == GpsMotionStateDetector.State.STATIONARY;
+
+            CaminoTimetableState timetableState =
+                    authoritativeTimetableState(
+                            locked,
+                            lockedProjection,
+                            stationary
+                    );
+
             pebbleRoutePublisher.onGpsFix(
                     acceptedLocation,
                     locked,
-                    lockedProjection,
-                    gpsMotionStateDetector.state()
-                            == GpsMotionStateDetector.State.STATIONARY
+                    lockedProjection != null,
+                    timetableState,
+                    stationary
             );
 
         } catch (RuntimeException error) {

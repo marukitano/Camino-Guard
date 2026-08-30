@@ -1,13 +1,9 @@
 package com.marukitano.caminoguard;
 
-import android.content.Context;
 import android.location.Location;
 import android.os.SystemClock;
 
-import org.maplibre.android.geometry.LatLng;
-
 import java.util.Calendar;
-import java.util.List;
 import java.util.Locale;
 
 
@@ -22,28 +18,12 @@ final class CaminoPebbleRoutePublisher {
     private static final long SEND_INTERVAL_MS =
             5_000L;
 
-    private final CaminoTimetablePlanBuilder planBuilder;
-
-    private final CaminoTimetableEngine timetableEngine =
-            new CaminoTimetableEngine();
-
     /*
-     * Same ETA cadence as the Android timetable:
+     * Presentation only.
      *
-     * MOVING     -> recalibrate every 15 minutes
-     * STATIONARY -> recalibrate every minute
-     *
-     * Distance and speed remain live independently.
+     * CaminoTrackingService supplies the already-built authoritative
+     * CaminoTimetableState. Pebble never runs timetable/ETA route math here.
      */
-    private final TimetableEtaClock etaClock =
-            new TimetableEtaClock();
-
-    private List<CaminoTimetableStopPlan> etaPlans;
-
-    private int etaStartMinutes;
-
-    private boolean etaWasOnRoute;
-
     private final CaminoPebbleBridge bridge;
 
     private int pathVersion =
@@ -56,6 +36,14 @@ final class CaminoPebbleRoutePublisher {
     private boolean lastAlarmActive;
     private boolean lastRouteValid;
 
+    /*
+     * Motion transitions bypass the ordinary five-second telemetry throttle.
+     * This guarantees immediate 0.0 km/h / ETA presentation on pause and an
+     * immediate refresh when walking resumes.
+     */
+    private boolean hasMotionState;
+    private boolean lastStationary;
+
     private long lastEvaluationElapsedMs =
             Long.MIN_VALUE;
 
@@ -66,14 +54,13 @@ final class CaminoPebbleRoutePublisher {
 
 
     CaminoPebbleRoutePublisher(
-            Context context,
-            WalkingPerformanceModel performanceModel,
             CaminoPebbleBridge bridge
     ) {
-        planBuilder =
-                new CaminoTimetablePlanBuilder(
-                        performanceModel
-                );
+        if (bridge == null) {
+            throw new IllegalArgumentException(
+                    "bridge must not be null"
+            );
+        }
 
         this.bridge =
                 bridge;
@@ -83,7 +70,8 @@ final class CaminoPebbleRoutePublisher {
     synchronized void onGpsFix(
             Location location,
             LockedMeasurementPathStore.Snapshot locked,
-            MeasurementPathProjection.Result projection,
+            boolean onRoute,
+            CaminoTimetableState timetableState,
             boolean stationary
     ) {
         if (locked == null
@@ -92,15 +80,11 @@ final class CaminoPebbleRoutePublisher {
             pathVersion =
                     Integer.MIN_VALUE;
 
-            lastGoodChainageM =
-                    Double.NaN;
-
-            resetEtaState();
+            hasMotionState =
+                    false;
 
             /*
              * The watch clears route + speed when ROUTE_VALID becomes false.
-             * Send that transition once; repeated unlocked GPS fixes carry no
-             * new visible information.
              */
             sendIfChanged(
                     "--",
@@ -115,56 +99,46 @@ final class CaminoPebbleRoutePublisher {
         }
 
         /*
-         * NO_ROUTE is independent of GPS availability. A real locked route,
-         * however, still requires a physical position before ON_ROUTE or
-         * OFF_ROUTE can be determined.
+         * NO_ROUTE is independent of GPS availability. A locked route still
+         * needs a physical position before ON_ROUTE/OFF_ROUTE can be shown.
          */
         if (location == null) {
             return;
         }
 
         boolean pathChanged =
-                pathVersion != locked.version;
+                pathVersion
+                        != locked.version;
 
         if (pathChanged) {
             pathVersion =
                     locked.version;
-
-            lastGoodChainageM =
-                    Double.NaN;
-
-            resetEtaState();
         }
-
-        MeasurementPath path =
-                locked.path;
 
         boolean alarmActive =
-                projection == null;
+                !onRoute;
 
-        if (projection != null) {
-            lastGoodChainageM =
-                    projection.chainageM;
-        }
-
-        boolean stateChanged =
+        boolean routeStateChanged =
                 !sentAnyState
                         || pathChanged
-                        || alarmActive != lastAlarmActive
+                        || alarmActive
+                        != lastAlarmActive
                         || !lastRouteValid;
+
+        boolean motionChanged =
+                !hasMotionState
+                        || stationary
+                        != lastStationary;
 
         long nowElapsed =
                 SystemClock.elapsedRealtime();
 
         /*
-         * OFF ROUTE is a transition, not a five-second telemetry stream.
-         * The watch hides route values while the alarm is active.
+         * OFF ROUTE remains a transition, not a telemetry stream.
+         * Motion changes while the alarm is visible need no extra packet.
          */
         if (alarmActive) {
-            etaWasOnRoute =
-                    false;
-
-            if (stateChanged) {
+            if (routeStateChanged) {
                 sendIfChanged(
                         "--",
                         "--",
@@ -175,12 +149,24 @@ final class CaminoPebbleRoutePublisher {
                 );
             }
 
+            hasMotionState =
+                    true;
+
+            lastStationary =
+                    stationary;
+
             return;
         }
 
-        if (!stateChanged
-                && lastEvaluationElapsedMs != Long.MIN_VALUE
-                && nowElapsed - lastEvaluationElapsedMs
+        boolean immediateEvaluation =
+                routeStateChanged
+                        || motionChanged;
+
+        if (!immediateEvaluation
+                && lastEvaluationElapsedMs
+                != Long.MIN_VALUE
+                && nowElapsed
+                - lastEvaluationElapsedMs
                 < SEND_INTERVAL_MS) {
 
             return;
@@ -188,23 +174,6 @@ final class CaminoPebbleRoutePublisher {
 
         lastEvaluationElapsedMs =
                 nowElapsed;
-
-        boolean forceEtaRefresh =
-                pathChanged
-                        || !etaWasOnRoute;
-
-        etaWasOnRoute =
-                true;
-
-        /*
-         * During OFF ROUTE the selected-path chainage freezes at the last
-         * trustworthy projection. The watch hides route values while alarm is
-         * active, but retaining them makes re-entry deterministic.
-         */
-        double chainageM =
-                projection != null
-                        ? projection.chainageM
-                        : lastGoodChainageM;
 
         String nextName =
                 "--";
@@ -215,30 +184,20 @@ final class CaminoPebbleRoutePublisher {
         String nextTime =
                 "--";
 
-        if (Double.isFinite(
-                chainageM
-        )
-                && path.timetableStops != null
-                && path.timetableStops.size() >= 2) {
+        Values values =
+                valuesFromState(
+                        timetableState
+                );
 
-            Values values =
-                    buildValues(
-                            path,
-                            chainageM,
-                            stationary,
-                            forceEtaRefresh
-                    );
+        if (values != null) {
+            nextName =
+                    values.name;
 
-            if (values != null) {
-                nextName =
-                        values.name;
+            nextDistance =
+                    values.distance;
 
-                nextDistance =
-                        values.distance;
-
-                nextTime =
-                        values.time;
-            }
+            nextTime =
+                    values.time;
         }
 
         sendIfChanged(
@@ -252,76 +211,18 @@ final class CaminoPebbleRoutePublisher {
                 false,
                 true
         );
+
+        hasMotionState =
+                true;
+
+        lastStationary =
+                stationary;
     }
 
 
-    private Values buildValues(
-            MeasurementPath path,
-            double chainageM,
-            boolean stationary,
-            boolean forceEtaRefresh
+    private Values valuesFromState(
+            CaminoTimetableState state
     ) {
-        double elapsedSecondsAtCurrent =
-                planBuilder.elapsedSecondsAtChainage(
-                        path,
-                        chainageM
-                );
-
-        if (!Double.isFinite(
-                elapsedSecondsAtCurrent
-        )) {
-
-            return null;
-        }
-
-        int nowMinutes =
-                currentClockMinutes();
-
-        long revisionBefore =
-                etaClock.revision();
-
-        etaStartMinutes =
-                etaClock.startMinutes(
-                        SystemClock.elapsedRealtime(),
-                        nowMinutes,
-                        elapsedSecondsAtCurrent,
-                        stationary,
-                        forceEtaRefresh
-                );
-
-        boolean etaRefreshed =
-                etaClock.revision()
-                        != revisionBefore;
-
-        /*
-         * WalkingPerformanceModel can learn much more frequently than ETA is
-         * allowed to change. Keep the stop plan frozen between ETA refreshes.
-         */
-        if (etaPlans == null
-                || etaRefreshed) {
-
-            etaPlans =
-                    planBuilder.build(
-                            path
-                    );
-        }
-
-        List<CaminoTimetableStopPlan> plans =
-                etaPlans;
-
-        if (plans == null
-                || plans.size() < 2) {
-
-            return null;
-        }
-
-        CaminoTimetableState state =
-                timetableEngine.build(
-                        plans,
-                        etaStartMinutes,
-                        chainageM
-                );
-
         if (state == null
                 || !state.hasNextStop()) {
 
@@ -340,7 +241,7 @@ final class CaminoPebbleRoutePublisher {
 
         int remainingMinutes =
                 forwardMinutes(
-                        nowMinutes,
+                        currentClockMinutes(),
                         next.arrivalMinutesOfDay
                 );
 
@@ -353,20 +254,6 @@ final class CaminoPebbleRoutePublisher {
                         remainingMinutes
                 )
         );
-    }
-
-
-    private void resetEtaState() {
-        etaClock.reset();
-
-        etaPlans =
-                null;
-
-        etaStartMinutes =
-                0;
-
-        etaWasOnRoute =
-                false;
     }
 
 

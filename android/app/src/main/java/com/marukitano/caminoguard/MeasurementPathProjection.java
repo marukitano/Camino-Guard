@@ -23,8 +23,8 @@ final class MeasurementPathProjection {
          * Normalized progress across the MeasurementPath profile.
          *
          * chainageM deliberately keeps its historical profile-distance
-         * semantics for existing Pebble/study consumers. fraction is the
-         * 0..1 value Android UI previously calculated independently.
+         * semantics for study and low-level projection consumers. fraction is
+         * the 0..1 value used for route-relative UI/timetable progress.
          */
         final double fraction;
 

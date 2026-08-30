@@ -252,6 +252,36 @@ final class LockedTimetableEtaAuthority {
     }
 
 
+    static double routeChainageM(
+            MeasurementPath path,
+            MeasurementPathProjection.Result projection
+    ) {
+        if (path == null
+                || projection == null
+                || !Double.isFinite(
+                        path.distanceM
+                )
+                || path.distanceM < 0.0
+                || !Double.isFinite(
+                        projection.fraction
+                )) {
+
+            return Double.NaN;
+        }
+
+        /*
+         * Timetable stop chainage is relative to the selected route start.
+         * Therefore use normalized MeasurementPath progress, not the raw
+         * profile-distance origin stored in projection.chainageM.
+         */
+        return clampChainage(
+                path,
+                path.distanceM
+                        * projection.fraction
+        );
+    }
+
+
     private static double clampChainage(
             MeasurementPath path,
             double chainageM

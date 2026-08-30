@@ -330,6 +330,34 @@ public final class LockedTimetableEtaAuthorityTest {
 
 
     @Test
+    public void timetableChainageUsesNormalizedRouteProgress() {
+        MeasurementPath path =
+                path();
+
+        MeasurementPathProjection.Result projection =
+                new MeasurementPathProjection.Result(
+                        3.0,
+                        700.0,
+                        120.0,
+                        0.5
+                );
+
+        /*
+         * Raw profile chainage is 700 m, but timetable progress is
+         * 50% of the 1000 m selected MeasurementPath -> 500 m.
+         */
+        assertEquals(
+                500.0,
+                LockedTimetableEtaAuthority.routeChainageM(
+                        path,
+                        projection
+                ),
+                0.001
+        );
+    }
+
+
+    @Test
     public void resetRemovesAuthoritativeState() {
         LockedTimetableEtaAuthority authority =
                 new LockedTimetableEtaAuthority(
