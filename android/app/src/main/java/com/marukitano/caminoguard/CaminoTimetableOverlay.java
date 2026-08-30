@@ -51,21 +51,6 @@ final class CaminoTimetableOverlay {
     private double currentChainageM =
             0.0;
 
-    /*
-     * OFF ROUTE contract:
-     *
-     * Route progress freezes at the last trustworthy selected-path position.
-     * The timetable itself stays visible. Wall-clock based arrival times keep
-     * advancing while the walker is away from the route.
-     */
-    private List<CaminoTimetableStopPlan> lastValidPlans;
-
-    private double lastValidChainageM =
-            Double.NaN;
-
-    private double lastValidElapsedSeconds =
-            Double.NaN;
-
 
 
     CaminoTimetableOverlay(
@@ -178,10 +163,23 @@ final class CaminoTimetableOverlay {
     void update(
             MeasurementPath path,
             boolean locked,
-            boolean offRoute,
             double currentChainageM
     ) {
         ensureView();
+
+        // DIAG-CAMINO-TIMETABLE
+        android.util.Log.d(
+                "CaminoTimetable",
+                "UPDATE locked=" + locked
+                        + " chainage=" + currentChainageM
+                        + " path="
+                        + (path == null
+                        ? "NULL"
+                        : "dist=" + path.distanceM
+                        + " profile=" + path.profilePoints.size()
+                        + " rawStops=" + path.timetableStops.size())
+        );
+
 
         if (!locked
                 || path == null) {
@@ -189,45 +187,7 @@ final class CaminoTimetableOverlay {
             this.currentChainageM =
                     0.0;
 
-            clearFrozenState();
             clearAndHide();
-            return;
-        }
-
-        /*
-         * OFF ROUTE:
-         *
-         * Do NOT recalculate route progress from the off-route GPS position
-         * and, most importantly, do NOT clear/hide the timetable.
-         *
-         * Keep the last valid route chainage and ETA model. buildState()
-         * uses the current wall clock on every GPS refresh, therefore time
-         * continues normally while distance/progress stay frozen.
-         */
-        if (offRoute) {
-            if (!hasFrozenState()) {
-                clearAndHide();
-                return;
-            }
-
-            this.currentChainageM =
-                    lastValidChainageM;
-
-            CaminoTimetableState state =
-                    buildState(
-                            lastValidPlans,
-                            lastValidElapsedSeconds,
-                            lastValidChainageM
-                    );
-
-            if (state != null
-                    && state.visibleStops.size() >= 2) {
-
-                showState(
-                        state
-                );
-            }
-
             return;
         }
 
@@ -251,6 +211,24 @@ final class CaminoTimetableOverlay {
                         timetablePath
                 );
 
+        android.util.Log.d(
+                "CaminoTimetable",
+                "PLAN timetableStops="
+                        + (timetablePath == null
+                        ? -1
+                        : timetablePath.timetableStops.size())
+                        + " profile="
+                        + (timetablePath == null
+                        ? -1
+                        : timetablePath.profilePoints.size())
+                        + " distance="
+                        + (timetablePath == null
+                        ? Double.NaN
+                        : timetablePath.distanceM)
+                        + " plans=" + plans.size()
+        );
+
+
         if (plans.size() < 2) {
             clearAndHide();
             return;
@@ -262,6 +240,15 @@ final class CaminoTimetableOverlay {
                         this.currentChainageM
                 );
 
+        android.util.Log.d(
+                "CaminoTimetable",
+                "ELAPSED chainage="
+                        + this.currentChainageM
+                        + " seconds="
+                        + elapsedSecondsAtCurrent
+        );
+
+
         if (!Double.isFinite(
                 elapsedSecondsAtCurrent
         )) {
@@ -270,64 +257,15 @@ final class CaminoTimetableOverlay {
             return;
         }
 
-        CaminoTimetableState state =
-                buildState(
-                        plans,
-                        elapsedSecondsAtCurrent,
-                        this.currentChainageM
-                );
-
-        if (state == null
-                || state.visibleStops.size() < 2) {
-
-            clearAndHide();
-            return;
-        }
-
         /*
-         * Only an ON-ROUTE projection may advance this snapshot.
-         * OFF ROUTE reuses it unchanged.
-         */
-        lastValidPlans =
-                plans;
-
-        lastValidChainageM =
-                this.currentChainageM;
-
-        lastValidElapsedSeconds =
-                elapsedSecondsAtCurrent;
-
-        showState(
-                state
-        );
-    }
-
-
-    private CaminoTimetableState buildState(
-            List<CaminoTimetableStopPlan> plans,
-            double elapsedSecondsAtCurrent,
-            double chainageM
-    ) {
-        if (plans == null
-                || plans.size() < 2
-                || !Double.isFinite(
-                elapsedSecondsAtCurrent
-        )
-                || !Double.isFinite(
-                chainageM
-        )) {
-
-            return null;
-        }
-
-        /*
-         * Rebase the route-start clock on every refresh.
+         * The pure engine still consumes a route-start clock base. Rebase that
+         * clock so that, at the CURRENT route chainage:
          *
-         * With frozen chainage this means:
+         *   stop ETA = wall clock now + remaining walking time to the stop.
          *
-         * distance/progress = frozen
-         * wall clock        = continues
-         * ETA               = moves later with real time
+         * This deliberately uses the current wall clock on every GPS/debug
+         * refresh. A planned/start-time preference must never leak into locked
+         * navigation mode.
          */
         int startMinutes =
                 currentClockMinutes()
@@ -337,17 +275,25 @@ final class CaminoTimetableOverlay {
                                         / 60.0
                         );
 
-        return engine.build(
-                plans,
-                startMinutes,
-                chainageM
-        );
-    }
+        CaminoTimetableState state =
+                engine.build(
+                        plans,
+                        startMinutes,
+                        currentChainageM
+                );
 
+        /*
+         * A timetable with one visible stop is valid.
+         *
+         * After the passed start stop drops out at 1 km, a two-stop route
+         * intentionally consists of the current-distance row plus the goal.
+         * CaminoTimetableView supports that state directly.
+         */
+        if (state.visibleStops.isEmpty()) {
+            clearAndHide();
+            return;
+        }
 
-    private void showState(
-            CaminoTimetableState state
-    ) {
         timetableView.setState(
                 state
         );
@@ -360,50 +306,7 @@ final class CaminoTimetableOverlay {
                 open
         );
 
-        /*
-         * update() must never accidentally close an already-open timetable.
-         */
-        if (open) {
-            timetableView.setVisibility(
-                    View.VISIBLE
-            );
-
-            timetableView.setAlpha(
-                    1.0f
-            );
-
-            timetableView.setTranslationX(
-                    dp(
-                            PANEL_LEFT_DP
-                    )
-            );
-        }
-
         toggleView.bringToFront();
-    }
-
-
-    private boolean hasFrozenState() {
-        return lastValidPlans != null
-                && lastValidPlans.size() >= 2
-                && Double.isFinite(
-                lastValidChainageM
-        )
-                && Double.isFinite(
-                lastValidElapsedSeconds
-        );
-    }
-
-
-    private void clearFrozenState() {
-        lastValidPlans =
-                null;
-
-        lastValidChainageM =
-                Double.NaN;
-
-        lastValidElapsedSeconds =
-                Double.NaN;
     }
 
 
@@ -523,6 +426,17 @@ final class CaminoTimetableOverlay {
 
 
     private void clearAndHide() {
+        // DIAG-CAMINO-TIMETABLE
+        android.util.Log.d(
+                "CaminoTimetable",
+                "CLEAR open="
+                        + open
+                        + " chainage="
+                        + currentChainageM,
+                new Throwable(
+                        "clearAndHide caller"
+                )
+        );
         open =
                 false;
 

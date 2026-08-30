@@ -65,6 +65,25 @@ public final class GpsGyroOrientationController
     private long lastGyroRenderMs = Long.MIN_VALUE;
 
     /*
+     * Diagnostic-only previous rendered arrow angle.
+     * Never participates in navigation or gyro calculations.
+     */
+    private Float lastTraceScreenAngleDeg;
+
+    /*
+     * Diagnostic-only values from the most recent rotation-vector sample.
+     * No buffering and no file I/O happens here.
+     */
+    private float lastTraceProjectionNorm =
+            Float.NaN;
+
+    private float lastTraceWorldX =
+            Float.NaN;
+
+    private float lastTraceWorldY =
+            Float.NaN;
+
+    /*
      * A newly created foreground controller must earn a fresh GPS direction.
      * Do NOT reset these fields from onPause/onResume: screen-off only resets
      * the gyro, not the already-established GPS walking direction.
@@ -314,6 +333,12 @@ public final class GpsGyroOrientationController
         started =
                 true;
 
+        CaminoHeadingTrace.d(
+                activity,
+                "SESSION START mode="
+                        + externalNavigationMode
+        );
+
         /*
          * A new foreground session always starts exactly on the current
          * GPS walking tangent. The first gyro sample becomes zero degrees.
@@ -362,6 +387,12 @@ public final class GpsGyroOrientationController
 
         started =
                 false;
+
+        CaminoHeadingTrace.d(
+                activity,
+                "SESSION STOP mode="
+                        + externalNavigationMode
+        );
 
         unregisterForegroundGyro();
 
@@ -527,6 +558,42 @@ public final class GpsGyroOrientationController
                         worldHeading
                                 - map.getCameraPosition().bearing
                 );
+
+        if (lastTraceScreenAngleDeg != null) {
+            float screenDelta =
+                    GeoMath.shortestAngleDegrees(
+                            lastTraceScreenAngleDeg,
+                            screenAngle
+                    );
+
+            if (Math.abs(
+                    screenDelta
+            ) >= 90.0f) {
+
+                CaminoHeadingTrace.d(
+                        activity,
+                        "ARROW_JUMP previousScreen="
+                                + lastTraceScreenAngleDeg
+                                + " screen="
+                                + screenAngle
+                                + " delta="
+                                + screenDelta
+                                + " baseCourse="
+                                + baseCourse
+                                + " gyroOffset="
+                                + gyroOffsetDeg
+                                + " arrowWorld="
+                                + worldHeading
+                                + " mapBearing="
+                                + map.getCameraPosition().bearing
+                                + " mode="
+                                + externalNavigationMode
+                );
+            }
+        }
+
+        lastTraceScreenAngleDeg =
+                screenAngle;
 
         arrowLayer.setProperties(
                 PropertyFactory.iconImage(
@@ -965,6 +1032,9 @@ public final class GpsGyroOrientationController
 
         lastGyroRenderMs =
                 Long.MIN_VALUE;
+
+        lastTraceScreenAngleDeg =
+                null;
     }
 
 
@@ -1012,6 +1082,31 @@ public final class GpsGyroOrientationController
                         lastRawGyroYawDeg,
                         rawYaw
                 );
+
+        if (Math.abs(
+                delta
+        ) >= 90.0f) {
+
+            CaminoHeadingTrace.d(
+                    activity,
+                    "GYRO_JUMP rawOld="
+                            + lastRawGyroYawDeg
+                            + " rawNew="
+                            + rawYaw
+                            + " delta="
+                            + delta
+                            + " gyroBefore="
+                            + gyroOffsetDeg
+                            + " projection="
+                            + lastTraceProjectionNorm
+                            + " worldX="
+                            + lastTraceWorldX
+                            + " worldY="
+                            + lastTraceWorldY
+                            + " sensorNs="
+                            + event.timestamp
+            );
+        }
 
         lastRawGyroYawDeg =
                 rawYaw;
@@ -1068,11 +1163,22 @@ public final class GpsGyroOrientationController
         float worldY =
                 rotation[4];
 
-        if (Math.hypot(
-                worldX,
-                worldY
-        ) < 0.18) {
+        float projectionNorm =
+                (float) Math.hypot(
+                        worldX,
+                        worldY
+                );
 
+        lastTraceWorldX =
+                worldX;
+
+        lastTraceWorldY =
+                worldY;
+
+        lastTraceProjectionNorm =
+                projectionNorm;
+
+        if (projectionNorm < 0.18f) {
             return null;
         }
 
@@ -1148,6 +1254,14 @@ public final class GpsGyroOrientationController
                 GeoMath.normalizeDegrees(
                         snapshot.courseDeg
                 );
+
+        CaminoHeadingTrace.d(
+                activity,
+                "DIRECTION_READY distance="
+                        + distanceM
+                        + " gpsTangent="
+                        + gyroCourseAnchorDeg
+        );
     }
 
 
@@ -1197,8 +1311,8 @@ public final class GpsGyroOrientationController
                             ? map.getCameraPosition().bearing
                             : Double.NaN;
 
-            Log.d(
-                    "CaminoHeading",
+            CaminoHeadingTrace.d(
+                    activity,
                     "RESET gpsTangent=" + gpsCourse
                             + " mapBearing=" + mapBearing
                             + " screenAngle="
@@ -1272,9 +1386,9 @@ public final class GpsGyroOrientationController
                         )
                         : Double.NaN;
 
-        Log.d(
-                "CaminoHeading",
-                "gpsOld=" + oldCourse
+        CaminoHeadingTrace.d(
+                activity,
+                "GPS gpsOld=" + oldCourse
                         + " gpsNew=" + normalizedCourse
                         + " gpsDelta=" + courseDelta
                         + " gyroBefore=" + oldGyroOffset

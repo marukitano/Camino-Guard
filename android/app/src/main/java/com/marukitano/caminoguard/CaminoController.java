@@ -82,6 +82,16 @@ public final class CaminoController {
      *   true  -> accepted real GPS position from CaminoTrackingService
      */
     private boolean livePositionMode;
+
+    /*
+     * livePositionMode only means that real GPS is the intended position
+     * source. It does NOT mean that Android has delivered a real fix yet.
+     *
+     * Before the first fix dummyPosition still contains the configured map
+     * startup position and must never participate in off-route detection.
+     */
+    private boolean hasLiveGpsFix;
+
     private boolean debugPositionOverride;
     private Float liveCourseDeg;
     private long lastLiveFixStamp = Long.MIN_VALUE;
@@ -481,6 +491,14 @@ public final class CaminoController {
         if (debugPositionOverride) {
             return;
         }
+
+        /*
+         * From here on snapshot.location is a real location delivered by the
+         * tracking service. Only this transition may arm physical off-route
+         * detection.
+         */
+        hasLiveGpsFix =
+                true;
 
         /*
          * Motion-state publications can arrive without a new GPS timestamp.
@@ -1015,7 +1033,6 @@ public final class CaminoController {
                 currentMeasurementPath,
                 selectionLocked
                         && marked,
-                offRoute,
                 timetableCurrentChainageM()
         );
 
@@ -1751,6 +1768,7 @@ public final class CaminoController {
          */
         if (!selectionLocked
                 || !livePositionMode
+                || !hasLiveGpsFix
                 || debugPositionOverride
                 || currentMeasurementPath == null
                 || position == null) {
@@ -1773,6 +1791,26 @@ public final class CaminoController {
                         currentMeasurementPath,
                         position
                 );
+
+
+        // DIAG-CAMINO-TIMETABLE
+        android.util.Log.d(
+                "CaminoTimetable",
+                "PROJECTION lat="
+                        + position.getLatitude()
+                        + " lon="
+                        + position.getLongitude()
+                        + " chainage="
+                        + chainageM
+                        + " lastGood="
+                        + lastLockedRouteChainageM
+                        + " locked="
+                        + selectionLocked
+                        + " live="
+                        + livePositionMode
+                        + " debug="
+                        + debugPositionOverride
+        );
 
         if (Double.isFinite(
                 chainageM
@@ -1802,6 +1840,15 @@ public final class CaminoController {
 
         offRoute =
                 value;
+
+        // DIAG-CAMINO-TIMETABLE
+        android.util.Log.d(
+                "CaminoTimetable",
+                "OFFROUTE -> "
+                        + offRoute
+                        + " lastGood="
+                        + lastLockedRouteChainageM
+        );
 
         /*
          * Alarm only on the transition:
@@ -1884,7 +1931,6 @@ public final class CaminoController {
             timetableOverlay.update(
                     currentMeasurementPath,
                     false,
-                    false,
                     0.0
             );
 
@@ -1934,7 +1980,6 @@ public final class CaminoController {
         timetableOverlay.update(
                 currentMeasurementPath,
                 true,
-                offRoute,
                 timetableCurrentChainageM()
         );
 
