@@ -1883,26 +1883,6 @@ public final class CaminoController {
                         routeProjection
                 );
 
-
-        // DIAG-CAMINO-TIMETABLE
-        android.util.Log.d(
-                "CaminoTimetable",
-                "PROJECTION lat="
-                        + position.getLatitude()
-                        + " lon="
-                        + position.getLongitude()
-                        + " chainage="
-                        + chainageM
-                        + " lastGood="
-                        + lastLockedRouteChainageM
-                        + " locked="
-                        + selectionLocked
-                        + " live="
-                        + livePositionMode
-                        + " debug="
-                        + debugPositionOverride
-        );
-
         if (Double.isFinite(
                 chainageM
         )) {
@@ -1931,16 +1911,6 @@ public final class CaminoController {
 
         offRoute =
                 value;
-
-        // DIAG-CAMINO-TIMETABLE
-        android.util.Log.d(
-                "CaminoTimetable",
-                "OFFROUTE -> "
-                        + offRoute
-                        + " lastGood="
-                        + lastLockedRouteChainageM
-        );
-
         /*
          * Alarm only on the transition:
          *
