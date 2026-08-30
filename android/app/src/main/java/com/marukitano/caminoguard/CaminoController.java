@@ -1015,6 +1015,7 @@ public final class CaminoController {
                 currentMeasurementPath,
                 selectionLocked
                         && marked,
+                offRoute,
                 timetableCurrentChainageM()
         );
 
@@ -1883,6 +1884,7 @@ public final class CaminoController {
             timetableOverlay.update(
                     currentMeasurementPath,
                     false,
+                    false,
                     0.0
             );
 
@@ -1932,6 +1934,7 @@ public final class CaminoController {
         timetableOverlay.update(
                 currentMeasurementPath,
                 true,
+                offRoute,
                 timetableCurrentChainageM()
         );
 

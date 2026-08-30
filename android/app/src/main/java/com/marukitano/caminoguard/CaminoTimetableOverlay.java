@@ -51,6 +51,21 @@ final class CaminoTimetableOverlay {
     private double currentChainageM =
             0.0;
 
+    /*
+     * OFF ROUTE contract:
+     *
+     * Route progress freezes at the last trustworthy selected-path position.
+     * The timetable itself stays visible. Wall-clock based arrival times keep
+     * advancing while the walker is away from the route.
+     */
+    private List<CaminoTimetableStopPlan> lastValidPlans;
+
+    private double lastValidChainageM =
+            Double.NaN;
+
+    private double lastValidElapsedSeconds =
+            Double.NaN;
+
 
 
     CaminoTimetableOverlay(
@@ -163,6 +178,7 @@ final class CaminoTimetableOverlay {
     void update(
             MeasurementPath path,
             boolean locked,
+            boolean offRoute,
             double currentChainageM
     ) {
         ensureView();
@@ -173,7 +189,45 @@ final class CaminoTimetableOverlay {
             this.currentChainageM =
                     0.0;
 
+            clearFrozenState();
             clearAndHide();
+            return;
+        }
+
+        /*
+         * OFF ROUTE:
+         *
+         * Do NOT recalculate route progress from the off-route GPS position
+         * and, most importantly, do NOT clear/hide the timetable.
+         *
+         * Keep the last valid route chainage and ETA model. buildState()
+         * uses the current wall clock on every GPS refresh, therefore time
+         * continues normally while distance/progress stay frozen.
+         */
+        if (offRoute) {
+            if (!hasFrozenState()) {
+                clearAndHide();
+                return;
+            }
+
+            this.currentChainageM =
+                    lastValidChainageM;
+
+            CaminoTimetableState state =
+                    buildState(
+                            lastValidPlans,
+                            lastValidElapsedSeconds,
+                            lastValidChainageM
+                    );
+
+            if (state != null
+                    && state.visibleStops.size() >= 2) {
+
+                showState(
+                        state
+                );
+            }
+
             return;
         }
 
@@ -216,15 +270,64 @@ final class CaminoTimetableOverlay {
             return;
         }
 
+        CaminoTimetableState state =
+                buildState(
+                        plans,
+                        elapsedSecondsAtCurrent,
+                        this.currentChainageM
+                );
+
+        if (state == null
+                || state.visibleStops.size() < 2) {
+
+            clearAndHide();
+            return;
+        }
+
         /*
-         * The pure engine still consumes a route-start clock base. Rebase that
-         * clock so that, at the CURRENT route chainage:
+         * Only an ON-ROUTE projection may advance this snapshot.
+         * OFF ROUTE reuses it unchanged.
+         */
+        lastValidPlans =
+                plans;
+
+        lastValidChainageM =
+                this.currentChainageM;
+
+        lastValidElapsedSeconds =
+                elapsedSecondsAtCurrent;
+
+        showState(
+                state
+        );
+    }
+
+
+    private CaminoTimetableState buildState(
+            List<CaminoTimetableStopPlan> plans,
+            double elapsedSecondsAtCurrent,
+            double chainageM
+    ) {
+        if (plans == null
+                || plans.size() < 2
+                || !Double.isFinite(
+                elapsedSecondsAtCurrent
+        )
+                || !Double.isFinite(
+                chainageM
+        )) {
+
+            return null;
+        }
+
+        /*
+         * Rebase the route-start clock on every refresh.
          *
-         *   stop ETA = wall clock now + remaining walking time to the stop.
+         * With frozen chainage this means:
          *
-         * This deliberately uses the current wall clock on every GPS/debug
-         * refresh. A planned/start-time preference must never leak into locked
-         * navigation mode.
+         * distance/progress = frozen
+         * wall clock        = continues
+         * ETA               = moves later with real time
          */
         int startMinutes =
                 currentClockMinutes()
@@ -234,18 +337,17 @@ final class CaminoTimetableOverlay {
                                         / 60.0
                         );
 
-        CaminoTimetableState state =
-                engine.build(
-                        plans,
-                        startMinutes,
-                        currentChainageM
-                );
+        return engine.build(
+                plans,
+                startMinutes,
+                chainageM
+        );
+    }
 
-        if (state.visibleStops.size() < 2) {
-            clearAndHide();
-            return;
-        }
 
+    private void showState(
+            CaminoTimetableState state
+    ) {
         timetableView.setState(
                 state
         );
@@ -258,7 +360,50 @@ final class CaminoTimetableOverlay {
                 open
         );
 
+        /*
+         * update() must never accidentally close an already-open timetable.
+         */
+        if (open) {
+            timetableView.setVisibility(
+                    View.VISIBLE
+            );
+
+            timetableView.setAlpha(
+                    1.0f
+            );
+
+            timetableView.setTranslationX(
+                    dp(
+                            PANEL_LEFT_DP
+                    )
+            );
+        }
+
         toggleView.bringToFront();
+    }
+
+
+    private boolean hasFrozenState() {
+        return lastValidPlans != null
+                && lastValidPlans.size() >= 2
+                && Double.isFinite(
+                lastValidChainageM
+        )
+                && Double.isFinite(
+                lastValidElapsedSeconds
+        );
+    }
+
+
+    private void clearFrozenState() {
+        lastValidPlans =
+                null;
+
+        lastValidChainageM =
+                Double.NaN;
+
+        lastValidElapsedSeconds =
+                Double.NaN;
     }
 
 
