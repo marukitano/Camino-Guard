@@ -79,6 +79,9 @@ final class CaminoInteractionRenderer {
     private GeoJsonSource selectedStageSource;
     private GeoJsonSource routeGapSource;
 
+    private MeasurementPath renderedMeasurementPath;
+    private boolean renderedMeasurementPathSet;
+
     void onStyleLoaded(
             Style style,
             LatLng dummyPosition,
@@ -86,6 +89,16 @@ final class CaminoInteractionRenderer {
     ) {
         this.livePositionMode =
                 livePositionMode;
+
+        /*
+         * A new MapLibre style owns new GeoJsonSource instances. The next
+         * render must therefore submit the current path once again.
+         */
+        renderedMeasurementPath =
+                null;
+
+        renderedMeasurementPathSet =
+                false;
 
         selectedRouteSource =
                 new GeoJsonSource(
@@ -654,6 +667,18 @@ final class CaminoInteractionRenderer {
         if (!isMeasurementRouteReady()) {
             return;
         }
+
+        if (renderedMeasurementPathSet
+                && path == renderedMeasurementPath) {
+
+            return;
+        }
+
+        renderedMeasurementPath =
+                path;
+
+        renderedMeasurementPathSet =
+                true;
 
         if (path == null) {
             selectedRouteSource.setGeoJson(

@@ -75,6 +75,12 @@ public final class CaminoTrackingService extends Service
     private static final String ACTION_REFRESH_LIBRE =
             "com.marukitano.caminoguard.REFRESH_LIBRE";
 
+    private static final String ACTION_SET_APP_FOREGROUND =
+            "com.marukitano.caminoguard.SET_APP_FOREGROUND";
+
+    private static final String EXTRA_APP_FOREGROUND =
+            "app_foreground";
+
     private static final float MAX_GPS_ACCURACY_M = 25.0f;
     private static final float TRACK_POINT_SPACING_M = 1.5f;
 
@@ -97,6 +103,18 @@ public final class CaminoTrackingService extends Service
             );
 
     private LocationManager locationManager;
+
+    /*
+     * GPS is required while the Activity is visible OR while an explicit
+     * locked route exists.
+     *
+     * LibreLinkUp/Pebble glucose keep using this foreground service even when
+     * this flag is false and GPS itself is switched off.
+     */
+    private boolean appForegroundRequested;
+
+    private boolean gpsUpdatesRegistered;
+
     private final List<Location> track = new ArrayList<>();
 
     /*
@@ -193,6 +211,48 @@ public final class CaminoTrackingService extends Service
         }
     }
 
+    public static void setAppForeground(
+            Activity activity,
+            boolean foreground
+    ) {
+        if (activity == null
+                || activity.checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED) {
+
+            return;
+        }
+
+        Intent intent =
+                new Intent(
+                        activity,
+                        CaminoTrackingService.class
+                );
+
+        intent.setAction(
+                ACTION_SET_APP_FOREGROUND
+        );
+
+        intent.putExtra(
+                EXTRA_APP_FOREGROUND,
+                foreground
+        );
+
+        if (Build.VERSION.SDK_INT
+                >= Build.VERSION_CODES.O) {
+
+            activity.startForegroundService(
+                    intent
+            );
+
+        } else {
+            activity.startService(
+                    intent
+            );
+        }
+    }
+
+
     public static void requestLibreRefresh(
             Activity activity
     ) {
@@ -272,17 +332,13 @@ public final class CaminoTrackingService extends Service
             return;
         }
 
-        try {
-            locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER,
-                    1000L,
-                    1.0f,
-                    this
-            );
-        } catch (SecurityException error) {
-            stopSelf();
-            return;
-        }
+        /*
+         * Do not start GNSS merely because the foreground service exists.
+         *
+         * The service also owns LibreLinkUp/Pebble glucose and may therefore
+         * intentionally stay alive while no location consumer exists.
+         */
+        updateGpsRegistration();
 
         performanceExecutor.execute(
                 this::initializeWalkingPerformanceRecorder
@@ -365,21 +421,41 @@ public final class CaminoTrackingService extends Service
             int flags,
             int startId
     ) {
-        if (intent != null
-                && ACTION_REFRESH_LIBRE.equals(
-                intent.getAction()
-        )) {
+        if (intent != null) {
+            if (ACTION_SET_APP_FOREGROUND.equals(
+                    intent.getAction()
+            )) {
 
-            LibreLinkUpClient client =
-                    libreLinkUpClient;
+                appForegroundRequested =
+                        intent.getBooleanExtra(
+                                EXTRA_APP_FOREGROUND,
+                                false
+                        );
 
-            if (client != null) {
-                client.requestNow();
+            } else if (ACTION_REFRESH_LIBRE.equals(
+                    intent.getAction()
+            )) {
+
+                LibreLinkUpClient client =
+                        libreLinkUpClient;
+
+                if (client != null) {
+                    client.requestNow();
+                }
             }
         }
 
         /*
-         * Preserve the existing GPS behaviour: Android may recreate this
+         * The persisted locked path is authoritative for background GPS.
+         * This also makes START_STICKY recreation safe:
+         *
+         * locked   -> GNSS resumes
+         * unlocked -> service may live for Libre, but GNSS stays off
+         */
+        updateGpsRegistration();
+
+        /*
+         * Preserve the existing service behaviour: Android may recreate this
          * foreground service after reclaiming the process.
          *
          * A recreated Libre client intentionally starts without an auth
@@ -395,12 +471,20 @@ public final class CaminoTrackingService extends Service
 
     @Override
     public void onDestroy() {
-        if (locationManager != null) {
+        if (locationManager != null
+                && gpsUpdatesRegistered) {
+
             try {
-                locationManager.removeUpdates(this);
+                locationManager.removeUpdates(
+                        this
+                );
+
             } catch (SecurityException ignored) {
             }
         }
+
+        gpsUpdatesRegistered =
+                false;
 
         WalkingSpeedStudyRecorder studyRecorder =
                 walkingSpeedStudyRecorder;
@@ -439,6 +523,91 @@ public final class CaminoTrackingService extends Service
 
         super.onDestroy();
     }
+
+    private synchronized void updateGpsRegistration() {
+        if (locationManager == null) {
+            return;
+        }
+
+        boolean locked =
+                LockedMeasurementPathStore.hasActivePath(
+                        this
+                );
+
+        boolean required =
+                appForegroundRequested
+                        || locked;
+
+        if (required == gpsUpdatesRegistered) {
+            return;
+        }
+
+        if (required) {
+            if (checkSelfPermission(
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED) {
+
+                return;
+            }
+
+            try {
+                locationManager.requestLocationUpdates(
+                        LocationManager.GPS_PROVIDER,
+                        1000L,
+                        1.0f,
+                        this
+                );
+
+                gpsUpdatesRegistered =
+                        true;
+
+                Log.i(
+                        "CaminoTrackingService",
+                        "GPS enabled foreground="
+                                + appForegroundRequested
+                                + " locked="
+                                + locked
+                );
+
+            } catch (SecurityException error) {
+                Log.w(
+                        "CaminoTrackingService",
+                        "Could not enable GPS",
+                        error
+                );
+            }
+
+            return;
+        }
+
+        try {
+            locationManager.removeUpdates(
+                    this
+            );
+
+        } catch (SecurityException ignored) {
+        }
+
+        gpsUpdatesRegistered =
+                false;
+
+        /*
+         * Direction history from before a GPS-off interval must not be used as
+         * the spatial baseline for movement after resume.
+         *
+         * This clears only the service-side GPS point history; foreground gyro
+         * state remains owned exclusively by GpsGyroOrientationController.
+         */
+        directionTracker.enterMoving(
+                null
+        );
+
+        Log.i(
+                "CaminoTrackingService",
+                "GPS disabled foreground=false locked=false"
+        );
+    }
+
 
     @Override
     public void onLocationChanged(Location location) {

@@ -211,6 +211,74 @@ public final class CaminoTimetablePlanBuilderTest {
 
 
     @Test
+    public void buildCacheInvalidatesOnlyWhenGenerationChanges() {
+        MeasurementPath path =
+                new MeasurementPath();
+
+        path.distanceM =
+                1_000.0;
+
+        path.timetableStops.add(
+                new CaminoTimetablePathStop(
+                        "@start",
+                        0.0
+                )
+        );
+
+        path.timetableStops.add(
+                new CaminoTimetablePathStop(
+                        "@goal",
+                        1_000.0
+                )
+        );
+
+        int[] estimatorCalls =
+                new int[]{
+                        0
+                };
+
+        long[] generation =
+                new long[]{
+                        1L
+                };
+
+        CaminoTimetablePlanBuilder builder =
+                new CaminoTimetablePlanBuilder(
+                        prefix -> {
+                            estimatorCalls[0]++;
+                            return prefix.distanceM;
+                        },
+                        () -> generation[0]
+                );
+
+        builder.build(
+                path
+        );
+
+        builder.build(
+                path
+        );
+
+        assertEquals(
+                1,
+                estimatorCalls[0]
+        );
+
+        generation[0] =
+                2L;
+
+        builder.build(
+                path
+        );
+
+        assertEquals(
+                2,
+                estimatorCalls[0]
+        );
+    }
+
+
+    @Test
     public void displayNameKeepsSpanishConnectorsLowercase() {
         assertEquals(
                 "Santa Cruz de Marchena",

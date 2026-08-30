@@ -235,16 +235,39 @@ public final class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+
         mapView.onResume();
+
+        /*
+         * Foreground map mode needs live GPS even before a route is locked.
+         */
+        CaminoTrackingService.setAppForeground(
+                this,
+                true
+        );
+
         orientationController.start();
+
         caminoController.startLivePosition();
     }
 
     @Override
     protected void onPause() {
         caminoController.stopLivePosition();
+
         orientationController.stop();
+
+        /*
+         * Background GPS is allowed only for an explicitly locked route.
+         * The service itself may remain alive for LibreLinkUp/Pebble glucose.
+         */
+        CaminoTrackingService.setAppForeground(
+                this,
+                false
+        );
+
         mapView.onPause();
+
         super.onPause();
     }
 

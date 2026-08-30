@@ -43,8 +43,13 @@ final class CaminoPebbleRoutePublisher {
     private boolean lastAlarmActive;
     private boolean lastRouteValid;
 
-    private long lastSendElapsedMs =
+    private long lastEvaluationElapsedMs =
             Long.MIN_VALUE;
+
+    private String lastSentNextName;
+    private String lastSentNextDistance;
+    private String lastSentNextTime;
+    private String lastSentSpeed;
 
 
     CaminoPebbleRoutePublisher(
@@ -92,13 +97,16 @@ final class CaminoPebbleRoutePublisher {
             lastGoodChainageM =
                     Double.NaN;
 
-            send(
+            /*
+             * The watch clears route + speed when ROUTE_VALID becomes false.
+             * Send that transition once; repeated unlocked GPS fixes carry no
+             * new visible information.
+             */
+            sendIfChanged(
                     "--",
                     "--",
                     "--",
-                    formatSpeed(
-                            location
-                    ),
+                    "--",
                     false,
                     false
             );
@@ -150,13 +158,35 @@ final class CaminoPebbleRoutePublisher {
         long nowElapsed =
                 SystemClock.elapsedRealtime();
 
+        /*
+         * OFF ROUTE is a transition, not a five-second telemetry stream.
+         * The watch hides route values while the alarm is active.
+         */
+        if (alarmActive) {
+            if (stateChanged) {
+                sendIfChanged(
+                        "--",
+                        "--",
+                        "--",
+                        "--",
+                        true,
+                        true
+                );
+            }
+
+            return;
+        }
+
         if (!stateChanged
-                && lastSendElapsedMs != Long.MIN_VALUE
-                && nowElapsed - lastSendElapsedMs
+                && lastEvaluationElapsedMs != Long.MIN_VALUE
+                && nowElapsed - lastEvaluationElapsedMs
                 < SEND_INTERVAL_MS) {
 
             return;
         }
+
+        lastEvaluationElapsedMs =
+                nowElapsed;
 
         /*
          * During OFF ROUTE the selected-path chainage freezes at the last
@@ -201,14 +231,14 @@ final class CaminoPebbleRoutePublisher {
             }
         }
 
-        send(
+        sendIfChanged(
                 nextName,
                 nextDistance,
                 nextTime,
                 formatSpeed(
                         location
                 ),
-                alarmActive,
+                false,
                 true
         );
     }
@@ -291,7 +321,7 @@ final class CaminoPebbleRoutePublisher {
     }
 
 
-    private void send(
+    private void sendIfChanged(
             String nextName,
             String nextDistance,
             String nextTime,
@@ -299,6 +329,29 @@ final class CaminoPebbleRoutePublisher {
             boolean alarmActive,
             boolean routeValid
     ) {
+        if (sentAnyState
+                && alarmActive == lastAlarmActive
+                && routeValid == lastRouteValid
+                && sameText(
+                        nextName,
+                        lastSentNextName
+                )
+                && sameText(
+                        nextDistance,
+                        lastSentNextDistance
+                )
+                && sameText(
+                        nextTime,
+                        lastSentNextTime
+                )
+                && sameText(
+                        speed,
+                        lastSentSpeed
+                )) {
+
+            return;
+        }
+
         bridge.sendRouteState(
                 nextName,
                 nextDistance,
@@ -317,8 +370,29 @@ final class CaminoPebbleRoutePublisher {
         lastRouteValid =
                 routeValid;
 
-        lastSendElapsedMs =
-                SystemClock.elapsedRealtime();
+        lastSentNextName =
+                nextName;
+
+        lastSentNextDistance =
+                nextDistance;
+
+        lastSentNextTime =
+                nextTime;
+
+        lastSentSpeed =
+                speed;
+    }
+
+
+    private static boolean sameText(
+            String first,
+            String second
+    ) {
+        return first == null
+                ? second == null
+                : first.equals(
+                        second
+                );
     }
 
 

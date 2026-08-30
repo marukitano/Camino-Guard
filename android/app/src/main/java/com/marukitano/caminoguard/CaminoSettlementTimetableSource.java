@@ -41,7 +41,16 @@ final class CaminoSettlementTimetableSource {
 
     private final Context context;
 
-    private List<SettlementMarker> markers;
+    /*
+     * The settlement asset is immutable application data. Timetable and height
+     * profile each own a source instance, but they must not parse the same
+     * 1.3 MB GeoJSON twice in one process.
+     */
+    private static final Object MARKER_CACHE_LOCK =
+            new Object();
+
+    private static volatile List<SettlementMarker>
+            sharedMarkers;
 
     private MeasurementPath cachedInputPath;
     private MeasurementPath cachedTimetablePath;
@@ -358,49 +367,64 @@ final class CaminoSettlementTimetableSource {
 
 
     private List<SettlementMarker> markers() {
-        if (markers != null) {
-            return markers;
+        List<SettlementMarker> cached =
+                sharedMarkers;
+
+        if (cached != null) {
+            return cached;
         }
 
-        List<SettlementMarker> loaded =
-                new ArrayList<>();
+        synchronized (MARKER_CACHE_LOCK) {
+            cached =
+                    sharedMarkers;
 
-        try (InputStream input =
-                     context.getAssets()
-                             .open(
-                                     ASSET_PATH
-                             );
-             InputStreamReader streamReader =
-                     new InputStreamReader(
-                             input,
-                             StandardCharsets.UTF_8
-                     );
-             JsonReader reader =
-                     new JsonReader(
-                             streamReader
-                     )) {
+            if (cached != null) {
+                return cached;
+            }
 
-            readFeatureCollection(
-                    reader,
-                    loaded
-            );
+            List<SettlementMarker> loaded =
+                    new ArrayList<>();
 
-        } catch (IOException
-                | RuntimeException ignored) {
+            try (InputStream input =
+                         context.getAssets()
+                                 .open(
+                                         ASSET_PATH
+                                 );
+                 InputStreamReader streamReader =
+                         new InputStreamReader(
+                                 input,
+                                 StandardCharsets.UTF_8
+                         );
+                 JsonReader reader =
+                         new JsonReader(
+                                 streamReader
+                         )) {
 
-            /*
-             * Fail closed: the old start/goal timetable remains available.
-             * A malformed optional settlement index must never break routing.
-             */
-            loaded.clear();
-        }
-
-        markers =
-                Collections.unmodifiableList(
+                readFeatureCollection(
+                        reader,
                         loaded
                 );
 
-        return markers;
+            } catch (IOException
+                    | RuntimeException ignored) {
+
+                /*
+                 * Fail closed: the old start/goal timetable remains available.
+                 * A malformed optional settlement index must never break routing.
+                 */
+                loaded.clear();
+            }
+
+            cached =
+                    Collections.unmodifiableList(
+                            loaded
+                    );
+
+            sharedMarkers =
+                    cached;
+
+            return cached;
+        }
     }
 
 

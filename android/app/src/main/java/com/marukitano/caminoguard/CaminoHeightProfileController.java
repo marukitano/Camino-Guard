@@ -11,6 +11,7 @@ import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.MapView;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -80,6 +81,22 @@ final class CaminoHeightProfileController {
      * viewport-wide Camino envelope to exactly this measured route.
      */
     private MeasurementPath selectedMeasurementPath;
+
+    /*
+     * Static selected-route drawing data. GPS updates only move the locked
+     * position marker; they do not change route elevations, slopes or villages.
+     */
+    private MeasurementPath cachedSelectedProfilePath;
+
+    private List<CaminoHeightProfileView.Sample>
+            cachedSelectedSamples =
+            Collections.emptyList();
+
+    private List<CaminoHeightProfileView.Sample>
+            cachedSelectedVillageSamples =
+            Collections.emptyList();
+
+    private MeasurementPath appliedSelectedProfilePath;
 
     /*
      * While a marked route is locked, show the current live/dummy position
@@ -212,6 +229,22 @@ final class CaminoHeightProfileController {
                 )
                         ? path
                         : null;
+
+        if (selectedMeasurementPath
+                != cachedSelectedProfilePath) {
+
+            cachedSelectedProfilePath =
+                    null;
+
+            cachedSelectedSamples =
+                    Collections.emptyList();
+
+            cachedSelectedVillageSamples =
+                    Collections.emptyList();
+
+            appliedSelectedProfilePath =
+                    null;
+        }
 
         boolean nowMarked =
                 hasUsableMeasurementPath(
@@ -543,12 +576,47 @@ final class CaminoHeightProfileController {
                     true
             );
 
-            List<CaminoHeightProfileView.Sample> selectedSamples =
-                    buildSelectedMeasurementSamples(
-                            selectedMeasurementPath
-                    );
+            if (cachedSelectedProfilePath
+                    != selectedMeasurementPath) {
 
-            if (selectedSamples.size() < 2) {
+                List<CaminoHeightProfileView.Sample> builtSamples =
+                        buildSelectedMeasurementSamples(
+                                selectedMeasurementPath
+                        );
+
+                MeasurementPath settlementPath =
+                        settlementSource.withSettlementStops(
+                                selectedMeasurementPath
+                        );
+
+                List<CaminoHeightProfileView.Sample> builtVillageSamples =
+                        buildVillageSamples(
+                                selectedMeasurementPath,
+                                settlementPath
+                        );
+
+                cachedSelectedSamples =
+                        Collections.unmodifiableList(
+                                new ArrayList<>(
+                                        builtSamples
+                                )
+                        );
+
+                cachedSelectedVillageSamples =
+                        Collections.unmodifiableList(
+                                new ArrayList<>(
+                                        builtVillageSamples
+                                )
+                        );
+
+                cachedSelectedProfilePath =
+                        selectedMeasurementPath;
+
+                appliedSelectedProfilePath =
+                        null;
+            }
+
+            if (cachedSelectedSamples.size() < 2) {
                 view.clearProfile();
 
                 infoPresenter.setHeightStats(
@@ -558,21 +626,20 @@ final class CaminoHeightProfileController {
                 return;
             }
 
-            view.setSamples(
-                    selectedSamples
-            );
+            if (appliedSelectedProfilePath
+                    != selectedMeasurementPath) {
 
-            MeasurementPath settlementPath =
-                    settlementSource.withSettlementStops(
-                            selectedMeasurementPath
-                    );
+                view.setSamples(
+                        cachedSelectedSamples
+                );
 
-            view.setVillageSamples(
-                    buildVillageSamples(
-                            selectedMeasurementPath,
-                            settlementPath
-                    )
-            );
+                view.setVillageSamples(
+                        cachedSelectedVillageSamples
+                );
+
+                appliedSelectedProfilePath =
+                        selectedMeasurementPath;
+            }
 
             CaminoHeightProfileView.Sample
                     currentLockedPositionSample =

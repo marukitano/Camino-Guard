@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.LongSupplier;
 
 /**
  * Adapter from the canonical selected MeasurementPath to pure timetable input.
@@ -26,6 +27,17 @@ final class CaminoTimetablePlanBuilder {
 
     private final TimeEstimator timeEstimator;
 
+    private final LongSupplier generationSupplier;
+
+    private final boolean cachePlans;
+
+    private MeasurementPath cachedPlanPath;
+
+    private long cachedPlanGeneration =
+            Long.MIN_VALUE;
+
+    private List<CaminoTimetableStopPlan> cachedPlans;
+
 
     CaminoTimetablePlanBuilder(
             WalkingPerformanceModel performanceModel
@@ -44,7 +56,11 @@ final class CaminoTimetablePlanBuilder {
                     return estimate == null
                             ? Double.NaN
                             : estimate.durationSeconds;
-                }
+                },
+                performanceModel == null
+                        ? () -> Long.MIN_VALUE
+                        : performanceModel::dataGeneration,
+                true
         );
     }
 
@@ -52,14 +68,51 @@ final class CaminoTimetablePlanBuilder {
     CaminoTimetablePlanBuilder(
             TimeEstimator timeEstimator
     ) {
-        if (timeEstimator == null) {
+        /*
+         * Tests/custom estimators may be stateful, so preserve their historical
+         * behavior unless caching is explicitly requested.
+         */
+        this(
+                timeEstimator,
+                () -> Long.MIN_VALUE,
+                false
+        );
+    }
+
+
+    CaminoTimetablePlanBuilder(
+            TimeEstimator timeEstimator,
+            LongSupplier generationSupplier
+    ) {
+        this(
+                timeEstimator,
+                generationSupplier,
+                true
+        );
+    }
+
+
+    private CaminoTimetablePlanBuilder(
+            TimeEstimator timeEstimator,
+            LongSupplier generationSupplier,
+            boolean cachePlans
+    ) {
+        if (timeEstimator == null
+                || generationSupplier == null) {
+
             throw new IllegalArgumentException(
-                    "Timetable time estimator must not be null."
+                    "Timetable estimator/generation supplier must not be null."
             );
         }
 
         this.timeEstimator =
                 timeEstimator;
+
+        this.generationSupplier =
+                generationSupplier;
+
+        this.cachePlans =
+                cachePlans;
     }
 
 
@@ -74,6 +127,19 @@ final class CaminoTimetablePlanBuilder {
                 || path.distanceM < 0.0) {
 
             return Collections.emptyList();
+        }
+
+        long generation =
+                cachePlans
+                        ? generationSupplier.getAsLong()
+                        : Long.MIN_VALUE;
+
+        if (cachePlans
+                && cachedPlans != null
+                && cachedPlanPath == path
+                && cachedPlanGeneration == generation) {
+
+            return cachedPlans;
         }
 
         List<DisplayStop> displayStops =
@@ -144,9 +210,23 @@ final class CaminoTimetablePlanBuilder {
                     elapsedSeconds;
         }
 
-        return Collections.unmodifiableList(
-                result
-        );
+        List<CaminoTimetableStopPlan> immutable =
+                Collections.unmodifiableList(
+                        result
+                );
+
+        if (cachePlans) {
+            cachedPlanPath =
+                    path;
+
+            cachedPlanGeneration =
+                    generation;
+
+            cachedPlans =
+                    immutable;
+        }
+
+        return immutable;
     }
 
 

@@ -103,6 +103,23 @@ public final class CaminoController {
     private MeasurementPath currentMeasurementPath;
 
     /*
+     * An explicit two-point selection is immutable until one of these input
+     * objects is replaced by selection/drag/stage logic.
+     *
+     * GPS movement changes only progress ON that path. It must never rebuild
+     * the complete route geometry once per fix.
+     */
+    private boolean measurementBuildInputsInitialized;
+
+    private CaminoRoute measurementBuildSelectedRoute;
+    private ProjectionHit measurementBuildSelectedHit;
+
+    private CaminoRoute measurementBuildSecondRoute;
+    private ProjectionHit measurementBuildSecondHit;
+
+    private StageRouteSelection measurementBuildStageSelection;
+
+    /*
      * Visual state only. The actual stage selection lives in the ordinary
      * two-point CaminoSelectionController state.
      */
@@ -519,10 +536,12 @@ public final class CaminoController {
                     stationaryPosition
             );
 
-            walkingPerformanceModel.noteStationary(
-                    stationaryPosition
-            );
-
+            /*
+             * Persistent walking-performance learning is owned by the
+             * TrackingService. The foreground model is prediction-only.
+             * Writing the same physical sample here as well would double its
+             * statistical weight while the Activity is visible.
+             */
             activity.runOnUiThread(
                     () -> selectionStatsOverlay.noteMotionState(
                             true
@@ -592,11 +611,6 @@ public final class CaminoController {
 
                         travelStatsController
                                 .breakSampleChain();
-
-                        walkingPerformanceModel
-                                .breakMovingSampleChain(
-                                        position
-                                );
                     }
 
                     /*
@@ -611,23 +625,6 @@ public final class CaminoController {
                         travelStatsController.noteSample(
                                 position
                         );
-
-                        if (!snapshot.stationary) {
-                            long elapsedMs =
-                                    snapshot.location
-                                            .getElapsedRealtimeNanos()
-                                    > 0L
-                                            ? snapshot.location
-                                            .getElapsedRealtimeNanos()
-                                            / 1_000_000L
-                                            : snapshot.location
-                                            .getTime();
-
-                            walkingPerformanceModel.noteMovingSample(
-                                    position,
-                                    elapsedMs
-                            );
-                        }
                     }
 
                     /*
@@ -927,8 +924,13 @@ public final class CaminoController {
          * even before a measurement point exists. This is the same behavior
          * the real GPS position will need later.
          */
+        boolean needsDynamicStartRouteHit =
+                selectionController.secondTapHit()
+                        == null;
+
         RouteHit startRouteHit =
                 routes.isEmpty()
+                        || !needsDynamicStartRouteHit
                         ? null
                         : projectionEngine.findNearestRouteHit(
                                 dummyPosition
@@ -955,9 +957,23 @@ public final class CaminoController {
             interactionRenderer.hideStartProjectionAndConnector();
         }
 
-        updateSelectedRoute(
-                startRouteHit
-        );
+        if (measurementPathNeedsRebuild()) {
+            updateSelectedRoute(
+                    startRouteHit
+            );
+
+            rememberMeasurementBuildInputs();
+
+        } else {
+            /*
+             * MapLibre style reloads recreate the renderer sources. Re-submit
+             * the already-built route in that rare case; the renderer itself
+             * suppresses ordinary duplicate submissions.
+             */
+            interactionRenderer.renderMeasurementPath(
+                    currentMeasurementPath
+            );
+        }
 
         /*
          * Migration/restart case:
@@ -2836,6 +2852,52 @@ public final class CaminoController {
                 dy
         ) <= dp(28);
     }
+
+    private boolean measurementPathNeedsRebuild() {
+        /*
+         * One-point measurement starts at the moving GPS/dummy position and is
+         * therefore intentionally dynamic.
+         */
+        if (selectionController.secondTapHit()
+                == null) {
+
+            return true;
+        }
+
+        return !measurementBuildInputsInitialized
+                || measurementBuildSelectedRoute
+                != selectionController.selectedRoute()
+                || measurementBuildSelectedHit
+                != selectionController.selectedHit()
+                || measurementBuildSecondRoute
+                != selectionController.secondSelectedRoute()
+                || measurementBuildSecondHit
+                != selectionController.secondTapHit()
+                || measurementBuildStageSelection
+                != selectedStageSelection;
+    }
+
+
+    private void rememberMeasurementBuildInputs() {
+        measurementBuildSelectedRoute =
+                selectionController.selectedRoute();
+
+        measurementBuildSelectedHit =
+                selectionController.selectedHit();
+
+        measurementBuildSecondRoute =
+                selectionController.secondSelectedRoute();
+
+        measurementBuildSecondHit =
+                selectionController.secondTapHit();
+
+        measurementBuildStageSelection =
+                selectedStageSelection;
+
+        measurementBuildInputsInitialized =
+                true;
+    }
+
 
     private void updateSelectedRoute(
             RouteHit startRouteHit

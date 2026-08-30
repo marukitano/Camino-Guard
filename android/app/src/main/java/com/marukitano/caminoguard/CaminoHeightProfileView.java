@@ -631,6 +631,12 @@ final class CaminoHeightProfileView extends View {
     void setMarkedSelectionProfile(
             boolean marked
     ) {
+        if (markedSelectionProfile
+                == marked) {
+
+            return;
+        }
+
         markedSelectionProfile =
                 marked;
 
@@ -649,6 +655,13 @@ final class CaminoHeightProfileView extends View {
     void setVillageSamples(
             List<Sample> input
     ) {
+        if ((input == null
+                || input.isEmpty())
+                && villageSamples.isEmpty()) {
+
+            return;
+        }
+
         villageSamples =
                 input == null
                         ? new ArrayList<>()

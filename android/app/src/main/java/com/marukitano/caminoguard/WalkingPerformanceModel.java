@@ -1011,6 +1011,11 @@ final class WalkingPerformanceModel {
         );
     }
 
+    long dataGeneration() {
+        return store.generation();
+    }
+
+
     private void refreshHistoryIfNeeded() {
         long generation =
                 store.generation();
