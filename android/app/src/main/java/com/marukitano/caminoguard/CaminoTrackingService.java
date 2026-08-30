@@ -114,6 +114,17 @@ public final class CaminoTrackingService extends Service
 
     private Location acceptedLocation;
 
+    /*
+     * Background motion state is GPS-only.
+     *
+     * lastMotionFix exists only as a fallback when a GPS provider does not
+     * expose Doppler speed for a fix.
+     */
+    private final GpsMotionStateDetector gpsMotionStateDetector =
+            new GpsMotionStateDetector();
+
+    private Location lastMotionFix;
+
     private final CaminoDirectionTracker directionTracker =
             new CaminoDirectionTracker(
                     TRACK_POINT_SPACING_M,
@@ -634,6 +645,11 @@ public final class CaminoTrackingService extends Service
         gpsUpdatesRegistered =
                 false;
 
+        gpsMotionStateDetector.reset();
+
+        lastMotionFix =
+                null;
+
         /*
          * Direction history from before a GPS-off interval must not be used as
          * the spatial baseline for movement after resume.
@@ -658,35 +674,117 @@ public final class CaminoTrackingService extends Service
             return;
         }
 
+        boolean firstMotionFix =
+                lastMotionFix == null;
+
+        float motionSpeedMps =
+                motionSpeedMps(
+                        location,
+                        lastMotionFix
+                );
+
+        long motionElapsedMs =
+                locationElapsedMs(
+                        location
+                );
+
+        GpsMotionStateDetector.State previousMotionState =
+                gpsMotionStateDetector.state();
+
+        GpsMotionStateDetector.State motionState =
+                gpsMotionStateDetector.updateSpeed(
+                        motionSpeedMps,
+                        motionElapsedMs
+                );
+
+        lastMotionFix =
+                new Location(
+                        location
+                );
+
         LockedMeasurementPathStore.Snapshot locked =
                 currentServiceLockedPath();
+
+        /*
+         * The first trustworthy GPS packet after startup/resume is always
+         * accepted as a position anchor. It is not yet labelled as MOVING and
+         * therefore cannot enter the walking-study/performance pipeline.
+         */
+        if (firstMotionFix) {
+            acceptedLocation =
+                    new Location(
+                            location
+                    );
+
+            directionTracker.enterMoving(
+                    location
+            );
+
+            publish(
+                    locked,
+                    projectServiceLockedPath(
+                            locked,
+                            location
+                    )
+            );
+
+            return;
+        }
+
+        if (motionState
+                == GpsMotionStateDetector.State.STATIONARY) {
+
+            /*
+             * Freeze GPS position/course while standing. Raw stationary GNSS
+             * jitter must not move the map, route progress or off-route state.
+             */
+            if (previousMotionState
+                    != GpsMotionStateDetector.State.STATIONARY) {
+
+                recordPerformanceStationary(
+                        acceptedLocation
+                );
+
+                directionTracker.enterStationary();
+
+                publish(
+                        locked,
+                        projectServiceLockedPath(
+                                locked,
+                                acceptedLocation
+                        )
+                );
+            }
+
+            return;
+        }
+
+        /*
+         * UNKNOWN is deliberately not MOVING. This preserves the hard
+         * MOVING-only gate for the four-week study and learned performance.
+         */
+        if (motionState
+                != GpsMotionStateDetector.State.MOVING) {
+
+            return;
+        }
+
+        if (previousMotionState
+                != GpsMotionStateDetector.State.MOVING) {
+
+            /*
+             * Start a fresh spatial direction baseline after a pause.
+             */
+            directionTracker.enterMoving(
+                    acceptedLocation
+            );
+        }
 
         MeasurementPathProjection.Result lockedProjection =
                 projectServiceLockedPath(
                         locked,
                         location
                 );
-
-        if (acceptedLocation == null) {
-            acceptedLocation =
-                    new Location(location);
-
-            /*
-             * Feed the very first point into the GPS-course history so the
-             * second/third useful point can establish the walking tangent.
-             *
-             * The former full GPS history was debug presentation only.
-             */
-            directionTracker.acceptMovingLocation(
-                    location
-            );
-
-            publish(
-                    locked,
-                    lockedProjection
-            );
-            return;
-        }
 
         acceptMovingLocation(
                 location,
@@ -728,6 +826,83 @@ public final class CaminoTrackingService extends Service
         );
     }
 
+    private float motionSpeedMps(
+            Location location,
+            Location previous
+    ) {
+        if (location == null) {
+            return Float.NaN;
+        }
+
+        if (location.hasSpeed()
+                && !Float.isNaN(
+                        location.getSpeed()
+                )
+                && !Float.isInfinite(
+                        location.getSpeed()
+                )
+                && location.getSpeed() >= 0.0f) {
+
+            return location.getSpeed();
+        }
+
+        if (previous == null) {
+            return Float.NaN;
+        }
+
+        long currentElapsedMs =
+                locationElapsedMs(
+                        location
+                );
+
+        long previousElapsedMs =
+                locationElapsedMs(
+                        previous
+                );
+
+        long deltaMs =
+                currentElapsedMs
+                        - previousElapsedMs;
+
+        if (deltaMs <= 0L) {
+            return Float.NaN;
+        }
+
+        float distanceM =
+                previous.distanceTo(
+                        location
+                );
+
+        if (Float.isNaN(distanceM)
+                || Float.isInfinite(distanceM)
+                || distanceM < 0.0f) {
+
+            return Float.NaN;
+        }
+
+        return distanceM
+                / (
+                deltaMs
+                        / 1000.0f
+        );
+    }
+
+
+    private long locationElapsedMs(
+            Location location
+    ) {
+        if (location != null
+                && location.getElapsedRealtimeNanos()
+                > 0L) {
+
+            return location.getElapsedRealtimeNanos()
+                    / 1_000_000L;
+        }
+
+        return SystemClock.elapsedRealtime();
+    }
+
+
     private boolean isGoodGpsFix(
             Location location
     ) {
@@ -745,7 +920,8 @@ public final class CaminoTrackingService extends Service
                         acceptedLocation,
                         directionTracker.courseDeg(),
                         null,
-                        false
+                        gpsMotionStateDetector.state()
+                                == GpsMotionStateDetector.State.STATIONARY
                 );
 
         latestSnapshot = snapshot;
