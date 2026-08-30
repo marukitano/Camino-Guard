@@ -318,6 +318,226 @@ public final class MeasurementPathProjectionTest {
         );
     }
 
+    @Test
+    public void lockedProjectionMatchesBothExistingProjectionModes() {
+        MeasurementPath path =
+                simplePath(
+                        200.0,
+                        1200.0,
+                        1000.0
+                );
+
+        LatLng position =
+                new LatLng(
+                        47.0005,
+                        8.0
+                );
+
+        MeasurementPathProjection.Result route =
+                MeasurementPathProjection.projectWithin(
+                        path,
+                        position,
+                        20.0
+                );
+
+        MeasurementPathProjection.Result height =
+                MeasurementPathProjection.projectHeightProfileWithin(
+                        path,
+                        position,
+                        20.0
+                );
+
+        MeasurementPathProjection.LockedResult combined =
+                MeasurementPathProjection.projectLockedWithin(
+                        path,
+                        position,
+                        20.0
+                );
+
+        assertSameProjection(
+                route,
+                combined.route
+        );
+
+        assertSameProjection(
+                height,
+                combined.heightProfile
+        );
+    }
+
+
+    @Test
+    public void lockedProjectionPreservesHeightEndpointFallback() {
+        MeasurementPath path =
+                new MeasurementPath();
+
+        path.distanceM =
+                1000.0;
+
+        path.profilePoints.add(
+                new ProfilePoint(
+                        new LatLng(
+                                47.0,
+                                8.0
+                        ),
+                        0.0,
+                        123.0,
+                        false
+                )
+        );
+
+        path.profilePoints.add(
+                new ProfilePoint(
+                        new LatLng(
+                                47.001,
+                                8.0
+                        ),
+                        1000.0,
+                        Double.NaN,
+                        false
+                )
+        );
+
+        LatLng position =
+                new LatLng(
+                        47.0005,
+                        8.0
+                );
+
+        MeasurementPathProjection.LockedResult combined =
+                MeasurementPathProjection.projectLockedWithin(
+                        path,
+                        position,
+                        100.0
+                );
+
+        assertNotNull(
+                combined.route
+        );
+
+        assertNotNull(
+                combined.heightProfile
+        );
+
+        assertEquals(
+                500.0,
+                combined.route.chainageM,
+                1.0
+        );
+
+        assertEquals(
+                0.0,
+                combined.heightProfile.chainageM,
+                0.001
+        );
+
+        assertEquals(
+                123.0,
+                combined.heightProfile.elevationM,
+                0.001
+        );
+    }
+
+
+    @Test
+    public void lockedProjectionPreservesBreakBeforeGap() {
+        MeasurementPath path =
+                new MeasurementPath();
+
+        path.distanceM =
+                1000.0;
+
+        path.profilePoints.add(
+                new ProfilePoint(
+                        new LatLng(
+                                47.0,
+                                8.0
+                        ),
+                        0.0,
+                        100.0,
+                        false
+                )
+        );
+
+        path.profilePoints.add(
+                new ProfilePoint(
+                        new LatLng(
+                                47.001,
+                                8.0
+                        ),
+                        1000.0,
+                        200.0,
+                        true
+                )
+        );
+
+        MeasurementPathProjection.LockedResult combined =
+                MeasurementPathProjection.projectLockedWithin(
+                        path,
+                        new LatLng(
+                                47.0005,
+                                8.0
+                        ),
+                        20.0
+                );
+
+        assertNull(
+                combined.route
+        );
+
+        assertNull(
+                combined.heightProfile
+        );
+    }
+
+
+    private void assertSameProjection(
+            MeasurementPathProjection.Result expected,
+            MeasurementPathProjection.Result actual
+    ) {
+        if (expected == null) {
+            assertNull(
+                    actual
+            );
+            return;
+        }
+
+        assertNotNull(
+                actual
+        );
+
+        assertEquals(
+                expected.offsetM,
+                actual.offsetM,
+                0.001
+        );
+
+        assertEquals(
+                expected.chainageM,
+                actual.chainageM,
+                0.001
+        );
+
+        assertEquals(
+                Double.doubleToLongBits(
+                        expected.elevationM
+                ),
+                Double.doubleToLongBits(
+                        actual.elevationM
+                )
+        );
+
+        assertEquals(
+                Double.doubleToLongBits(
+                        expected.fraction
+                ),
+                Double.doubleToLongBits(
+                        actual.fraction
+                )
+        );
+    }
+
+
     private MeasurementPath simplePath(
             double firstDistanceM,
             double lastDistanceM,

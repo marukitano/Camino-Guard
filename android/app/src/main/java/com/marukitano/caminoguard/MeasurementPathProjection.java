@@ -49,7 +49,401 @@ final class MeasurementPathProjection {
     }
 
 
+    static final class LockedResult {
+
+        final Result route;
+        final Result heightProfile;
+
+
+        LockedResult(
+                Result route,
+                Result heightProfile
+        ) {
+            this.route =
+                    route;
+
+            this.heightProfile =
+                    heightProfile;
+        }
+    }
+
+
     private MeasurementPathProjection() {
+    }
+
+
+    static LockedResult projectLockedWithin(
+            MeasurementPath path,
+            LatLng position,
+            double maxOffsetM
+    ) {
+        if (path == null
+                || position == null
+                || path.profilePoints == null
+                || path.profilePoints.size() < 2
+                || !Double.isFinite(
+                        maxOffsetM
+                )
+                || maxOffsetM < 0.0) {
+
+            return new LockedResult(
+                    null,
+                    null
+            );
+        }
+
+        List<ProfilePoint> points =
+                path.profilePoints;
+
+        double routeBestOffsetM =
+                Double.POSITIVE_INFINITY;
+
+        double routeBestDistanceM =
+                Double.NaN;
+
+        double routeBestElevationM =
+                Double.NaN;
+
+        double heightBestOffsetM =
+                Double.POSITIVE_INFINITY;
+
+        double heightBestDistanceM =
+                Double.NaN;
+
+        double heightBestElevationM =
+                Double.NaN;
+
+        ProfilePoint first =
+                points.get(
+                        0
+                );
+
+        ProfilePoint last =
+                points.get(
+                        points.size() - 1
+                );
+
+        boolean heightProfileGeometryValid =
+                first != null
+                        && last != null
+                        && Double.isFinite(
+                                first.distanceM
+                        )
+                        && Double.isFinite(
+                                last.distanceM
+                        )
+                        && Double.isFinite(
+                                last.distanceM
+                                        - first.distanceM
+                        )
+                        && last.distanceM
+                        - first.distanceM
+                        > 0.01;
+
+        /*
+         * Exactly one segment-geometry calculation per usable segment.
+         *
+         * Normal route projection accepts the segment regardless of elevation.
+         * Height-profile projection additionally requires two finite endpoint
+         * elevations, preserving its historical behaviour.
+         */
+        for (int index = 1;
+                index < points.size();
+                index++) {
+
+            ProfilePoint a =
+                    points.get(
+                            index - 1
+                    );
+
+            ProfilePoint b =
+                    points.get(
+                            index
+                    );
+
+            if (a == null
+                    || b == null
+                    || a.point == null
+                    || b.point == null
+                    || b.breakBefore
+                    || !Double.isFinite(
+                            a.distanceM
+                    )
+                    || !Double.isFinite(
+                            b.distanceM
+                    )) {
+
+                continue;
+            }
+
+            SegmentProjection segment =
+                    projectToSegment(
+                            position,
+                            a.point,
+                            b.point
+                    );
+
+            if (segment == null) {
+                continue;
+            }
+
+            if (segment.offsetM
+                    < routeBestOffsetM) {
+
+                routeBestOffsetM =
+                        segment.offsetM;
+
+                routeBestDistanceM =
+                        a.distanceM
+                                + (
+                                b.distanceM
+                                        - a.distanceM
+                        )
+                                * segment.t;
+
+                if (Double.isFinite(
+                        a.elevationM
+                )
+                        && Double.isFinite(
+                                b.elevationM
+                        )) {
+
+                    routeBestElevationM =
+                            a.elevationM
+                                    + (
+                                    b.elevationM
+                                            - a.elevationM
+                            )
+                                    * segment.t;
+
+                } else if (Double.isFinite(
+                        a.elevationM
+                )) {
+
+                    routeBestElevationM =
+                            a.elevationM;
+
+                } else if (Double.isFinite(
+                        b.elevationM
+                )) {
+
+                    routeBestElevationM =
+                            b.elevationM;
+
+                } else {
+                    routeBestElevationM =
+                            Double.NaN;
+                }
+            }
+
+            if (heightProfileGeometryValid
+                    && Double.isFinite(
+                            a.elevationM
+                    )
+                    && Double.isFinite(
+                            b.elevationM
+                    )
+                    && segment.offsetM
+                    < heightBestOffsetM) {
+
+                heightBestOffsetM =
+                        segment.offsetM;
+
+                heightBestDistanceM =
+                        a.distanceM
+                                + segment.t
+                                * (
+                                b.distanceM
+                                        - a.distanceM
+                        );
+
+                heightBestElevationM =
+                        a.elevationM
+                                + segment.t
+                                * (
+                                b.elevationM
+                                        - a.elevationM
+                        );
+            }
+        }
+
+        Result routeResult =
+                null;
+
+        if (Double.isFinite(
+                routeBestOffsetM
+        )
+                && Double.isFinite(
+                        routeBestDistanceM
+                )
+                && routeBestOffsetM
+                <= maxOffsetM) {
+
+            routeResult =
+                    new Result(
+                            routeBestOffsetM,
+                            routeBestDistanceM,
+                            routeBestElevationM,
+                            normalizedFraction(
+                                    points,
+                                    routeBestDistanceM
+                            )
+                    );
+        }
+
+        /*
+         * Historical height-profile fallback:
+         *
+         * Only if NO finite-elevation segment was usable at all, find the
+         * nearest individual finite profile point.
+         */
+        if (heightProfileGeometryValid
+                && !Double.isFinite(
+                        heightBestDistanceM
+                )) {
+
+            for (ProfilePoint point : points) {
+
+                if (point == null
+                        || point.point == null
+                        || !Double.isFinite(
+                                point.distanceM
+                        )
+                        || !Double.isFinite(
+                                point.elevationM
+                        )) {
+
+                    continue;
+                }
+
+                double offsetM =
+                        GeoMath.distanceMeters(
+                                position,
+                                point.point
+                        );
+
+                if (!Double.isFinite(
+                        offsetM
+                )
+                        || offsetM
+                        >= heightBestOffsetM) {
+
+                    continue;
+                }
+
+                heightBestOffsetM =
+                        offsetM;
+
+                heightBestDistanceM =
+                        point.distanceM;
+
+                heightBestElevationM =
+                        point.elevationM;
+            }
+        }
+
+        Result heightResult =
+                null;
+
+        double heightFraction =
+                normalizedFraction(
+                        points,
+                        heightBestDistanceM
+                );
+
+        if (heightProfileGeometryValid
+                && Double.isFinite(
+                        heightBestOffsetM
+                )
+                && Double.isFinite(
+                        heightBestDistanceM
+                )
+                && Double.isFinite(
+                        heightBestElevationM
+                )
+                && Double.isFinite(
+                        heightFraction
+                )
+                && heightBestOffsetM
+                <= maxOffsetM) {
+
+            heightResult =
+                    new Result(
+                            heightBestOffsetM,
+                            heightBestDistanceM,
+                            heightBestElevationM,
+                            heightFraction
+                    );
+        }
+
+        return new LockedResult(
+                routeResult,
+                heightResult
+        );
+    }
+
+
+    private static double normalizedFraction(
+            List<ProfilePoint> points,
+            double distanceM
+    ) {
+        if (points == null
+                || points.size() < 2
+                || !Double.isFinite(
+                        distanceM
+                )) {
+
+            return Double.NaN;
+        }
+
+        ProfilePoint first =
+                points.get(
+                        0
+                );
+
+        ProfilePoint last =
+                points.get(
+                        points.size() - 1
+                );
+
+        if (first == null
+                || last == null
+                || !Double.isFinite(
+                        first.distanceM
+                )
+                || !Double.isFinite(
+                        last.distanceM
+                )) {
+
+            return Double.NaN;
+        }
+
+        double spanM =
+                last.distanceM
+                        - first.distanceM;
+
+        if (!Double.isFinite(
+                spanM
+        )
+                || spanM <= 0.01) {
+
+            return Double.NaN;
+        }
+
+        double fraction =
+                (
+                        distanceM
+                                - first.distanceM
+                )
+                        / spanM;
+
+        return Math.max(
+                0.0,
+                Math.min(
+                        1.0,
+                        fraction
+                )
+        );
     }
 
 
