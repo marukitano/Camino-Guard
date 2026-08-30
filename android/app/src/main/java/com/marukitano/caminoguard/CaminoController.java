@@ -30,6 +30,11 @@ import java.util.List;
  */
 public final class CaminoController {
 
+    private static final double LOCKED_ROUTE_MAX_OFFSET_M =
+            CaminoConfig.get().doubleValue(
+                    "navigation.offRouteThresholdMeters"
+            );
+
     private final Activity activity;
     private final MapView mapView;
     private final CaminoRepository caminoRepository;
@@ -70,6 +75,27 @@ public final class CaminoController {
      */
     private double lastLockedRouteChainageM =
             Double.NaN;
+
+    /*
+     * One selected-path projection for one exact position.
+     *
+     * A real GPS fix reaches updateLockedRouteState() first and refresh()
+     * immediately afterwards. Both therefore reuse this result instead of
+     * scanning the complete MeasurementPath independently.
+     */
+    private boolean lockedRouteProjectionCacheValid;
+
+    private MeasurementPath
+            lockedRouteProjectionCachePath;
+
+    private double lockedRouteProjectionCacheLatitude =
+            Double.NaN;
+
+    private double lockedRouteProjectionCacheLongitude =
+            Double.NaN;
+
+    private MeasurementPathProjection.Result
+            lockedRouteProjectionCacheResult;
 
     private MapLibreMap map;
 
@@ -292,7 +318,7 @@ public final class CaminoController {
 
                             @Override
                             public double currentDebugChainageM() {
-                                return timetableCurrentChainageM();
+                                return debugCurrentChainageM();
                             }
 
                             @Override
@@ -927,18 +953,30 @@ public final class CaminoController {
             );
         }
 
+        boolean marked =
+                hasMarkedSelection();
+
+        MeasurementPathProjection.Result routeProjection =
+                selectionLocked
+                        && marked
+                        && currentMeasurementPath != null
+                        && dummyPosition != null
+                        ? lockedRouteProjectionFor(
+                                currentMeasurementPath,
+                                dummyPosition
+                        )
+                        : null;
+
         /*
          * The compact stats card belongs only to an explicit two-point
-         * selection. A one-point measurement from the current GPS/dummy
-         * position intentionally stays card-free.
+         * selection. Planning does not need a current-position projection.
          */
-        if (selectionController.secondTapHit()
-                != null) {
+        if (marked) {
 
             selectionStatsOverlay.update(
-                    currentMeasurementPath
-            ,
-                    dummyPosition);
+                    currentMeasurementPath,
+                    routeProjection
+            );
 
         } else {
             selectionStatsOverlay.hide();
@@ -950,9 +988,6 @@ public final class CaminoController {
                 startRouteHit,
                 currentMeasurementPath
         );
-
-        boolean marked =
-                hasMarkedSelection();
 
         heightProfileController.setMeasurementPath(
                 marked
@@ -983,7 +1018,9 @@ public final class CaminoController {
                 currentMeasurementPath,
                 selectionLocked
                         && marked,
-                timetableCurrentChainageM()
+                timetableCurrentChainageM(
+                        routeProjection
+                )
         );
 
         debugGpsTool.update(
@@ -1703,6 +1740,94 @@ public final class CaminoController {
     }
 
 
+    private MeasurementPathProjection.Result
+            lockedRouteProjectionFor(
+                    MeasurementPath path,
+                    LatLng position
+            ) {
+
+        if (path == null
+                || position == null) {
+
+            return null;
+        }
+
+        double latitude =
+                position.getLatitude();
+
+        double longitude =
+                position.getLongitude();
+
+        if (lockedRouteProjectionCacheValid
+                && lockedRouteProjectionCachePath
+                == path
+                && Double.doubleToLongBits(
+                        lockedRouteProjectionCacheLatitude
+                )
+                == Double.doubleToLongBits(
+                        latitude
+                )
+                && Double.doubleToLongBits(
+                        lockedRouteProjectionCacheLongitude
+                )
+                == Double.doubleToLongBits(
+                        longitude
+                )) {
+
+            return lockedRouteProjectionCacheResult;
+        }
+
+        lockedRouteProjectionCacheResult =
+                MeasurementPathProjection.projectWithin(
+                        path,
+                        position,
+                        LOCKED_ROUTE_MAX_OFFSET_M
+                );
+
+        lockedRouteProjectionCachePath =
+                path;
+
+        lockedRouteProjectionCacheLatitude =
+                latitude;
+
+        lockedRouteProjectionCacheLongitude =
+                longitude;
+
+        lockedRouteProjectionCacheValid =
+                true;
+
+        return lockedRouteProjectionCacheResult;
+    }
+
+
+    private double routeChainageM(
+            MeasurementPath path,
+            MeasurementPathProjection.Result projection
+    ) {
+        if (path == null
+                || projection == null
+                || !Double.isFinite(
+                        path.distanceM
+                )
+                || path.distanceM < 0.0
+                || !Double.isFinite(
+                        projection.fraction
+                )) {
+
+            return Double.NaN;
+        }
+
+        return Math.max(
+                0.0,
+                Math.min(
+                        path.distanceM,
+                        path.distanceM
+                                * projection.fraction
+                )
+        );
+    }
+
+
     boolean isOffRoute() {
         return offRoute;
     }
@@ -1730,16 +1855,16 @@ public final class CaminoController {
             return;
         }
 
-        /*
-         * This is the existing selected-path projection.
-         *
-         * CaminoSelectionStatsOverlay.routeChainageM() accepts a projection
-         * only inside navigation.offRouteThresholdMeters (= 20 m).
-         */
-        double chainageM =
-                selectionStatsOverlay.routeChainageM(
+        MeasurementPathProjection.Result routeProjection =
+                lockedRouteProjectionFor(
                         currentMeasurementPath,
                         position
+                );
+
+        double chainageM =
+                routeChainageM(
+                        currentMeasurementPath,
+                        routeProjection
                 );
 
 
@@ -1923,6 +2048,17 @@ public final class CaminoController {
                 dummyPosition
         );
 
+        MeasurementPathProjection.Result routeProjection =
+                lockedRouteProjectionFor(
+                        currentMeasurementPath,
+                        dummyPosition
+                );
+
+        selectionStatsOverlay.update(
+                currentMeasurementPath,
+                routeProjection
+        );
+
         selectionStatsOverlay.setLocked(
                 true
         );
@@ -1930,7 +2066,9 @@ public final class CaminoController {
         timetableOverlay.update(
                 currentMeasurementPath,
                 true,
-                timetableCurrentChainageM()
+                timetableCurrentChainageM(
+                        routeProjection
+                )
         );
 
         debugGpsTool.update(
@@ -2213,7 +2351,7 @@ public final class CaminoController {
     }
 
 
-    private double timetableCurrentChainageM() {
+    private double debugCurrentChainageM() {
         double chainageM =
                 selectionStatsOverlay.routeChainageM(
                         currentMeasurementPath,
@@ -2239,6 +2377,42 @@ public final class CaminoController {
                 && Double.isFinite(
                 lastLockedRouteChainageM
         )) {
+
+            return lastLockedRouteChainageM;
+        }
+
+        return 0.0;
+    }
+
+
+    private double timetableCurrentChainageM(
+            MeasurementPathProjection.Result projection
+    ) {
+        double chainageM =
+                routeChainageM(
+                        currentMeasurementPath,
+                        projection
+                );
+
+        if (Double.isFinite(
+                chainageM
+        )) {
+            if (selectionLocked) {
+                lastLockedRouteChainageM =
+                        chainageM;
+            }
+
+            return chainageM;
+        }
+
+        /*
+         * Outside the 20 m corridor the current route position is unknown.
+         * Never convert that into a false jump back to the route start.
+         */
+        if (selectionLocked
+                && Double.isFinite(
+                        lastLockedRouteChainageM
+                )) {
 
             return lastLockedRouteChainageM;
         }

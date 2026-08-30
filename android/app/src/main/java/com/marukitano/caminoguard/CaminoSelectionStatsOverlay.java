@@ -61,7 +61,12 @@ final class CaminoSelectionStatsOverlay {
     private boolean locked;
 
     private MeasurementPath lastPath;
-    private LatLng lastPosition;
+
+    /*
+     * Last projection supplied by CaminoController.
+     * Clock-only redraws reuse it until the next GPS position arrives.
+     */
+    private MeasurementPathProjection.Result lastProjection;
 
     /*
      * Also gates real pause accumulation. A stationary phone in Switzerland
@@ -517,15 +522,15 @@ final class CaminoSelectionStatsOverlay {
 
     void update(
             MeasurementPath path,
-            LatLng currentPosition
+            MeasurementPathProjection.Result projection
     ) {
         ensureView();
 
         lastPath =
                 path;
 
-        lastPosition =
-                currentPosition;
+        lastProjection =
+                projection;
 
         if (path == null
                 || path.profilePoints == null
@@ -555,7 +560,7 @@ final class CaminoSelectionStatsOverlay {
         if (locked) {
             renderNavigation(
                     lastPath,
-                    lastPosition
+                    lastProjection
             );
 
         } else {
@@ -650,12 +655,11 @@ final class CaminoSelectionStatsOverlay {
 
     private void renderNavigation(
             MeasurementPath path,
-            LatLng position
+            MeasurementPathProjection.Result projection
     ) {
         RouteProgress progress =
-                locateProgress(
-                        path,
-                        position
+                routeProgress(
+                        projection
                 );
 
         currentPositionOnSelectedRoute =
@@ -898,6 +902,24 @@ final class CaminoSelectionStatsOverlay {
                         path.distanceM
                                 * progress.fraction
                 )
+        );
+    }
+
+
+    private RouteProgress routeProgress(
+            MeasurementPathProjection.Result projection
+    ) {
+        if (projection == null
+                || !Double.isFinite(
+                        projection.fraction
+                )) {
+
+            return null;
+        }
+
+        return new RouteProgress(
+                projection.fraction,
+                projection.elevationM
         );
     }
 
@@ -1366,7 +1388,7 @@ final class CaminoSelectionStatsOverlay {
         lastPath =
                 null;
 
-        lastPosition =
+        lastProjection =
                 null;
 
         dismissStartTimePopup();
