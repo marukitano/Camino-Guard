@@ -1059,6 +1059,21 @@ public final class GpsGyroOrientationController
                             + " sensorNs="
                             + event.timestamp
             );
+
+            /*
+             * TYPE_GAME_ROTATION_VECTOR can occasionally change its internal
+             * yaw reference discontinuously. The trace captured exactly such
+             * a one-sample jump while GPS course and map bearing stayed
+             * continuous.
+             *
+             * Accept the new raw sensor reference, but never turn that
+             * discontinuity into relative handset rotation. Normal following
+             * samples continue from this new reference.
+             */
+            lastRawGyroYawDeg =
+                    rawYaw;
+
+            return;
         }
 
         lastRawGyroYawDeg =
