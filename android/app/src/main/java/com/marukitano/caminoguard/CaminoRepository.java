@@ -27,6 +27,23 @@ import java.util.List;
  */
 final class CaminoRepository {
 
+    /*
+     * Canonical Camino application data is immutable after repository loading.
+     *
+     * MainActivity and CaminoTrackingService live in the same Android process
+     * and need the same route graph. Parsing the large canonical JSON twice
+     * only duplicates CPU, temporary JSON memory and the complete geometry
+     * object graph.
+     *
+     * Publish the graph only after loadUncached() finished all orientation,
+     * static chainage and variant-path preparation.
+     */
+    private static final Object SHARED_ROUTES_LOCK =
+            new Object();
+
+    private static volatile List<CaminoRoute>
+            sharedRoutes;
+
     private final Context context;
 
     CaminoRepository(
@@ -37,6 +54,50 @@ final class CaminoRepository {
     }
 
     List<CaminoRoute> load()
+            throws Exception {
+
+        List<CaminoRoute> cached =
+                sharedRoutes;
+
+        if (cached != null) {
+            return cached;
+        }
+
+        synchronized (SHARED_ROUTES_LOCK) {
+            cached =
+                    sharedRoutes;
+
+            if (cached != null) {
+                return cached;
+            }
+
+            List<CaminoRoute> loaded =
+                    loadUncached();
+
+            /*
+             * Callers may build their own top-level lists, but the canonical
+             * parsed route objects themselves are intentionally shared.
+             */
+            cached =
+                    Collections.unmodifiableList(
+                            new ArrayList<>(
+                                    loaded
+                            )
+                    );
+
+            /*
+             * volatile publication also makes the completely initialized
+             * object graph visible to the other process thread.
+             */
+            sharedRoutes =
+                    cached;
+
+            return cached;
+        }
+    }
+
+
+    private List<CaminoRoute> loadUncached()
             throws Exception {
 
         JSONObject root =
