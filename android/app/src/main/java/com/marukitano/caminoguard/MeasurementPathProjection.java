@@ -19,10 +19,20 @@ final class MeasurementPathProjection {
         final double chainageM;
         final double elevationM;
 
+        /*
+         * Normalized progress across the MeasurementPath profile.
+         *
+         * chainageM deliberately keeps its historical profile-distance
+         * semantics for existing Pebble/study consumers. fraction is the
+         * 0..1 value Android UI previously calculated independently.
+         */
+        final double fraction;
+
         Result(
                 double offsetM,
                 double chainageM,
-                double elevationM
+                double elevationM,
+                double fraction
         ) {
             this.offsetM =
                     offsetM;
@@ -32,6 +42,9 @@ final class MeasurementPathProjection {
 
             this.elevationM =
                     elevationM;
+
+            this.fraction =
+                    fraction;
         }
     }
 
@@ -261,10 +274,60 @@ final class MeasurementPathProjection {
             return null;
         }
 
+        double fraction =
+                Double.NaN;
+
+        ProfilePoint first =
+                points.get(
+                        0
+                );
+
+        ProfilePoint last =
+                points.get(
+                        points.size() - 1
+                );
+
+        if (first != null
+                && last != null
+                && Double.isFinite(
+                        first.distanceM
+                )
+                && Double.isFinite(
+                        last.distanceM
+                )) {
+
+            double spanM =
+                    last.distanceM
+                            - first.distanceM;
+
+            if (Double.isFinite(
+                    spanM
+            )
+                    && spanM > 0.01) {
+
+                fraction =
+                        (
+                                bestDistanceM
+                                        - first.distanceM
+                        )
+                                / spanM;
+
+                fraction =
+                        Math.max(
+                                0.0,
+                                Math.min(
+                                        1.0,
+                                        fraction
+                                )
+                        );
+            }
+        }
+
         return new Result(
                 bestOffsetM,
                 bestDistanceM,
-                bestElevationM
+                bestElevationM,
+                fraction
         );
     }
 }

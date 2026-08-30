@@ -654,7 +654,7 @@ final class CaminoSelectionStatsOverlay {
     ) {
         RouteProgress progress =
                 locateProgress(
-                        path.profilePoints,
+                        path,
                         position
                 );
 
@@ -879,7 +879,7 @@ final class CaminoSelectionStatsOverlay {
 
         RouteProgress progress =
                 locateProgress(
-                        path.profilePoints,
+                        path,
                         position
                 );
 
@@ -903,276 +903,27 @@ final class CaminoSelectionStatsOverlay {
 
 
     private RouteProgress locateProgress(
-            List<ProfilePoint> points,
+            MeasurementPath path,
             LatLng position
     ) {
-        if (position == null
-                || points == null
-                || points.size() < 2) {
-
-            return null;
-        }
-
-        ProfilePoint first =
-                points.get(
-                        0
+        MeasurementPathProjection.Result projection =
+                MeasurementPathProjection.projectWithin(
+                        path,
+                        position,
+                        MAX_LIVE_ROUTE_OFFSET_M
                 );
 
-        ProfilePoint last =
-                points.get(
-                        points.size() - 1
-                );
-
-        if (first == null
-                || last == null
+        if (projection == null
                 || !Double.isFinite(
-                first.distanceM
-        )
-                || !Double.isFinite(
-                last.distanceM
-        )) {
+                        projection.fraction
+                )) {
 
             return null;
         }
-
-        double spanM =
-                last.distanceM
-                        - first.distanceM;
-
-        if (!Double.isFinite(
-                spanM
-        )
-                || spanM <= 0.01) {
-
-            return null;
-        }
-
-        double bestOffsetM =
-                Double.POSITIVE_INFINITY;
-
-        double bestDistanceM =
-                first.distanceM;
-
-        double bestElevationM =
-                first.elevationM;
-
-        double userLat =
-                position.getLatitude();
-
-        double userLon =
-                position.getLongitude();
-
-        for (int index = 1;
-                index < points.size();
-                index++) {
-
-            ProfilePoint a =
-                    points.get(
-                            index - 1
-                    );
-
-            ProfilePoint b =
-                    points.get(
-                            index
-                    );
-
-            if (a == null
-                    || b == null
-                    || a.point == null
-                    || b.point == null
-                    || b.breakBefore
-                    || !Double.isFinite(
-                    a.distanceM
-            )
-                    || !Double.isFinite(
-                    b.distanceM
-            )) {
-
-                continue;
-            }
-
-            double refLatRad =
-                    Math.toRadians(
-                            (
-                                    a.point.getLatitude()
-                                            + b.point.getLatitude()
-                                            + userLat
-                            )
-                                    / 3.0
-                    );
-
-            double lonScale =
-                    Math.cos(
-                            refLatRad
-                    );
-
-            double ax =
-                    a.point.getLongitude()
-                            * lonScale;
-
-            double ay =
-                    a.point.getLatitude();
-
-            double bx =
-                    b.point.getLongitude()
-                            * lonScale;
-
-            double by =
-                    b.point.getLatitude();
-
-            double px =
-                    userLon
-                            * lonScale;
-
-            double py =
-                    userLat;
-
-            double dx =
-                    bx
-                            - ax;
-
-            double dy =
-                    by
-                            - ay;
-
-            double lengthSquared =
-                    dx
-                            * dx
-                            + dy
-                            * dy;
-
-            double t =
-                    lengthSquared <= 1e-15
-                            ? 0.0
-                            : (
-                            (
-                                    px
-                                            - ax
-                            )
-                                    * dx
-                                    + (
-                                    py
-                                            - ay
-                            )
-                                    * dy
-                    )
-                            / lengthSquared;
-
-            t =
-                    Math.max(
-                            0.0,
-                            Math.min(
-                                    1.0,
-                                    t
-                            )
-                    );
-
-            double projectedLat =
-                    a.point.getLatitude()
-                            + (
-                            b.point.getLatitude()
-                                    - a.point.getLatitude()
-                    )
-                            * t;
-
-            double projectedLon =
-                    a.point.getLongitude()
-                            + (
-                            b.point.getLongitude()
-                                    - a.point.getLongitude()
-                    )
-                            * t;
-
-            double offsetM =
-                    GeoMath.distanceMeters(
-                            position,
-                            new LatLng(
-                                    projectedLat,
-                                    projectedLon
-                            )
-                    );
-
-            if (!Double.isFinite(
-                    offsetM
-            )
-                    || offsetM >= bestOffsetM) {
-
-                continue;
-            }
-
-            bestOffsetM =
-                    offsetM;
-
-            bestDistanceM =
-                    a.distanceM
-                            + (
-                            b.distanceM
-                                    - a.distanceM
-                    )
-                            * t;
-
-            if (Double.isFinite(
-                    a.elevationM
-            )
-                    && Double.isFinite(
-                    b.elevationM
-            )) {
-
-                bestElevationM =
-                        a.elevationM
-                                + (
-                                b.elevationM
-                                        - a.elevationM
-                        )
-                                * t;
-
-            } else if (Double.isFinite(
-                    a.elevationM
-            )) {
-
-                bestElevationM =
-                        a.elevationM;
-
-            } else if (Double.isFinite(
-                    b.elevationM
-            )) {
-
-                bestElevationM =
-                        b.elevationM;
-            }
-        }
-
-        if (!Double.isFinite(
-                bestOffsetM
-        )
-                || bestOffsetM
-                > MAX_LIVE_ROUTE_OFFSET_M) {
-
-            /*
-             * Never turn an arbitrary nearest point into fake live progress.
-             */
-            return null;
-        }
-
-        double fraction =
-                (
-                        bestDistanceM
-                                - first.distanceM
-                )
-                        / spanM;
-
-        fraction =
-                Math.max(
-                        0.0,
-                        Math.min(
-                                1.0,
-                                fraction
-                        )
-                );
 
         return new RouteProgress(
-                fraction,
-                bestElevationM
+                projection.fraction,
+                projection.elevationM
         );
     }
 
