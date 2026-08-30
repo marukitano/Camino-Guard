@@ -125,68 +125,67 @@ final class CaminoPebbleBridge
             String nextDistance,
             String nextTime,
             String currentSpeed,
-            boolean alarmActive,
-            boolean routeValid
+            Boolean alarmActive,
+            Boolean routeValid
     ) {
         Map<Integer, PebbleDictionaryItem> dictionary =
                 new HashMap<>();
 
-        dictionary.put(
+        /*
+         * Pebble's receiver treats a missing tuple as "keep the previous
+         * value". Therefore a null argument means this key did not change and
+         * does not need to consume AppMessage bandwidth.
+         */
+        putOptionalText(
+                dictionary,
                 KEY_NEXT_NAME,
-                new PebbleDictionaryItem.Text(
-                        safeText(
-                                nextName
-                        )
-                )
+                nextName
         );
 
-        dictionary.put(
+        putOptionalText(
+                dictionary,
                 KEY_NEXT_DISTANCE,
-                new PebbleDictionaryItem.Text(
-                        safeText(
-                                nextDistance
-                        )
-                )
+                nextDistance
         );
 
-        dictionary.put(
+        putOptionalText(
+                dictionary,
                 KEY_NEXT_TIME,
-                new PebbleDictionaryItem.Text(
-                        safeText(
-                                nextTime
-                        )
-                )
+                nextTime
         );
 
-        dictionary.put(
+        putOptionalText(
+                dictionary,
                 KEY_CURRENT_SPEED,
-                new PebbleDictionaryItem.Text(
-                        safeText(
-                                currentSpeed
-                        )
-                )
+                currentSpeed
         );
 
         /*
          * The current Pebble C receiver reads these values as strings.
          */
-        dictionary.put(
+        putOptionalText(
+                dictionary,
                 KEY_ALARM_ACTIVE,
-                new PebbleDictionaryItem.Text(
-                        alarmActive
-                                ? "1"
-                                : "0"
-                )
+                alarmActive == null
+                        ? null
+                        : alarmActive
+                        ? "1"
+                        : "0"
         );
 
-        dictionary.put(
+        putOptionalText(
+                dictionary,
                 KEY_ROUTE_VALID,
-                new PebbleDictionaryItem.Text(
-                        routeValid
-                                ? "1"
-                                : "0"
-                )
+                routeValid == null
+                        ? null
+                        : routeValid
+                        ? "1"
+                        : "0"
         );
+
+        if (dictionary.isEmpty()) {
+            return;
+        }
 
         try {
             sender.sendDataToPebble(
@@ -213,6 +212,26 @@ final class CaminoPebbleBridge
                     error
             );
         }
+    }
+
+
+    private void putOptionalText(
+            Map<Integer, PebbleDictionaryItem> dictionary,
+            int key,
+            String value
+    ) {
+        if (value == null) {
+            return;
+        }
+
+        dictionary.put(
+                key,
+                new PebbleDictionaryItem.Text(
+                        safeText(
+                                value
+                        )
+                )
+        );
     }
 
 

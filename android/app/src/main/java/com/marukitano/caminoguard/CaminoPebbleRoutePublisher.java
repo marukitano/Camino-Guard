@@ -323,13 +323,70 @@ final class CaminoPebbleRoutePublisher {
             return;
         }
 
+        boolean firstSend =
+                !sentAnyState;
+
+        String nextNameDelta =
+                firstSend
+                        || !sameText(
+                                nextName,
+                                lastSentNextName
+                        )
+                        ? nextName
+                        : null;
+
+        String nextDistanceDelta =
+                firstSend
+                        || !sameText(
+                                nextDistance,
+                                lastSentNextDistance
+                        )
+                        ? nextDistance
+                        : null;
+
+        String nextTimeDelta =
+                firstSend
+                        || !sameText(
+                                nextTime,
+                                lastSentNextTime
+                        )
+                        ? nextTime
+                        : null;
+
+        String speedDelta =
+                firstSend
+                        || !sameText(
+                                speed,
+                                lastSentSpeed
+                        )
+                        ? speed
+                        : null;
+
+        Boolean alarmDelta =
+                firstSend
+                        || alarmActive
+                        != lastAlarmActive
+                        ? Boolean.valueOf(
+                                alarmActive
+                        )
+                        : null;
+
+        Boolean routeValidDelta =
+                firstSend
+                        || routeValid
+                        != lastRouteValid
+                        ? Boolean.valueOf(
+                                routeValid
+                        )
+                        : null;
+
         bridge.sendRouteState(
-                nextName,
-                nextDistance,
-                nextTime,
-                speed,
-                alarmActive,
-                routeValid
+                nextNameDelta,
+                nextDistanceDelta,
+                nextTimeDelta,
+                speedDelta,
+                alarmDelta,
+                routeValidDelta
         );
 
         sentAnyState =
