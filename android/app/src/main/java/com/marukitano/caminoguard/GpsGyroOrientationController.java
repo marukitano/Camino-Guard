@@ -21,13 +21,11 @@ import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.Style;
 import org.maplibre.android.style.layers.CircleLayer;
-import org.maplibre.android.style.layers.LineLayer;
 import org.maplibre.android.style.layers.Property;
 import org.maplibre.android.style.layers.PropertyFactory;
 import org.maplibre.android.style.layers.SymbolLayer;
 import org.maplibre.android.style.sources.GeoJsonSource;
 import org.maplibre.geojson.Feature;
-import org.maplibre.geojson.LineString;
 import org.maplibre.geojson.Point;
 
 import java.util.ArrayList;
@@ -51,8 +49,6 @@ public final class GpsGyroOrientationController
     private static final String ARROW="camino-user-direction";
     private static final String ARROW_IMG="camino-user-direction-arrow";
     private static final String ARROW_IMG_STATIONARY="camino-user-direction-arrow-stationary";
-    private static final String TRACK_SRC="camino-debug-gps-track";
-    private static final String TRACK="camino-debug-gps-track-line";
     private final Activity activity;
 
     private final SensorManager sensorManager;
@@ -93,10 +89,8 @@ public final class GpsGyroOrientationController
 
     private MapLibreMap map;
     private GeoJsonSource posSource;
-    private GeoJsonSource trackSource;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
-    private List<android.location.Location> renderedTrack;
     private final LiveNavigationCameraController liveNavigationCameraController;
     private long lastFollowLocationTime = Long.MIN_VALUE;
     private LatLng displayedPosition;
@@ -176,23 +170,6 @@ public final class GpsGyroOrientationController
 
     public void onStyleLoaded(Style style){
         posSource=new GeoJsonSource(POS_SRC); style.addSource(posSource);
-        trackSource=new GeoJsonSource(TRACK_SRC); style.addSource(trackSource);
-        renderedTrack=null;
-
-        LineLayer line=new LineLayer(TRACK,TRACK_SRC);
-        line.setProperties(
-                PropertyFactory.lineColor(Color.parseColor("#D04432")),
-                PropertyFactory.lineWidth(4f),
-
-                /*
-                 * Keep the proven GPS/track pipeline intact.
-                 * The former debug track is simply invisible.
-                 */
-                PropertyFactory.lineOpacity(0f),
-
-                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND));
-        style.addLayer(line);
 
         CircleLayer dot=new CircleLayer(DOT,POS_SRC);
         dot.setProperties(
@@ -431,30 +408,6 @@ public final class GpsGyroOrientationController
 
     private void render(CaminoTrackingService.Snapshot s){
         if(s==null)return;
-
-        if(trackSource!=null && s.track!=renderedTrack){
-            renderedTrack=s.track;
-
-            if(s.track.size()>=2){
-                List<Point> pts=new ArrayList<>();
-
-                for(android.location.Location l:s.track)
-                    pts.add(
-                            Point.fromLngLat(
-                                    l.getLongitude(),
-                                    l.getLatitude()
-                            )
-                    );
-
-                trackSource.setGeoJson(
-                        Feature.fromGeometry(
-                                LineString.fromLngLats(
-                                        pts
-                                )
-                        )
-                );
-            }
-        }
 
         updateForegroundDirectionReadiness(
                 s

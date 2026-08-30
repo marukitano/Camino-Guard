@@ -22,7 +22,6 @@ import android.util.Log;
 import org.maplibre.android.geometry.LatLng;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -44,14 +43,12 @@ public final class CaminoTrackingService extends Service
 
     public static final class Snapshot {
         public final Location location;
-        public final List<Location> track;
         public final Float courseDeg;
         public final Float phoneHeadingDeg;
         public final boolean stationary;
 
         Snapshot(
                 Location location,
-                List<Location> track,
                 Float courseDeg,
                 Float phoneHeadingDeg,
                 boolean stationary
@@ -60,8 +57,6 @@ public final class CaminoTrackingService extends Service
                     location == null
                             ? null
                             : new Location(location);
-
-            this.track = track;
 
             this.courseDeg = courseDeg;
             this.phoneHeadingDeg = phoneHeadingDeg;
@@ -96,7 +91,6 @@ public final class CaminoTrackingService extends Service
     private static volatile Snapshot latestSnapshot =
             new Snapshot(
                     null,
-                    Collections.emptyList(),
                     null,
                     null,
                     false
@@ -115,19 +109,7 @@ public final class CaminoTrackingService extends Service
 
     private boolean gpsUpdatesRegistered;
 
-    private final List<Location> track = new ArrayList<>();
-
-    /*
-     * Read-only deep copy exposed through Snapshot.
-     * It is rebuilt only when the GPS track itself grows. High-frequency gyro
-     * publications reuse the same immutable list instance.
-     */
-    private List<Location> publishedTrack =
-            Collections.emptyList();
-    private boolean publishedTrackDirty;
-
     private Location acceptedLocation;
-    private Location lastTrackLocation;
 
     private final CaminoDirectionTracker directionTracker =
             new CaminoDirectionTracker(
@@ -619,19 +601,11 @@ public final class CaminoTrackingService extends Service
             acceptedLocation =
                     new Location(location);
 
-            track.add(
-                    new Location(location)
-            );
-
-            publishedTrackDirty =
-                    true;
-
-            lastTrackLocation =
-                    new Location(location);
-
             /*
              * Feed the very first point into the GPS-course history so the
              * second/third useful point can establish the walking tangent.
+             *
+             * The former full GPS history was debug presentation only.
              */
             directionTracker.acceptMovingLocation(
                     location
@@ -667,18 +641,6 @@ public final class CaminoTrackingService extends Service
             );
         }
 
-        if (lastTrackLocation == null
-                || lastTrackLocation.distanceTo(location)
-                        >= TRACK_POINT_SPACING_M) {
-            track.add(
-                    new Location(location)
-            );
-            publishedTrackDirty = true;
-
-            lastTrackLocation =
-                    new Location(location);
-        }
-
         directionTracker.acceptMovingLocation(
                 location
         );
@@ -696,7 +658,6 @@ public final class CaminoTrackingService extends Service
         Snapshot snapshot =
                 new Snapshot(
                         acceptedLocation,
-                        snapshotTrack(),
                         directionTracker.courseDeg(),
                         null,
                         false
@@ -720,32 +681,6 @@ public final class CaminoTrackingService extends Service
                     acceptedLocation
             );
         }
-    }
-
-    private List<Location> snapshotTrack() {
-        if (!publishedTrackDirty) {
-            return publishedTrack;
-        }
-
-        List<Location> copy =
-                new ArrayList<>(
-                        track.size()
-                );
-
-        for (Location point : track) {
-            copy.add(
-                    new Location(point)
-            );
-        }
-
-        publishedTrack =
-                Collections.unmodifiableList(
-                        copy
-                );
-
-        publishedTrackDirty = false;
-
-        return publishedTrack;
     }
 
     private void initializeWalkingPerformanceRecorder() {
