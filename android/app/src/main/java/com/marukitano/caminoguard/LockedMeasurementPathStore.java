@@ -140,6 +140,32 @@ final class LockedMeasurementPathStore {
         Context appContext =
                 context.getApplicationContext();
 
+        /*
+         * Android's visible timetable enriches the selected MeasurementPath
+         * with the precomputed settlement markers before building its plan.
+         *
+         * Persist that same finalized stop list so background consumers,
+         * especially Pebble, cannot see a different timetable from Android.
+         *
+         * Geometry remains the original locked MeasurementPath. Only timetable
+         * stop metadata comes from the enriched copy.
+         */
+        MeasurementPath timetablePath =
+                new CaminoSettlementTimetableSource(
+                        appContext
+                ).withSettlementStops(
+                        path
+                );
+
+        java.util.List<CaminoTimetablePathStop> persistedTimetableStops =
+                timetablePath != null
+                        && timetablePath.timetableStops != null
+                        ? timetablePath.timetableStops
+                        : CaminoTimetablePathStops.normalizeRouteStops(
+                                path.distanceM,
+                                path.timetableStops
+                        );
+
         File target =
                 new File(
                         appContext.getFilesDir(),
@@ -227,11 +253,11 @@ final class LockedMeasurementPathStore {
             }
 
             output.writeInt(
-                    path.timetableStops.size()
+                    persistedTimetableStops.size()
             );
 
             for (CaminoTimetablePathStop stop
-                    : path.timetableStops) {
+                    : persistedTimetableStops) {
 
                 if (stop == null
                         || stop.placeKey == null
