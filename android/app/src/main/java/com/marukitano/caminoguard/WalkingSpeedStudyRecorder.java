@@ -76,11 +76,6 @@ final class WalkingSpeedStudyRecorder {
 
     private final SharedPreferences preferences;
 
-    private final LockedMeasurementPathStore
-            lockedPathStore;
-
-    private final double maxRouteOffsetM;
-
     private final File csvFile;
 
 
@@ -143,17 +138,6 @@ final class WalkingSpeedStudyRecorder {
                         Context.MODE_PRIVATE
                 );
 
-        lockedPathStore =
-                new LockedMeasurementPathStore(
-                        this.context
-                );
-
-        maxRouteOffsetM =
-                CaminoConfig.get()
-                        .doubleValue(
-                                "navigation.offRouteThresholdMeters"
-                        );
-
         csvFile =
                 new File(
                         this.context.getFilesDir(),
@@ -163,7 +147,9 @@ final class WalkingSpeedStudyRecorder {
 
 
     synchronized void noteGpsFix(
-            Location location
+            Location location,
+            LockedMeasurementPathStore.Snapshot locked,
+            MeasurementPathProjection.Result projection
     ) {
         if (location == null) {
             breakSampleChain(
@@ -191,11 +177,11 @@ final class WalkingSpeedStudyRecorder {
             return;
         }
 
-        LockedMeasurementPathStore.Snapshot locked =
-                lockedPathStore.currentLockedPath();
-
         /*
          * HARD LOCKED GATE.
+         *
+         * The service supplied the authoritative persisted lock snapshot for
+         * this exact GPS fix.
          */
         if (locked == null
                 || locked.path == null) {
@@ -210,13 +196,6 @@ final class WalkingSpeedStudyRecorder {
                 new LatLng(
                         location.getLatitude(),
                         location.getLongitude()
-                );
-
-        MeasurementPathProjection.Result projection =
-                MeasurementPathProjection.projectWithin(
-                        locked.path,
-                        position,
-                        maxRouteOffsetM
                 );
 
         /*

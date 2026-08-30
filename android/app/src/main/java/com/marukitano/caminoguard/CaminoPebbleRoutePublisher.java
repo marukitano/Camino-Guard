@@ -22,16 +22,12 @@ final class CaminoPebbleRoutePublisher {
     private static final long SEND_INTERVAL_MS =
             5_000L;
 
-    private final LockedMeasurementPathStore lockedPathStore;
-
     private final CaminoTimetablePlanBuilder planBuilder;
 
     private final CaminoTimetableEngine timetableEngine =
             new CaminoTimetableEngine();
 
     private final CaminoPebbleBridge bridge;
-
-    private final double maxRouteOffsetM;
 
     private int pathVersion =
             Integer.MIN_VALUE;
@@ -57,11 +53,6 @@ final class CaminoPebbleRoutePublisher {
             WalkingPerformanceModel performanceModel,
             CaminoPebbleBridge bridge
     ) {
-        lockedPathStore =
-                new LockedMeasurementPathStore(
-                        context
-                );
-
         planBuilder =
                 new CaminoTimetablePlanBuilder(
                         performanceModel
@@ -69,24 +60,17 @@ final class CaminoPebbleRoutePublisher {
 
         this.bridge =
                 bridge;
-
-        maxRouteOffsetM =
-                CaminoConfig.get()
-                        .doubleValue(
-                                "navigation.offRouteThresholdMeters"
-                        );
     }
 
 
     synchronized void onGpsFix(
-            Location location
+            Location location,
+            LockedMeasurementPathStore.Snapshot locked,
+            MeasurementPathProjection.Result projection
     ) {
         if (location == null) {
             return;
         }
-
-        LockedMeasurementPathStore.Snapshot locked =
-                lockedPathStore.currentLockedPath();
 
         if (locked == null
                 || locked.path == null) {
@@ -127,19 +111,6 @@ final class CaminoPebbleRoutePublisher {
 
         MeasurementPath path =
                 locked.path;
-
-        LatLng position =
-                new LatLng(
-                        location.getLatitude(),
-                        location.getLongitude()
-                );
-
-        MeasurementPathProjection.Result projection =
-                MeasurementPathProjection.projectWithin(
-                        path,
-                        position,
-                        maxRouteOffsetM
-                );
 
         boolean alarmActive =
                 projection == null;

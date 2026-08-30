@@ -155,6 +155,22 @@ public final class CaminoTrackingService extends Service
     private volatile WalkingSpeedStudyRecorder
             walkingSpeedStudyRecorder;
 
+    /*
+     * Pebble route presentation and the four-week study consume the same
+     * persisted locked MeasurementPath.
+     *
+     * Keep one store and one projection in the service so one physical GPS
+     * fix cannot scan the same selected route independently in both consumers.
+     */
+    private final Object lockedPathProjectionLock =
+            new Object();
+
+    private volatile LockedMeasurementPathStore
+            serviceLockedPathStore;
+
+    private volatile double serviceMaxRouteOffsetM =
+            Double.NaN;
+
     public static void addListener(Listener listener) {
         if (listener == null) {
             return;
@@ -597,6 +613,15 @@ public final class CaminoTrackingService extends Service
             return;
         }
 
+        LockedMeasurementPathStore.Snapshot locked =
+                currentServiceLockedPath();
+
+        MeasurementPathProjection.Result lockedProjection =
+                projectServiceLockedPath(
+                        locked,
+                        location
+                );
+
         if (acceptedLocation == null) {
             acceptedLocation =
                     new Location(location);
@@ -611,19 +636,29 @@ public final class CaminoTrackingService extends Service
                     location
             );
 
-            publish();
+            publish(
+                    locked,
+                    lockedProjection
+            );
             return;
         }
 
         acceptMovingLocation(
-                location
+                location,
+                locked,
+                lockedProjection
         );
 
-        publish();
+        publish(
+                locked,
+                lockedProjection
+        );
     }
 
     private void acceptMovingLocation(
-            Location location
+            Location location,
+            LockedMeasurementPathStore.Snapshot locked,
+            MeasurementPathProjection.Result lockedProjection
     ) {
         acceptedLocation =
                 new Location(location);
@@ -637,7 +672,9 @@ public final class CaminoTrackingService extends Service
 
         if (studyRecorder != null) {
             studyRecorder.noteGpsFix(
-                    location
+                    location,
+                    locked,
+                    lockedProjection
             );
         }
 
@@ -654,7 +691,10 @@ public final class CaminoTrackingService extends Service
                         <= MAX_GPS_ACCURACY_M;
     }
 
-    private void publish() {
+    private void publish(
+            LockedMeasurementPathStore.Snapshot locked,
+            MeasurementPathProjection.Result lockedProjection
+    ) {
         Snapshot snapshot =
                 new Snapshot(
                         acceptedLocation,
@@ -678,10 +718,59 @@ public final class CaminoTrackingService extends Service
                 && acceptedLocation != null) {
 
             publisher.onGpsFix(
-                    acceptedLocation
+                    acceptedLocation,
+                    locked,
+                    lockedProjection
             );
         }
     }
+
+    private LockedMeasurementPathStore.Snapshot
+            currentServiceLockedPath() {
+
+        LockedMeasurementPathStore store =
+                serviceLockedPathStore;
+
+        if (store == null) {
+            return null;
+        }
+
+        synchronized (lockedPathProjectionLock) {
+            return store.currentLockedPath();
+        }
+    }
+
+
+    private MeasurementPathProjection.Result
+            projectServiceLockedPath(
+                    LockedMeasurementPathStore.Snapshot locked,
+                    Location location
+            ) {
+
+        if (locked == null
+                || locked.path == null
+                || location == null
+                || !Double.isFinite(
+                        serviceMaxRouteOffsetM
+                )
+                || serviceMaxRouteOffsetM < 0.0) {
+
+            return null;
+        }
+
+        LatLng position =
+                new LatLng(
+                        location.getLatitude(),
+                        location.getLongitude()
+                );
+
+        return MeasurementPathProjection.projectWithin(
+                locked.path,
+                position,
+                serviceMaxRouteOffsetM
+        );
+    }
+
 
     private void initializeWalkingPerformanceRecorder() {
         Exception lastError =
@@ -701,6 +790,17 @@ public final class CaminoTrackingService extends Service
                 CaminoConfig.initialize(
                         getApplicationContext()
                 );
+
+                serviceMaxRouteOffsetM =
+                        CaminoConfig.get()
+                                .doubleValue(
+                                        "navigation.offRouteThresholdMeters"
+                                );
+
+                serviceLockedPathStore =
+                        new LockedMeasurementPathStore(
+                                getApplicationContext()
+                        );
 
                 walkingSpeedStudyRecorder =
                         new WalkingSpeedStudyRecorder(
@@ -832,8 +932,19 @@ public final class CaminoTrackingService extends Service
             );
 
             if (acceptedLocation != null) {
+                LockedMeasurementPathStore.Snapshot locked =
+                        currentServiceLockedPath();
+
+                MeasurementPathProjection.Result lockedProjection =
+                        projectServiceLockedPath(
+                                locked,
+                                acceptedLocation
+                        );
+
                 pebbleRoutePublisher.onGpsFix(
-                        acceptedLocation
+                        acceptedLocation,
+                        locked,
+                        lockedProjection
                 );
             }
 
