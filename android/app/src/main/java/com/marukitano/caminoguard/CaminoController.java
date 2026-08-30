@@ -94,7 +94,7 @@ public final class CaminoController {
     private double lockedRouteProjectionCacheLongitude =
             Double.NaN;
 
-    private MeasurementPathProjection.Result
+    private MeasurementPathProjection.LockedResult
             lockedRouteProjectionCacheResult;
 
     private MapLibreMap map;
@@ -956,7 +956,7 @@ public final class CaminoController {
         boolean marked =
                 hasMarkedSelection();
 
-        MeasurementPathProjection.Result routeProjection =
+        MeasurementPathProjection.LockedResult lockedProjection =
                 selectionLocked
                         && marked
                         && currentMeasurementPath != null
@@ -966,6 +966,16 @@ public final class CaminoController {
                                 dummyPosition
                         )
                         : null;
+
+        MeasurementPathProjection.Result routeProjection =
+                lockedProjection == null
+                        ? null
+                        : lockedProjection.route;
+
+        MeasurementPathProjection.Result heightProjection =
+                lockedProjection == null
+                        ? null
+                        : lockedProjection.heightProfile;
 
         /*
          * The compact stats card belongs only to an explicit two-point
@@ -999,7 +1009,8 @@ public final class CaminoController {
                 selectionLocked && marked
                         ? dummyPosition
                         : null,
-                selectionLocked && marked
+                selectionLocked && marked,
+                heightProjection
         );
 
         infoController.setSelectionLockAvailable(
@@ -1740,7 +1751,7 @@ public final class CaminoController {
     }
 
 
-    private MeasurementPathProjection.Result
+    private MeasurementPathProjection.LockedResult
             lockedRouteProjectionFor(
                     MeasurementPath path,
                     LatLng position
@@ -1778,7 +1789,7 @@ public final class CaminoController {
         }
 
         lockedRouteProjectionCacheResult =
-                MeasurementPathProjection.projectWithin(
+                MeasurementPathProjection.projectLockedWithin(
                         path,
                         position,
                         LOCKED_ROUTE_MAX_OFFSET_M
@@ -1855,11 +1866,16 @@ public final class CaminoController {
             return;
         }
 
-        MeasurementPathProjection.Result routeProjection =
+        MeasurementPathProjection.LockedResult lockedProjection =
                 lockedRouteProjectionFor(
                         currentMeasurementPath,
                         position
                 );
+
+        MeasurementPathProjection.Result routeProjection =
+                lockedProjection == null
+                        ? null
+                        : lockedProjection.route;
 
         double chainageM =
                 routeChainageM(
@@ -2021,7 +2037,8 @@ public final class CaminoController {
 
             heightProfileController.setLockedSelectionPosition(
                     null,
-                    false
+                    false,
+                    null
             );
 
             heightProfileController.refresh();
@@ -2048,11 +2065,21 @@ public final class CaminoController {
                 dummyPosition
         );
 
-        MeasurementPathProjection.Result routeProjection =
+        MeasurementPathProjection.LockedResult lockedProjection =
                 lockedRouteProjectionFor(
                         currentMeasurementPath,
                         dummyPosition
                 );
+
+        MeasurementPathProjection.Result routeProjection =
+                lockedProjection == null
+                        ? null
+                        : lockedProjection.route;
+
+        MeasurementPathProjection.Result heightProjection =
+                lockedProjection == null
+                        ? null
+                        : lockedProjection.heightProfile;
 
         selectionStatsOverlay.update(
                 currentMeasurementPath,
@@ -2093,7 +2120,8 @@ public final class CaminoController {
 
         heightProfileController.setLockedSelectionPosition(
                 dummyPosition,
-                true
+                true,
+                heightProjection
         );
 
         heightProfileController.refresh();

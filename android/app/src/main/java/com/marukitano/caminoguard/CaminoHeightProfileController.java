@@ -53,16 +53,6 @@ final class CaminoHeightProfileController {
     private static final double SLOPE_WINDOW_M =
             100.0;
 
-    /*
-     * A physical GPS position is only a position ON the selected route when it
-     * is plausibly close to that route. Never snap a Swiss position onto a
-     * Camino hundreds or thousands of kilometres away.
-     */
-    private static final double LOCKED_POSITION_MAX_OFFSET_M =
-            CaminoConfig.get().doubleValue(
-                    "navigation.offRouteThresholdMeters"
-            );
-
     private final Activity activity;
     private final MapView mapView;
     private final CaminoInfoPresenter infoPresenter;
@@ -102,8 +92,10 @@ final class CaminoHeightProfileController {
      * While a marked route is locked, show the current live/dummy position
      * permanently on that route's elevation profile.
      */
-    private LatLng lockedSelectionPosition;
     private boolean lockedSelectionActive;
+
+    private MeasurementPathProjection.Result
+            lockedSelectionProjection;
 
     private final Runnable refreshRunnable =
             () -> {
@@ -292,7 +284,8 @@ final class CaminoHeightProfileController {
 
     void setLockedSelectionPosition(
             LatLng position,
-            boolean locked
+            boolean locked,
+            MeasurementPathProjection.Result projection
     ) {
         boolean wasLocked =
                 lockedSelectionActive;
@@ -302,14 +295,14 @@ final class CaminoHeightProfileController {
                     null;
         }
 
-        lockedSelectionPosition =
-                locked
-                        ? position
-                        : null;
-
         lockedSelectionActive =
                 locked
                         && position != null;
+
+        lockedSelectionProjection =
+                lockedSelectionActive
+                        ? projection
+                        : null;
 
         if (view
                 != null) {
@@ -646,7 +639,7 @@ final class CaminoHeightProfileController {
                     lockedSelectionActive
                             ? buildLockedPositionSample(
                                     selectedMeasurementPath,
-                                    lockedSelectionPosition
+                                    lockedSelectionProjection
                             )
                             : null;
 
@@ -1159,15 +1152,8 @@ final class CaminoHeightProfileController {
 
     private CaminoHeightProfileView.Sample buildLockedPositionSample(
             MeasurementPath path,
-            LatLng position
+            MeasurementPathProjection.Result projection
     ) {
-        MeasurementPathProjection.Result projection =
-                MeasurementPathProjection.projectHeightProfileWithin(
-                        path,
-                        position,
-                        LOCKED_POSITION_MAX_OFFSET_M
-                );
-
         if (projection == null
                 || !Double.isFinite(
                         projection.fraction
