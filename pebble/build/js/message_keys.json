@@ -3,6 +3,7 @@
     "CURRENT_SPEED": 3,
     "GLUCOSE": 0,
     "NEXT_DISTANCE": 1,
+    "NEXT_NAME": 6,
     "NEXT_TIME": 2,
     "ROUTE_VALID": 5
 }

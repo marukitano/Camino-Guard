@@ -35,6 +35,24 @@ final class CaminoPebbleBridge
     private static final int KEY_GLUCOSE =
             0;
 
+    private static final int KEY_NEXT_DISTANCE =
+            1;
+
+    private static final int KEY_NEXT_TIME =
+            2;
+
+    private static final int KEY_CURRENT_SPEED =
+            3;
+
+    private static final int KEY_ALARM_ACTIVE =
+            4;
+
+    private static final int KEY_ROUTE_VALID =
+            5;
+
+    private static final int KEY_NEXT_NAME =
+            6;
+
 
     private final JavaPebbleSender sender;
 
@@ -99,6 +117,116 @@ final class CaminoPebbleBridge
                     error
             );
         }
+    }
+
+
+    synchronized void sendRouteState(
+            String nextName,
+            String nextDistance,
+            String nextTime,
+            String currentSpeed,
+            boolean alarmActive,
+            boolean routeValid
+    ) {
+        Map<Integer, PebbleDictionaryItem> dictionary =
+                new HashMap<>();
+
+        dictionary.put(
+                KEY_NEXT_NAME,
+                new PebbleDictionaryItem.Text(
+                        safeText(
+                                nextName
+                        )
+                )
+        );
+
+        dictionary.put(
+                KEY_NEXT_DISTANCE,
+                new PebbleDictionaryItem.Text(
+                        safeText(
+                                nextDistance
+                        )
+                )
+        );
+
+        dictionary.put(
+                KEY_NEXT_TIME,
+                new PebbleDictionaryItem.Text(
+                        safeText(
+                                nextTime
+                        )
+                )
+        );
+
+        dictionary.put(
+                KEY_CURRENT_SPEED,
+                new PebbleDictionaryItem.Text(
+                        safeText(
+                                currentSpeed
+                        )
+                )
+        );
+
+        /*
+         * The current Pebble C receiver reads these values as strings.
+         */
+        dictionary.put(
+                KEY_ALARM_ACTIVE,
+                new PebbleDictionaryItem.Text(
+                        alarmActive
+                                ? "1"
+                                : "0"
+                )
+        );
+
+        dictionary.put(
+                KEY_ROUTE_VALID,
+                new PebbleDictionaryItem.Text(
+                        routeValid
+                                ? "1"
+                                : "0"
+                )
+        );
+
+        try {
+            sender.sendDataToPebble(
+                    APP_UUID,
+                    dictionary,
+                    result -> {
+                        if (result == null) {
+                            Log.d(
+                                    TAG,
+                                    "Pebble currently unreachable"
+                            );
+                        }
+                    }
+            );
+
+        } catch (RuntimeException error) {
+            /*
+             * Pebble transport is presentation only.
+             * Never let it affect GPS/navigation.
+             */
+            Log.w(
+                    TAG,
+                    "Could not send route state to Pebble",
+                    error
+            );
+        }
+    }
+
+
+    private String safeText(
+            String value
+    ) {
+        if (value == null
+                || value.trim()
+                .isEmpty()) {
+
+            return "--";
+        }
+
+        return value.trim();
     }
 
 

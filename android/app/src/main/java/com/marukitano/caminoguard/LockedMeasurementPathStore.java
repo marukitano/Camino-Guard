@@ -45,6 +45,9 @@ final class LockedMeasurementPathStore {
             0x43474D50; // CGMP
 
     private static final int FORMAT_VERSION =
+            2;
+
+    private static final int MIN_SUPPORTED_FORMAT_VERSION =
             1;
 
 
@@ -101,14 +104,20 @@ final class LockedMeasurementPathStore {
                         Context.MODE_PRIVATE
                 );
 
+        File file =
+                new File(
+                        appContext.getFilesDir(),
+                        FILE_NAME
+                );
+
         return prefs.getBoolean(
                 KEY_ACTIVE,
                 false
         )
-                && new File(
-                        appContext.getFilesDir(),
-                        FILE_NAME
-                ).isFile();
+                && file.isFile()
+                && hasCurrentFormat(
+                        file
+                );
     }
 
 
@@ -214,6 +223,37 @@ final class LockedMeasurementPathStore {
 
                 output.writeBoolean(
                         point.breakBefore
+                );
+            }
+
+            output.writeInt(
+                    path.timetableStops.size()
+            );
+
+            for (CaminoTimetablePathStop stop
+                    : path.timetableStops) {
+
+                if (stop == null
+                        || stop.placeKey == null
+                        || stop.placeKey.trim().isEmpty()
+                        || !Double.isFinite(
+                        stop.chainageM
+                )
+                        || stop.chainageM < 0.0
+                        || stop.chainageM
+                        > path.distanceM + 0.5) {
+
+                    throw new IllegalStateException(
+                            "invalid timetable stop"
+                    );
+                }
+
+                output.writeUTF(
+                        stop.placeKey
+                );
+
+                output.writeDouble(
+                        stop.chainageM
                 );
             }
 
@@ -406,6 +446,41 @@ final class LockedMeasurementPathStore {
     }
 
 
+    private static boolean hasCurrentFormat(
+            File file
+    ) {
+        if (file == null
+                || !file.isFile()) {
+
+            return false;
+        }
+
+        try (
+                FileInputStream fileInput =
+                        new FileInputStream(
+                                file
+                        );
+
+                BufferedInputStream buffered =
+                        new BufferedInputStream(
+                                fileInput
+                        );
+
+                DataInputStream input =
+                        new DataInputStream(
+                                buffered
+                        )
+        ) {
+            return input.readInt() == MAGIC
+                    && input.readInt()
+                    == FORMAT_VERSION;
+
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+
     private MeasurementPath read(
             File file
     ) {
@@ -437,8 +512,13 @@ final class LockedMeasurementPathStore {
                 return null;
             }
 
-            if (input.readInt()
-                    != FORMAT_VERSION) {
+            int formatVersion =
+                    input.readInt();
+
+            if (formatVersion
+                    < MIN_SUPPORTED_FORMAT_VERSION
+                    || formatVersion
+                    > FORMAT_VERSION) {
 
                 return null;
             }
@@ -512,6 +592,47 @@ final class LockedMeasurementPathStore {
                                 breakBefore
                         )
                 );
+            }
+
+            if (formatVersion >= 2) {
+                int stopCount =
+                        input.readInt();
+
+                if (stopCount < 0
+                        || stopCount > 10_000) {
+
+                    return null;
+                }
+
+                for (int index = 0;
+                        index < stopCount;
+                        index++) {
+
+                    String placeKey =
+                            input.readUTF();
+
+                    double chainageM =
+                            input.readDouble();
+
+                    if (placeKey == null
+                            || placeKey.trim().isEmpty()
+                            || !Double.isFinite(
+                            chainageM
+                    )
+                            || chainageM < 0.0
+                            || chainageM
+                            > distanceM + 0.5) {
+
+                        return null;
+                    }
+
+                    path.timetableStops.add(
+                            new CaminoTimetablePathStop(
+                                    placeKey,
+                                    chainageM
+                            )
+                    );
+                }
             }
 
             return path;

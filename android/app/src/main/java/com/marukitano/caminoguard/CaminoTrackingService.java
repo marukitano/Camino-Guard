@@ -143,6 +143,9 @@ public final class CaminoTrackingService extends Service
      */
     private volatile CaminoPebbleBridge pebbleBridge;
 
+    private volatile CaminoPebbleRoutePublisher
+            pebbleRoutePublisher;
+
     /*
      * Independent four-week raw study.
      *
@@ -298,6 +301,10 @@ public final class CaminoTrackingService extends Service
                             getApplicationContext()
                     );
 
+            ensurePebbleRoutePublisher(
+                    backgroundWalkingPerformanceModel
+            );
+
             LibreLinkUpStore libreStore =
                     new LibreLinkUpStore(
                             getApplicationContext()
@@ -415,6 +422,9 @@ public final class CaminoTrackingService extends Service
             libreClient.close();
         }
 
+        pebbleRoutePublisher =
+                null;
+
         CaminoPebbleBridge bridge =
                 pebbleBridge;
 
@@ -528,6 +538,17 @@ public final class CaminoTrackingService extends Service
         for (Listener listener : LISTENERS) {
             listener.onTrackingStateChanged(
                     snapshot
+            );
+        }
+
+        CaminoPebbleRoutePublisher publisher =
+                pebbleRoutePublisher;
+
+        if (publisher != null
+                && acceptedLocation != null) {
+
+            publisher.onGpsFix(
+                    acceptedLocation
             );
         }
     }
@@ -676,7 +697,51 @@ public final class CaminoTrackingService extends Service
             backgroundWalkingPerformanceModel =
                     model;
         }
+
+        ensurePebbleRoutePublisher(
+                model
+        );
     }
+
+
+    private synchronized void ensurePebbleRoutePublisher(
+            WalkingPerformanceModel model
+    ) {
+        if (pebbleRoutePublisher != null
+                || model == null
+                || pebbleBridge == null) {
+
+            return;
+        }
+
+        try {
+            pebbleRoutePublisher =
+                    new CaminoPebbleRoutePublisher(
+                            getApplicationContext(),
+                            model,
+                            pebbleBridge
+                    );
+
+            Log.i(
+                    "CaminoPebble",
+                    "Pebble route publisher ready"
+            );
+
+            if (acceptedLocation != null) {
+                pebbleRoutePublisher.onGpsFix(
+                        acceptedLocation
+                );
+            }
+
+        } catch (RuntimeException error) {
+            Log.w(
+                    "CaminoPebble",
+                    "Could not initialize route publisher",
+                    error
+            );
+        }
+    }
+
 
     private void recordPerformanceMoving(
             Location location

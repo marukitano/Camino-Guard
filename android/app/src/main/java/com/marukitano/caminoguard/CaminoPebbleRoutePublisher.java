@@ -1,0 +1,443 @@
+package com.marukitano.caminoguard;
+
+import android.content.Context;
+import android.location.Location;
+import android.os.SystemClock;
+
+import org.maplibre.android.geometry.LatLng;
+
+import java.util.Calendar;
+import java.util.List;
+import java.util.Locale;
+
+
+/**
+ * Pebble presentation adapter for the explicitly locked MeasurementPath.
+ *
+ * Route geometry, progress and timetable remain Android-owned.
+ * No global nearest-Camino lookup and no orientation sensor is used here.
+ */
+final class CaminoPebbleRoutePublisher {
+
+    private static final long SEND_INTERVAL_MS =
+            5_000L;
+
+    private final LockedMeasurementPathStore lockedPathStore;
+
+    private final CaminoTimetablePlanBuilder planBuilder;
+
+    private final CaminoTimetableEngine timetableEngine =
+            new CaminoTimetableEngine();
+
+    private final CaminoPebbleBridge bridge;
+
+    private final double maxRouteOffsetM;
+
+    private int pathVersion =
+            Integer.MIN_VALUE;
+
+    private double lastGoodChainageM =
+            Double.NaN;
+
+    private boolean sentAnyState;
+    private boolean lastAlarmActive;
+    private boolean lastRouteValid;
+
+    private long lastSendElapsedMs =
+            Long.MIN_VALUE;
+
+
+    CaminoPebbleRoutePublisher(
+            Context context,
+            WalkingPerformanceModel performanceModel,
+            CaminoPebbleBridge bridge
+    ) {
+        lockedPathStore =
+                new LockedMeasurementPathStore(
+                        context
+                );
+
+        planBuilder =
+                new CaminoTimetablePlanBuilder(
+                        performanceModel
+                );
+
+        this.bridge =
+                bridge;
+
+        maxRouteOffsetM =
+                CaminoConfig.get()
+                        .doubleValue(
+                                "navigation.offRouteThresholdMeters"
+                        );
+    }
+
+
+    synchronized void onGpsFix(
+            Location location
+    ) {
+        if (location == null) {
+            return;
+        }
+
+        LockedMeasurementPathStore.Snapshot locked =
+                lockedPathStore.currentLockedPath();
+
+        if (locked == null
+                || locked.path == null) {
+
+            pathVersion =
+                    Integer.MIN_VALUE;
+
+            lastGoodChainageM =
+                    Double.NaN;
+
+            send(
+                    "--",
+                    "--",
+                    "--",
+                    formatSpeed(
+                            location
+                    ),
+                    false,
+                    false
+            );
+
+            return;
+        }
+
+        boolean pathChanged =
+                pathVersion != locked.version;
+
+        if (pathChanged) {
+            pathVersion =
+                    locked.version;
+
+            lastGoodChainageM =
+                    Double.NaN;
+        }
+
+        MeasurementPath path =
+                locked.path;
+
+        LatLng position =
+                new LatLng(
+                        location.getLatitude(),
+                        location.getLongitude()
+                );
+
+        MeasurementPathProjection.Result projection =
+                MeasurementPathProjection.projectWithin(
+                        path,
+                        position,
+                        maxRouteOffsetM
+                );
+
+        boolean alarmActive =
+                projection == null;
+
+        if (projection != null) {
+            lastGoodChainageM =
+                    projection.chainageM;
+        }
+
+        boolean stateChanged =
+                !sentAnyState
+                        || pathChanged
+                        || alarmActive != lastAlarmActive
+                        || !lastRouteValid;
+
+        long nowElapsed =
+                SystemClock.elapsedRealtime();
+
+        if (!stateChanged
+                && lastSendElapsedMs != Long.MIN_VALUE
+                && nowElapsed - lastSendElapsedMs
+                < SEND_INTERVAL_MS) {
+
+            return;
+        }
+
+        /*
+         * During OFF ROUTE the selected-path chainage freezes at the last
+         * trustworthy projection. The watch hides route values while alarm is
+         * active, but retaining them makes re-entry deterministic.
+         */
+        double chainageM =
+                projection != null
+                        ? projection.chainageM
+                        : lastGoodChainageM;
+
+        String nextName =
+                "--";
+
+        String nextDistance =
+                "--";
+
+        String nextTime =
+                "--";
+
+        if (Double.isFinite(
+                chainageM
+        )
+                && path.timetableStops != null
+                && path.timetableStops.size() >= 2) {
+
+            Values values =
+                    buildValues(
+                            path,
+                            chainageM
+                    );
+
+            if (values != null) {
+                nextName =
+                        values.name;
+
+                nextDistance =
+                        values.distance;
+
+                nextTime =
+                        values.time;
+            }
+        }
+
+        send(
+                nextName,
+                nextDistance,
+                nextTime,
+                formatSpeed(
+                        location
+                ),
+                alarmActive,
+                true
+        );
+    }
+
+
+    private Values buildValues(
+            MeasurementPath path,
+            double chainageM
+    ) {
+        List<CaminoTimetableStopPlan> plans =
+                planBuilder.build(
+                        path
+                );
+
+        if (plans.size() < 2) {
+            return null;
+        }
+
+        double elapsedSecondsAtCurrent =
+                planBuilder.elapsedSecondsAtChainage(
+                        path,
+                        chainageM
+                );
+
+        if (!Double.isFinite(
+                elapsedSecondsAtCurrent
+        )) {
+
+            return null;
+        }
+
+        int nowMinutes =
+                currentClockMinutes();
+
+        int startMinutes =
+                nowMinutes
+                        - (int) Math.round(
+                        elapsedSecondsAtCurrent
+                                / 60.0
+                );
+
+        CaminoTimetableState state =
+                timetableEngine.build(
+                        plans,
+                        startMinutes,
+                        chainageM
+                );
+
+        if (state == null
+                || !state.hasNextStop()) {
+
+            return null;
+        }
+
+        CaminoTimetableStop next =
+                state.nextStop;
+
+        double remainingDistanceM =
+                Math.max(
+                        0.0,
+                        next.chainageM
+                                - state.currentChainageM
+                );
+
+        int remainingMinutes =
+                forwardMinutes(
+                        nowMinutes,
+                        next.arrivalMinutesOfDay
+                );
+
+        return new Values(
+                next.name,
+                formatDistance(
+                        remainingDistanceM
+                ),
+                formatDuration(
+                        remainingMinutes
+                )
+        );
+    }
+
+
+    private void send(
+            String nextName,
+            String nextDistance,
+            String nextTime,
+            String speed,
+            boolean alarmActive,
+            boolean routeValid
+    ) {
+        bridge.sendRouteState(
+                nextName,
+                nextDistance,
+                nextTime,
+                speed,
+                alarmActive,
+                routeValid
+        );
+
+        sentAnyState =
+                true;
+
+        lastAlarmActive =
+                alarmActive;
+
+        lastRouteValid =
+                routeValid;
+
+        lastSendElapsedMs =
+                SystemClock.elapsedRealtime();
+    }
+
+
+    private static int currentClockMinutes() {
+        Calendar now =
+                Calendar.getInstance();
+
+        return now.get(
+                Calendar.HOUR_OF_DAY
+        )
+                * 60
+                + now.get(
+                Calendar.MINUTE
+        );
+    }
+
+
+    private static int forwardMinutes(
+            int from,
+            int to
+    ) {
+        int value =
+                (to - from)
+                        % (24 * 60);
+
+        if (value < 0) {
+            value +=
+                    24 * 60;
+        }
+
+        return value;
+    }
+
+
+    private static String formatDistance(
+            double distanceM
+    ) {
+        if (distanceM < 1000.0) {
+            return String.format(
+                    Locale.US,
+                    "%.0f m",
+                    distanceM
+            );
+        }
+
+        return String.format(
+                Locale.US,
+                "%.1f km",
+                distanceM / 1000.0
+        );
+    }
+
+
+    private static String formatDuration(
+            int minutes
+    ) {
+        int safe =
+                Math.max(
+                        0,
+                        minutes
+                );
+
+        if (safe < 60) {
+            return safe + " min";
+        }
+
+        int hours =
+                safe / 60;
+
+        int remainder =
+                safe % 60;
+
+        return remainder == 0
+                ? hours + " h"
+                : hours + " h " + remainder + " min";
+    }
+
+
+    private static String formatSpeed(
+            Location location
+    ) {
+        if (location == null
+                || !location.hasSpeed()
+                || !Float.isFinite(
+                location.getSpeed()
+        )
+                || location.getSpeed() < 0.0f) {
+
+            return "--";
+        }
+
+        return String.format(
+                Locale.US,
+                "%.1f km/h",
+                location.getSpeed() * 3.6f
+        );
+    }
+
+
+    private static final class Values {
+
+        final String name;
+        final String distance;
+        final String time;
+
+
+        Values(
+                String name,
+                String distance,
+                String time
+        ) {
+            this.name =
+                    name;
+
+            this.distance =
+                    distance;
+
+            this.time =
+                    time;
+        }
+    }
+}

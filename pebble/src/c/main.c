@@ -44,6 +44,7 @@ static char s_heart_text[24];
 static char s_battery_text[24];
 
 static char s_glucose_text[32] = "--";
+static char s_next_name_text[40] = "--";
 static char s_distance_text[32] = "--";
 static char s_next_time_text[32] = "--";
 static char s_speed_text[32] = "--";
@@ -249,14 +250,15 @@ static void apply_phone_values(void) {
     snprintf(
             distance_line,
             sizeof(distance_line),
-            "Dorf %s",
-            s_distance_text
+            "Ziel %s",
+            s_next_name_text
     );
 
     snprintf(
             time_line,
             sizeof(time_line),
-            "Zeit %s",
+            "%s  %s",
+            s_distance_text,
             s_next_time_text
     );
 
@@ -390,6 +392,13 @@ static void inbox_received(
 
     copy_tuple_text(
             iterator,
+            MESSAGE_KEY_NEXT_NAME,
+            s_next_name_text,
+            sizeof(s_next_name_text)
+    );
+
+    copy_tuple_text(
+            iterator,
             MESSAGE_KEY_NEXT_DISTANCE,
             s_distance_text,
             sizeof(s_distance_text)
@@ -425,6 +434,12 @@ static void inbox_received(
 
     if (!s_route_valid
             && !s_alarm_active) {
+
+        snprintf(
+                s_next_name_text,
+                sizeof(s_next_name_text),
+                "--"
+        );
 
         snprintf(
                 s_distance_text,

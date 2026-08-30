@@ -15,7 +15,8 @@
         "NEXT_TIME": 2,
         "CURRENT_SPEED": 3,
         "ALARM_ACTIVE": 4,
-        "ROUTE_VALID": 5
+        "ROUTE_VALID": 5,
+        "NEXT_NAME": 6
     },
     "resources": {
         "media": []
@@ -44,6 +45,7 @@
         "NEXT_TIME": 2,
         "CURRENT_SPEED": 3,
         "ALARM_ACTIVE": 4,
-        "ROUTE_VALID": 5
+        "ROUTE_VALID": 5,
+        "NEXT_NAME": 6
     }
 }
