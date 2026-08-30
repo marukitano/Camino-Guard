@@ -292,8 +292,26 @@ static void apply_phone_values(void) {
 
 
 static void apply_alarm_visibility(void) {
+    /*
+     * Three distinct navigation states:
+     *
+     * route valid + no alarm -> ordinary route information
+     * route valid + alarm    -> OFF ROUTE
+     * no locked route        -> NO ROUTE
+     *
+     * OFF ROUTE wins if an inconsistent transport state ever contains
+     * both alarm=true and routeValid=false.
+     */
     bool show_route =
-            !s_alarm_active;
+            s_route_valid
+                    && !s_alarm_active;
+
+    text_layer_set_text(
+            s_alarm_layer,
+            s_alarm_active
+                    ? "OFF ROUTE"
+                    : "NO ROUTE"
+    );
 
     layer_set_hidden(
             text_layer_get_layer(
@@ -320,7 +338,7 @@ static void apply_alarm_visibility(void) {
             text_layer_get_layer(
                     s_alarm_layer
             ),
-            !s_alarm_active
+            show_route
     );
 }
 
@@ -664,7 +682,7 @@ static void window_load(
 
     text_layer_set_text(
             s_alarm_layer,
-            "OFF ROUTE"
+            "NO ROUTE"
     );
 
     text_layer_set_text_alignment(
