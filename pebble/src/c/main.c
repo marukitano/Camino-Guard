@@ -158,6 +158,12 @@ static void dot_text(GContext *ctx, const char *text, GRect r, int pitch, GTextA
     }
 }
 
+static void bold_dot_text(GContext *ctx, const char *text, GRect r, int pitch, GTextAlignment align) {
+    dot_text(ctx,text,r,pitch,align);
+    r.origin.x += 1;
+    dot_text(ctx,text,r,pitch,align);
+}
+
 static void draw_bitmap_icon(GContext *ctx, GBitmap *bitmap, GRect r) {
     if (!bitmap) return;
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
@@ -230,14 +236,17 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
 
     const int py=114, ph=b.size.h-py-5;
     GRect panel=GRect(5,py,b.size.w-10,ph);
+    GRect outer_panel=GRect(panel.origin.x-1,panel.origin.y-1,panel.size.w+2,panel.size.h+2);
     graphics_context_set_fill_color(ctx,GColorChromeYellow); graphics_fill_rect(ctx,panel,11,GCornersAll);
+    graphics_context_set_stroke_color(ctx,GColorWhite); graphics_context_set_stroke_width(ctx,1);
+    graphics_draw_round_rect(ctx,outer_panel,12);
     graphics_context_set_stroke_color(ctx,GColorYellow); graphics_context_set_stroke_width(ctx,3);
     graphics_draw_round_rect(ctx,panel,11); graphics_context_set_stroke_width(ctx,1);
     s_ink=GColorBlack;
 
     draw_bitmap_icon(ctx,s_icon_shell,GRect(10,py+6,34,34));
     s_ink=GColorBlack;
-    dot_text(ctx,"NEXT STOP",GRect(50,py+6,b.size.w-58,18),2,GTextAlignmentLeft);
+    bold_dot_text(ctx,"NEXT STOP",GRect(50,py+6,b.size.w-58,18),2,GTextAlignmentLeft);
     int next_pitch = text_w(s_next_name_text,3) <= b.size.w-58 ? 3 : 2;
     dot_text(ctx,s_next_name_text,GRect(50,py+25,b.size.w-58,27),next_pitch,GTextAlignmentLeft);
 
