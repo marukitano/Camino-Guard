@@ -191,6 +191,7 @@ static void draw_bitmap_icon(GContext *ctx, GBitmap *bitmap, GRect r) {
 
 static void pixel20_icon(GContext *ctx, const uint32_t rows[20], GRect r) {
     graphics_context_set_fill_color(ctx,GColorBlack);
+    graphics_context_set_stroke_color(ctx,GColorBlack);
     for (int y=0; y<20; ++y) {
         for (int x=0; x<20; ++x) {
             if (rows[y] & (1u << (19-x))) {
@@ -297,7 +298,7 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
                        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
 
     const int dy=py+55, ix=8, iw=b.size.w-16, cw=iw/3, by=dy+3;
-    graphics_context_set_stroke_color(ctx,GColorBrass);
+    graphics_context_set_stroke_color(ctx,GColorDarkGray);
     graphics_draw_line(ctx,GPoint(12,dy),GPoint(b.size.w-13,dy));
     graphics_draw_line(ctx,GPoint(ix+cw,by),GPoint(ix+cw,b.size.h-12));
     graphics_draw_line(ctx,GPoint(ix+cw*2,by),GPoint(ix+cw*2,b.size.h-12));
