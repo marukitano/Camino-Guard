@@ -186,13 +186,13 @@ static void clock_icon(GContext *ctx,GRect r) {
 }
 
 static int metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b) {
+    const int min_w = 30;
     const int value_lane = 84;
     const int max_w = b.size.w - value_lane;
-    const int w = max_w * clamp_i(fraction,0,1000) / 1000;
-    if (w > 0) {
-        graphics_context_set_fill_color(ctx,color);
-        graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
-    }
+    int w = max_w * clamp_i(fraction,0,1000) / 1000;
+    if (w < min_w) w = min_w;
+    graphics_context_set_fill_color(ctx,color);
+    graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
     return w;
 }
 
@@ -252,9 +252,9 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     gauge_icon(ctx,GRect(ix+cw+(cw-22)/2,iy,22,20));
     clock_icon(ctx,GRect(ix+cw*2+(cw-20)/2,iy,20,20));
     int vy=iy+21;
-    dot_text(ctx,s_distance_text,GRect(ix,vy,cw,21),2,GTextAlignmentCenter);
-    dot_text(ctx,s_flat_speed_text,GRect(ix+cw,vy+1,cw,20),2,GTextAlignmentCenter);
-    dot_text(ctx,s_next_time_text,GRect(ix+cw*2,vy,iw-cw*2,21),2,GTextAlignmentCenter);
+    ppf_draw_small_value_centered(ctx,s_distance_text,GRect(ix,vy,cw,18),GColorBlack);
+    ppf_draw_small_value_centered(ctx,s_flat_speed_text,GRect(ix+cw,vy,cw,18),GColorBlack);
+    ppf_draw_small_value_centered(ctx,s_next_time_text,GRect(ix+cw*2,vy,iw-cw*2,18),GColorBlack);
     int ly=vy+20;
     dot_text(ctx,"DIST",GRect(ix,ly,cw,19),2,GTextAlignmentCenter);
     dot_text(ctx,"SPEED",GRect(ix+cw,ly,cw,19),2,GTextAlignmentCenter);
