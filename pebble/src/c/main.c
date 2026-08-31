@@ -185,7 +185,7 @@ static void clock_icon(GContext *ctx,GRect r) {
 }
 
 static void metric_bar(GContext *ctx,GRect track,int f,GColor color) {
-    graphics_context_set_stroke_color(ctx,GColorBlack);
+    graphics_context_set_stroke_color(ctx,GColorWhite);
     graphics_draw_round_rect(ctx,track,4);
     int w=(track.size.w-2)*clamp_i(f,0,1000)/1000;
     if(w>0) {graphics_context_set_fill_color(ctx,color);graphics_fill_rect(ctx,GRect(track.origin.x+1,track.origin.y+1,w,track.size.h-2),3,GCornersAll);}
@@ -201,8 +201,8 @@ static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction
 
 static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     GRect b=layer_get_bounds(layer);
-    graphics_context_set_fill_color(ctx,GColorWhite); graphics_fill_rect(ctx,b,0,GCornerNone);
-    s_ink=GColorBlack; graphics_context_set_stroke_color(ctx,GColorBlack);
+    graphics_context_set_fill_color(ctx,GColorBlack); graphics_fill_rect(ctx,b,0,GCornerNone);
+    s_ink=GColorWhite; graphics_context_set_stroke_color(ctx,GColorWhite);
 
     dot_text(ctx,s_date_text,GRect(8,5,62,24),2,GTextAlignmentLeft);
     dot_text(ctx,s_battery_text,GRect((b.size.w-62)/2,5,62,24),2,GTextAlignmentCenter);
@@ -255,7 +255,7 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
         graphics_draw_round_rect(ctx,GRect(panel.origin.x+1,panel.origin.y+1,panel.size.w-2,panel.size.h-2),10);
         graphics_context_set_stroke_width(ctx,1);
     }
-    s_ink=GColorBlack;
+    s_ink=GColorWhite;
 }
 
 static void update_clock(struct tm *t) {
@@ -306,7 +306,7 @@ static void inbox_dropped(AppMessageResult r,void *ctx){APP_LOG(APP_LOG_LEVEL_WA
 static void window_load(Window *w){
     Layer *root=window_get_root_layer(w);GRect b=layer_get_bounds(root);
     s_dashboard_layer=layer_create(b);layer_set_update_proc(s_dashboard_layer,dashboard_update_proc);layer_add_child(root,s_dashboard_layer);
-    window_set_background_color(w,GColorWhite);update_clock(NULL);update_battery(battery_state_service_peek());update_heart_rate();
+    window_set_background_color(w,GColorBlack);update_clock(NULL);update_battery(battery_state_service_peek());update_heart_rate();
 }
 static void window_unload(Window *w){layer_destroy(s_dashboard_layer);s_dashboard_layer=NULL;}
 
