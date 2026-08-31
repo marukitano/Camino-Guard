@@ -185,24 +185,27 @@ static void clock_icon(GContext *ctx,GRect r) {
     pixel_icon(ctx,a,12,12,r);
 }
 
-static void metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b) {
+static int metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b) {
     const int value_lane = 84;
     const int max_w = b.size.w - value_lane;
     const int w = max_w * clamp_i(fraction,0,1000) / 1000;
-    if (w <= 0) return;
-    graphics_context_set_fill_color(ctx,color);
-    graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
+    if (w > 0) {
+        graphics_context_set_fill_color(ctx,color);
+        graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
+    }
+    return w;
 }
 
 static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b) {
     const int row_y = y + 2;
-    metric_bar(ctx,row_y,fraction,color,b);
+    const int bar_w = metric_bar(ctx,row_y,fraction,color,b);
 
     if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,GRect(8,row_y,20,20));
     else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,GRect(8,row_y,20,20));
     else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,row_y,20,20));
 
-    ppf_draw_value(ctx,value,b.size.w-4,row_y,GColorWhite);
+    const int value_x = bar_w + 2;
+    ppf_draw_value(ctx,value,value_x + ppf_value_width(value),row_y,GColorWhite);
 }
 
 static void dashboard_update_proc(Layer *layer,GContext *ctx) {
@@ -221,9 +224,9 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     char gv[16]="--",sv[16]="--";
     if(hg) snprintf(gv,sizeof(gv),"%d.%d",gt/10,gt%10);
     if(hs) snprintf(sv,sizeof(sv),"%d.%d",st/10,st%10);
-    live_row(ctx,36,0,heart,hf,GColorRed,b);
-    live_row(ctx,61,1,gv,gf,GColorGreen,b);
-    live_row(ctx,86,2,sv,sf,GColorBlue,b);
+    live_row(ctx,31,0,heart,hf,GColorRed,b);
+    live_row(ctx,56,1,gv,gf,GColorGreen,b);
+    live_row(ctx,81,2,sv,sf,GColorBlue,b);
 
     const int py=114, ph=b.size.h-py-5;
     GRect panel=GRect(5,py,b.size.w-10,ph);
