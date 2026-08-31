@@ -223,9 +223,10 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     s_ink=GColorBlack;
 
     draw_bitmap_icon(ctx,s_icon_shell,GRect(10,py+6,34,34));
-    dot_text(ctx,"NÄCHSTES ZIEL",GRect(50,py+7,b.size.w-58,12),1,GTextAlignmentLeft);
+    s_ink=GColorBlack;
+    dot_text(ctx,"NEXT STOP",GRect(50,py+6,b.size.w-58,18),2,GTextAlignmentLeft);
     int next_pitch = text_w(s_next_name_text,3) <= b.size.w-58 ? 3 : 2;
-    dot_text(ctx,s_next_name_text,GRect(50,py+20,b.size.w-58,31),next_pitch,GTextAlignmentLeft);
+    dot_text(ctx,s_next_name_text,GRect(50,py+25,b.size.w-58,27),next_pitch,GTextAlignmentLeft);
 
     const int dy=py+55, ix=8, iw=b.size.w-16, cw=iw/3, by=dy+3;
     graphics_context_set_stroke_color(ctx,GColorBlack);
