@@ -27,7 +27,8 @@
       "CURRENT_SPEED": 3,
       "ALARM_ACTIVE": 4,
       "ROUTE_VALID": 5,
-      "NEXT_NAME": 6
+      "NEXT_NAME": 6,
+      "FLAT_SPEED": 7
     },
     "resources": {
       "media": []

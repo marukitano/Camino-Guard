@@ -1,5 +1,5 @@
-# project  configured on Sun Aug 30 05:07:13 2026 by
-# waf 2.1.4 (abi 20, python 30d0ef0 on linux)
+# project  configured on Mon Aug 31 19:05:30 2026 by
+# waf 2.1.4 (abi 20, python 30c03f0 on linux)
 # using /home/maru/.local/share/pebble-sdk/SDKs/current/sdk-core/pebble/waf configure
 #
 ----------------------------------------
@@ -18,7 +18,7 @@ Found Pebble SDK for emery in:
 ----------------------------------------
 Checking for program 'gcc, cc'
 arm-none-eabi-gcc
-find program=['gcc', 'cc'] paths=['/var/tmp/pebble-sdk/SDKs/4.33/toolchain/moddable-tools', '/home/maru/.local/share/pebble-sdk/SDKs/4.33/toolchain/arm-none-eabi/bin', '/home/maru/.local/share/uv/tools/pebble-tool/lib/python3.13/site-packages/pebble_tool/commands/sdk', '/home/maru/.local/share/pebble-sdk/SDKs/4.33/toolchain/bin', '/home/maru/.local/bin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin', '/home/maru/Android/Sdk/cmdline-tools/latest/bin', '/home/maru/Android/Sdk/platform-tools'] var='CC' -> ['arm-none-eabi-gcc']
+find program=['gcc', 'cc'] paths=['/var/tmp/pebble-sdk/SDKs/4.33.1/toolchain/moddable-tools', '/home/maru/.local/share/pebble-sdk/SDKs/4.33.1/toolchain/arm-none-eabi/bin', '/home/maru/.local/share/uv/tools/pebble-tool/lib/python3.12/site-packages/pebble_tool/commands/sdk', '/home/maru/.local/share/pebble-sdk/SDKs/4.33.1/toolchain/bin', '/home/maru/.local/bin', '/usr/lib/jvm/java-21-openjdk-amd64/bin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin', '/home/maru/Android/Sdk/platform-tools', '/home/maru/Android/Sdk/cmdline-tools/latest/bin'] var='CC' -> ['arm-none-eabi-gcc']
 ['arm-none-eabi-gcc', '-dM', '-E', '-']
 out: #define __DBL_MIN_EXP__ (-1021)
 #define __HQ_FBIT__ 15
@@ -427,4 +427,4 @@ out: #define __DBL_MIN_EXP__ (-1021)
 ----------------------------------------
 Checking for program 'ar'
 arm-none-eabi-ar
-find program=['ar'] paths=['/var/tmp/pebble-sdk/SDKs/4.33/toolchain/moddable-tools', '/home/maru/.local/share/pebble-sdk/SDKs/4.33/toolchain/arm-none-eabi/bin', '/home/maru/.local/share/uv/tools/pebble-tool/lib/python3.13/site-packages/pebble_tool/commands/sdk', '/home/maru/.local/share/pebble-sdk/SDKs/4.33/toolchain/bin', '/home/maru/.local/bin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin', '/home/maru/Android/Sdk/cmdline-tools/latest/bin', '/home/maru/Android/Sdk/platform-tools'] var='AR' -> ['arm-none-eabi-ar']
+find program=['ar'] paths=['/var/tmp/pebble-sdk/SDKs/4.33.1/toolchain/moddable-tools', '/home/maru/.local/share/pebble-sdk/SDKs/4.33.1/toolchain/arm-none-eabi/bin', '/home/maru/.local/share/uv/tools/pebble-tool/lib/python3.12/site-packages/pebble_tool/commands/sdk', '/home/maru/.local/share/pebble-sdk/SDKs/4.33.1/toolchain/bin', '/home/maru/.local/bin', '/usr/lib/jvm/java-21-openjdk-amd64/bin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin', '/home/maru/Android/Sdk/platform-tools', '/home/maru/Android/Sdk/cmdline-tools/latest/bin'] var='AR' -> ['arm-none-eabi-ar']

@@ -1011,6 +1011,65 @@ final class WalkingPerformanceModel {
         );
     }
 
+    /*
+     * Representative speed for ordinary, slightly rolling terrain.
+     *
+     * Use equal-distance ETA math rather than an arithmetic speed average:
+     *
+     *   25 % at -2 %
+     *   50 % at  0 %
+     *   25 % at +2 %
+     *
+     * This keeps the displayed reference speed consistent with the way the
+     * ETA model converts speed into travel time.
+     */
+    double referenceSpeedKmh() {
+        refreshHistoryIfNeeded();
+
+        double downhillKmh =
+                predictedSpeedKmh(
+                        -2.0
+                );
+
+        double flatKmh =
+                predictedSpeedKmh(
+                        0.0
+                );
+
+        double uphillKmh =
+                predictedSpeedKmh(
+                        2.0
+                );
+
+        if (!Double.isFinite(downhillKmh)
+                || !Double.isFinite(flatKmh)
+                || !Double.isFinite(uphillKmh)
+                || downhillKmh <= 0.0
+                || flatKmh <= 0.0
+                || uphillKmh <= 0.0) {
+
+            return Double.NaN;
+        }
+
+        /*
+         * Weighted harmonic mean:
+         *
+         * time for 1 km =
+         *   0.25 / downhill
+         * + 0.50 / flat
+         * + 0.25 / uphill
+         */
+        double hoursPerKm =
+                0.25 / downhillKmh
+                        + 0.50 / flatKmh
+                        + 0.25 / uphillKmh;
+
+        return hoursPerKm > 0.0
+                ? 1.0 / hoursPerKm
+                : Double.NaN;
+    }
+
+
     long dataGeneration() {
         return store.generation();
     }

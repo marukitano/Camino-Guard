@@ -31,9 +31,8 @@ static Layer *s_heart_bar_layer;
 static Layer *s_glucose_bar_layer;
 static TextLayer *s_battery_layer;
 
-static TextLayer *s_distance_layer;
-static TextLayer *s_next_time_layer;
-static TextLayer *s_speed_layer;
+static Layer *s_speed_bar_layer;
+static Layer *s_timetable_layer;
 
 
 
@@ -48,6 +47,7 @@ static char s_next_name_text[40] = "--";
 static char s_distance_text[32] = "--";
 static char s_next_time_text[32] = "--";
 static char s_speed_text[32] = "--";
+static char s_flat_speed_text[32] = "--";
 
 static bool s_alarm_active;
 static bool s_route_valid;
@@ -237,9 +237,9 @@ static void heart_bar_update_proc(
             ctx,
             GRect(
                     0,
-                    3,
+                    2,
                     bar_end,
-                    22
+                    20
             ),
             0,
             GCornerNone
@@ -325,7 +325,7 @@ static void health_handler(
 #endif
 
 
-static bool parse_glucose_tenths(
+static bool parse_decimal_tenths(
         const char *text,
         int *value
 ) {
@@ -375,7 +375,7 @@ static void glucose_bar_update_proc(
 
     int glucose = 0;
 
-    if (!parse_glucose_tenths(
+    if (!parse_decimal_tenths(
             s_glucose_text,
             &glucose
     )) {
@@ -422,9 +422,9 @@ static void glucose_bar_update_proc(
             ctx,
             GRect(
                     0,
-                    3,
+                    2,
                     bar_end,
-                    22
+                    20
             ),
             0,
             GCornerNone
@@ -475,55 +475,330 @@ static void glucose_bar_update_proc(
 }
 
 
-static void apply_phone_values(void) {
-    static char distance_line[48];
-    static char time_line[48];
-    static char speed_line[48];
+static void speed_bar_update_proc(
+        Layer *layer,
+        GContext *ctx
+) {
+    GRect bounds = layer_get_bounds(layer);
 
-    snprintf(
-            distance_line,
-            sizeof(distance_line),
-            "Ziel %s",
-            s_next_name_text
+    /*
+     * Camino walking scale:
+     * 0.0 km/h left, 4.0 middle, 8.0 right.
+     * Faster values remain readable but the bar itself is clamped.
+     */
+    const int min_speed = 0;
+    const int max_speed = 80;
+
+    int speed = 0;
+
+    if (!parse_decimal_tenths(
+            s_speed_text,
+            &speed
+    )) {
+        graphics_context_set_text_color(
+                ctx,
+                GColorBlack
+        );
+
+        graphics_draw_text(
+                ctx,
+                "--",
+                fonts_get_system_font(
+                        FONT_KEY_GOTHIC_24_BOLD
+                ),
+                bounds,
+                GTextOverflowModeFill,
+                GTextAlignmentLeft,
+                NULL
+        );
+
+        return;
+    }
+
+    int clamped = speed;
+
+    if (clamped < min_speed) {
+        clamped = min_speed;
+    }
+
+    if (clamped > max_speed) {
+        clamped = max_speed;
+    }
+
+    int bar_end =
+            ((clamped - min_speed) * bounds.size.w)
+                    / (max_speed - min_speed);
+
+    graphics_context_set_fill_color(
+            ctx,
+            GColorBlue
     );
 
+    graphics_fill_rect(
+            ctx,
+            GRect(
+                    0,
+                    2,
+                    bar_end,
+                    20
+            ),
+            0,
+            GCornerNone
+    );
+
+    char value_text[16];
+
     snprintf(
-            time_line,
-            sizeof(time_line),
-            "%s  %s",
+            value_text,
+            sizeof(value_text),
+            "%d.%d",
+            speed / 10,
+            speed % 10
+    );
+
+    const int text_width = 48;
+    int text_x = bar_end + 3;
+
+    if (text_x + text_width > bounds.size.w) {
+        text_x = bar_end - text_width - 3;
+    }
+
+    if (text_x < 0) {
+        text_x = 0;
+    }
+
+    graphics_context_set_text_color(
+            ctx,
+            GColorBlack
+    );
+
+    graphics_draw_text(
+            ctx,
+            value_text,
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_24_BOLD
+            ),
+            GRect(
+                    text_x,
+                    -3,
+                    text_width,
+                    bounds.size.h + 6
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
+    );
+}
+
+
+static void timetable_update_proc(
+        Layer *layer,
+        GContext *ctx
+) {
+    GRect bounds = layer_get_bounds(layer);
+
+    const int column_width =
+            bounds.size.w / 3;
+
+    graphics_context_set_stroke_color(
+            ctx,
+            GColorBlack
+    );
+
+    /*
+     * Clear visual split between live values above
+     * and the timetable below.
+     */
+    graphics_draw_line(
+            ctx,
+            GPoint(0, 0),
+            GPoint(bounds.size.w - 1, 0)
+    );
+
+    graphics_context_set_text_color(
+            ctx,
+            GColorBlack
+    );
+
+    graphics_draw_text(
+            ctx,
+            "NÄCHSTES ZIEL",
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_14
+            ),
+            GRect(
+                    0,
+                    3,
+                    bounds.size.w,
+                    18
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
+    );
+
+    graphics_draw_text(
+            ctx,
+            s_next_name_text,
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_18_BOLD
+            ),
+            GRect(
+                    4,
+                    20,
+                    bounds.size.w - 8,
+                    30
+            ),
+            GTextOverflowModeTrailingEllipsis,
+            GTextAlignmentCenter,
+            NULL
+    );
+
+    graphics_draw_line(
+            ctx,
+            GPoint(4, 53),
+            GPoint(bounds.size.w - 5, 53)
+    );
+
+    /*
+     * Three railway-style columns:
+     * distance | ETA model's flat-ground speed | arrival.
+     */
+    graphics_draw_line(
+            ctx,
+            GPoint(column_width, 57),
+            GPoint(column_width, 102)
+    );
+
+    graphics_draw_line(
+            ctx,
+            GPoint(column_width * 2, 57),
+            GPoint(column_width * 2, 102)
+    );
+
+    graphics_draw_text(
+            ctx,
             s_distance_text,
-            s_next_time_text
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_18_BOLD
+            ),
+            GRect(
+                    0,
+                    57,
+                    column_width,
+                    26
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
     );
 
-    snprintf(
-            speed_line,
-            sizeof(speed_line),
-            "Tempo %s",
-            s_speed_text
+    graphics_draw_text(
+            ctx,
+            s_flat_speed_text,
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_18_BOLD
+            ),
+            GRect(
+                    column_width,
+                    57,
+                    column_width,
+                    26
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
     );
 
+    graphics_draw_text(
+            ctx,
+            s_next_time_text,
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_18_BOLD
+            ),
+            GRect(
+                    column_width * 2,
+                    57,
+                    bounds.size.w - column_width * 2,
+                    26
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
+    );
+
+    graphics_draw_text(
+            ctx,
+            "DIST",
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_14
+            ),
+            GRect(
+                    0,
+                    83,
+                    column_width,
+                    18
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
+    );
+
+    graphics_draw_text(
+            ctx,
+            "Ø SPEED",
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_14
+            ),
+            GRect(
+                    column_width,
+                    83,
+                    column_width,
+                    18
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
+    );
+
+    graphics_draw_text(
+            ctx,
+            "ETA",
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_14
+            ),
+            GRect(
+                    column_width * 2,
+                    83,
+                    bounds.size.w - column_width * 2,
+                    18
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
+    );
+}
+
+
+static void apply_phone_values(void) {
     if (s_glucose_bar_layer != NULL) {
         layer_mark_dirty(
                 s_glucose_bar_layer
         );
     }
 
-    text_layer_set_text(
-            s_distance_layer,
-            distance_line
-    );
+    if (s_speed_bar_layer != NULL) {
+        layer_mark_dirty(
+                s_speed_bar_layer
+        );
+    }
 
-    text_layer_set_text(
-            s_next_time_layer,
-            time_line
-    );
-
-    text_layer_set_text(
-            s_speed_layer,
-            speed_line
-    );
+    if (s_timetable_layer != NULL) {
+        layer_mark_dirty(
+                s_timetable_layer
+        );
+    }
 }
-
 
 
 static void copy_tuple_text(
@@ -616,6 +891,13 @@ static void inbox_received(
             sizeof(s_speed_text)
     );
 
+    copy_tuple_text(
+            iterator,
+            MESSAGE_KEY_FLAT_SPEED,
+            s_flat_speed_text,
+            sizeof(s_flat_speed_text)
+    );
+
     s_route_valid =
             tuple_is_one(
                     iterator,
@@ -641,6 +923,12 @@ static void inbox_received(
         snprintf(
                 s_next_time_text,
                 sizeof(s_next_time_text),
+                "--"
+        );
+
+        snprintf(
+                s_flat_speed_text,
+                sizeof(s_flat_speed_text),
                 "--"
         );
 
@@ -683,9 +971,9 @@ static void window_load(
             text_layer_create(
                     GRect(
                             0,
-                            2,
+                            0,
                             bounds.size.w,
-                            38
+                            32
                     )
             );
 
@@ -693,9 +981,9 @@ static void window_load(
             text_layer_create(
                     GRect(
                             0,
-                            2,
+                            0,
                             bounds.size.w,
-                            38
+                            32
                     )
             );
 
@@ -703,9 +991,9 @@ static void window_load(
             layer_create(
                     GRect(
                             0,
-                            66,
+                            34,
                             bounds.size.w,
-                            28
+                            24
                     )
             );
 
@@ -713,9 +1001,9 @@ static void window_load(
             layer_create(
                     GRect(
                             0,
-                            98,
+                            60,
                             bounds.size.w,
-                            28
+                            24
                     )
             );
 
@@ -723,39 +1011,29 @@ static void window_load(
             text_layer_create(
                     GRect(
                             0,
-                            2,
+                            0,
                             bounds.size.w,
-                            38
+                            32
                     )
             );
 
-    s_distance_layer =
-            text_layer_create(
+    s_speed_bar_layer =
+            layer_create(
                     GRect(
                             0,
-                            148,
+                            86,
                             bounds.size.w,
                             24
                     )
             );
 
-    s_next_time_layer =
-            text_layer_create(
+    s_timetable_layer =
+            layer_create(
                     GRect(
                             0,
-                            172,
+                            114,
                             bounds.size.w,
-                            24
-                    )
-            );
-
-    s_speed_layer =
-            text_layer_create(
-                    GRect(
-                            0,
-                            196,
-                            bounds.size.w,
-                            24
+                            bounds.size.h - 114
                     )
             );
 
@@ -801,25 +1079,24 @@ static void window_load(
             GTextAlignmentCenter
     );
 
-    configure_text_layer(
-            s_distance_layer,
-            root,
-            FONT_KEY_GOTHIC_18,
-            GTextAlignmentCenter
+    layer_set_update_proc(
+            s_speed_bar_layer,
+            speed_bar_update_proc
     );
 
-    configure_text_layer(
-            s_next_time_layer,
+    layer_add_child(
             root,
-            FONT_KEY_GOTHIC_18,
-            GTextAlignmentCenter
+            s_speed_bar_layer
     );
 
-    configure_text_layer(
-            s_speed_layer,
+    layer_set_update_proc(
+            s_timetable_layer,
+            timetable_update_proc
+    );
+
+    layer_add_child(
             root,
-            FONT_KEY_GOTHIC_18,
-            GTextAlignmentCenter
+            s_timetable_layer
     );
 
     window_set_background_color(
@@ -864,16 +1141,12 @@ static void window_unload(
             s_battery_layer
     );
 
-    text_layer_destroy(
-            s_distance_layer
+    layer_destroy(
+            s_speed_bar_layer
     );
 
-    text_layer_destroy(
-            s_next_time_layer
-    );
-
-    text_layer_destroy(
-            s_speed_layer
+    layer_destroy(
+            s_timetable_layer
     );
 
 }

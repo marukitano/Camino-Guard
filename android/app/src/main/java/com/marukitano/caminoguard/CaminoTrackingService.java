@@ -1042,6 +1042,10 @@ public final class CaminoTrackingService extends Service
                     locked,
                     lockedProjection != null,
                     timetableState,
+                    lockedTimetableEtaAuthority == null
+                            ? Double.NaN
+                            : lockedTimetableEtaAuthority
+                                    .latestFlatSpeedKmh(),
                     stationary
             );
         }
@@ -1351,6 +1355,10 @@ public final class CaminoTrackingService extends Service
                     locked,
                     lockedProjection != null,
                     timetableState,
+                    lockedTimetableEtaAuthority == null
+                            ? Double.NaN
+                            : lockedTimetableEtaAuthority
+                                    .latestFlatSpeedKmh(),
                     stationary
             );
 

@@ -51,6 +51,7 @@ final class CaminoPebbleRoutePublisher {
     private String lastSentNextDistance;
     private String lastSentNextTime;
     private String lastSentSpeed;
+    private String lastSentFlatSpeed;
 
 
     CaminoPebbleRoutePublisher(
@@ -72,6 +73,7 @@ final class CaminoPebbleRoutePublisher {
             LockedMeasurementPathStore.Snapshot locked,
             boolean onRoute,
             CaminoTimetableState timetableState,
+            double flatSpeedKmh,
             boolean stationary
     ) {
         if (locked == null
@@ -93,6 +95,7 @@ final class CaminoPebbleRoutePublisher {
                             location,
                             stationary
                     ),
+                    "--",
                     false,
                     false
             );
@@ -193,6 +196,9 @@ final class CaminoPebbleRoutePublisher {
                         location,
                         stationary
                 ),
+                formatFlatSpeed(
+                        flatSpeedKmh
+                ),
                 false,
                 true
         );
@@ -241,6 +247,7 @@ final class CaminoPebbleRoutePublisher {
             String nextDistance,
             String nextTime,
             String speed,
+            String flatSpeed,
             boolean alarmActive,
             boolean routeValid
     ) {
@@ -262,6 +269,10 @@ final class CaminoPebbleRoutePublisher {
                 && sameText(
                         speed,
                         lastSentSpeed
+                )
+                && sameText(
+                        flatSpeed,
+                        lastSentFlatSpeed
                 )) {
 
             return;
@@ -306,6 +317,15 @@ final class CaminoPebbleRoutePublisher {
                         ? speed
                         : null;
 
+        String flatSpeedDelta =
+                firstSend
+                        || !sameText(
+                                flatSpeed,
+                                lastSentFlatSpeed
+                        )
+                        ? flatSpeed
+                        : null;
+
         Boolean alarmDelta =
                 firstSend
                         || alarmActive
@@ -329,6 +349,7 @@ final class CaminoPebbleRoutePublisher {
                 nextDistanceDelta,
                 nextTimeDelta,
                 speedDelta,
+                flatSpeedDelta,
                 alarmDelta,
                 routeValidDelta
         );
@@ -353,6 +374,9 @@ final class CaminoPebbleRoutePublisher {
 
         lastSentSpeed =
                 speed;
+
+        lastSentFlatSpeed =
+                flatSpeed;
     }
 
 
@@ -404,6 +428,25 @@ final class CaminoPebbleRoutePublisher {
                 "%02d:%02d",
                 normalized / 60,
                 normalized % 60
+        );
+    }
+
+
+    private static String formatFlatSpeed(
+            double speedKmh
+    ) {
+        if (!Double.isFinite(
+                speedKmh
+        )
+                || speedKmh <= 0.0) {
+
+            return "--";
+        }
+
+        return String.format(
+                Locale.US,
+                "%.1f km/h",
+                speedKmh
         );
     }
 

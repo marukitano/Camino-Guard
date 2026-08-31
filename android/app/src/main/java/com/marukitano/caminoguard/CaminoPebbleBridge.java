@@ -53,6 +53,9 @@ final class CaminoPebbleBridge
     private static final int KEY_NEXT_NAME =
             6;
 
+    private static final int KEY_FLAT_SPEED =
+            7;
+
 
     private final JavaPebbleSender sender;
 
@@ -125,6 +128,7 @@ final class CaminoPebbleBridge
             String nextDistance,
             String nextTime,
             String currentSpeed,
+            String flatSpeed,
             Boolean alarmActive,
             Boolean routeValid
     ) {
@@ -158,6 +162,12 @@ final class CaminoPebbleBridge
                 dictionary,
                 KEY_CURRENT_SPEED,
                 currentSpeed
+        );
+
+        putOptionalText(
+                dictionary,
+                KEY_FLAT_SPEED,
+                flatSpeed
         );
 
         /*

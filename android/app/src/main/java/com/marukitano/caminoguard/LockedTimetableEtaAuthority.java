@@ -30,6 +30,11 @@ final class LockedTimetableEtaAuthority {
 
     private final PlanSource planSource;
 
+    private final WalkingPerformanceModel performanceModel;
+
+    private double etaFlatSpeedKmh =
+            Double.NaN;
+
     private final CaminoTimetableEngine engine =
             new CaminoTimetableEngine();
 
@@ -57,13 +62,25 @@ final class LockedTimetableEtaAuthority {
         this(
                 createPlanSource(
                         performanceModel
-                )
+                ),
+                performanceModel
         );
     }
 
 
     LockedTimetableEtaAuthority(
             PlanSource planSource
+    ) {
+        this(
+                planSource,
+                null
+        );
+    }
+
+
+    private LockedTimetableEtaAuthority(
+            PlanSource planSource,
+            WalkingPerformanceModel performanceModel
     ) {
         if (planSource == null) {
             throw new IllegalArgumentException(
@@ -73,6 +90,9 @@ final class LockedTimetableEtaAuthority {
 
         this.planSource =
                 planSource;
+
+        this.performanceModel =
+                performanceModel;
     }
 
 
@@ -191,6 +211,15 @@ final class LockedTimetableEtaAuthority {
                     planSource.build(
                             path
                     );
+
+            /*
+             * Snapshot the personal near-flat reference speed from exactly the same
+             * WalkingPerformanceModel state that produced this ETA plan.
+             */
+            etaFlatSpeedKmh =
+                    performanceModel == null
+                            ? Double.NaN
+                            : performanceModel.referenceSpeedKmh();
         }
 
         if (etaPlans == null
@@ -224,6 +253,11 @@ final class LockedTimetableEtaAuthority {
     }
 
 
+    synchronized double latestFlatSpeedKmh() {
+        return etaFlatSpeedKmh;
+    }
+
+
     synchronized void reset() {
         pathVersion =
                 Integer.MIN_VALUE;
@@ -236,6 +270,9 @@ final class LockedTimetableEtaAuthority {
 
         etaPlans =
                 null;
+
+        etaFlatSpeedKmh =
+                Double.NaN;
 
         etaStartMinutes =
                 0;
