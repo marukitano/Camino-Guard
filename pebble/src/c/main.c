@@ -268,8 +268,13 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
 
     draw_bitmap_icon(ctx,s_icon_shell,GRect(10,py+6,34,34));
     graphics_context_set_text_color(ctx,GColorBlack);
+    GRect next_stop_rect=GRect(50,py+4,b.size.w-58,18);
     graphics_draw_text(ctx,"NEXT STOP",s_font_megafont_12,
-                       GRect(50,py+4,b.size.w-58,18),
+                       next_stop_rect,
+                       GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
+    next_stop_rect.origin.x += 1;
+    graphics_draw_text(ctx,"NEXT STOP",s_font_megafont_12,
+                       next_stop_rect,
                        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
 
     char next_name[40];
