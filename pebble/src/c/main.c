@@ -187,7 +187,7 @@ static void metric_bar(GContext *ctx,GRect track,int f,GColor color) {
 }
 
 static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b) {
-    if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,GRect(10,y+4,16,16));
+    if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,GRect(8,y+2,20,20));
     else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,GRect(8,y+2,20,20));
     else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,y+2,20,20));
     const int value_w=48, bar_x=34, bar_w=b.size.w-bar_x-value_w-8;
