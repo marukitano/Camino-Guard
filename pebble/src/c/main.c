@@ -187,10 +187,9 @@ static void metric_bar(GContext *ctx,GRect track,int f,GColor color) {
 }
 
 static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b) {
-    GRect ir=GRect(8,y+2,20,20);
-    if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,ir);
-    else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,ir);
-    else draw_bitmap_icon(ctx,s_icon_shoe,ir);
+    if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,GRect(10,y+4,16,16));
+    else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,GRect(8,y+2,20,20));
+    else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,y+2,20,20));
     const int value_w=48, bar_x=34, bar_w=b.size.w-bar_x-value_w-8;
     metric_bar(ctx,GRect(bar_x,y+3,bar_w,17),fraction,color);
     dot_text(ctx,value,GRect(b.size.w-value_w-5,y-2,value_w,27),3,GTextAlignmentRight);
@@ -219,17 +218,19 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
 
     const int py=114, ph=b.size.h-py-5;
     GRect panel=GRect(5,py,b.size.w-10,ph);
-    graphics_context_set_fill_color(ctx,GColorBlack); graphics_fill_rect(ctx,panel,11,GCornersAll);
-    graphics_context_set_stroke_color(ctx,GColorChromeYellow); graphics_context_set_stroke_width(ctx,3);
+    graphics_context_set_fill_color(ctx,GColorYellow); graphics_fill_rect(ctx,panel,11,GCornersAll);
+    graphics_context_set_stroke_color(ctx,GColorYellow); graphics_context_set_stroke_width(ctx,3);
     graphics_draw_round_rect(ctx,panel,11); graphics_context_set_stroke_width(ctx,1);
-    s_ink=GColorChromeYellow;
+    s_ink=GColorBlack;
 
-    draw_bitmap_icon(ctx,s_icon_shell,GRect(11,py+8,24,24));
+    graphics_context_set_compositing_mode(ctx,GCompOpClear);
+    graphics_draw_bitmap_in_rect(ctx,s_icon_shell,GRect(11,py+8,24,24));
+    graphics_context_set_compositing_mode(ctx,GCompOpSet);
     dot_text(ctx,"NÄCHSTES ZIEL",GRect(43,py+8,b.size.w-51,22),2,GTextAlignmentLeft);
     dot_text(ctx,s_next_name_text,GRect(43,py+27,b.size.w-51,27),2,GTextAlignmentLeft);
 
     const int dy=py+55, ix=8, iw=b.size.w-16, cw=iw/3, by=dy+3;
-    graphics_context_set_stroke_color(ctx,GColorChromeYellow);
+    graphics_context_set_stroke_color(ctx,GColorBlack);
     graphics_draw_line(ctx,GPoint(12,dy),GPoint(b.size.w-13,dy));
     graphics_draw_line(ctx,GPoint(ix+cw,by),GPoint(ix+cw,b.size.h-12));
     graphics_draw_line(ctx,GPoint(ix+cw*2,by),GPoint(ix+cw*2,b.size.h-12));
