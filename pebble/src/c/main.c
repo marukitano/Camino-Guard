@@ -272,7 +272,7 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     graphics_draw_text(ctx,"NEXT STOP",s_font_megafont_12,
                        next_stop_rect,
                        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
-    next_stop_rect.origin.x += 1;
+    next_stop_rect.origin.y += 1;
     graphics_draw_text(ctx,"NEXT STOP",s_font_megafont_12,
                        next_stop_rect,
                        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
