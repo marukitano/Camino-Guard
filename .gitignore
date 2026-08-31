@@ -15,3 +15,7 @@ __pycache__/
 *.orig
 *.rej
 *.bak-before-*
+
+# Megafont is licensed for personal/non-commercial use and may not be redistributed.
+# Obtain your own copy and place it here for local Pebble builds.
+/pebble/resources/fonts/megafont.ttf

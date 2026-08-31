@@ -33,6 +33,24 @@
     "resources": {
       "media": [
         {
+          "characterRegex": "[0-9 A-Z-]",
+          "type": "font",
+          "name": "FONT_MEGAFONT_12",
+          "file": "fonts/megafont.ttf"
+        },
+        {
+          "characterRegex": "[0-9 A-Z-]",
+          "type": "font",
+          "name": "FONT_MEGAFONT_14",
+          "file": "fonts/megafont.ttf"
+        },
+        {
+          "characterRegex": "[0-9 A-Z-]",
+          "type": "font",
+          "name": "FONT_MEGAFONT_18",
+          "file": "fonts/megafont.ttf"
+        },
+        {
           "type": "png",
           "name": "ICON_HEART",
           "file": "icons/heart.png"

@@ -11,6 +11,9 @@ static GBitmap *s_icon_heart;
 static GBitmap *s_icon_blood;
 static GBitmap *s_icon_shoe;
 static GBitmap *s_icon_shell;
+static GFont s_font_megafont_12;
+static GFont s_font_megafont_14;
+static GFont s_font_megafont_18;
 
 static char s_time_text[16];
 static char s_date_text[24];
@@ -133,6 +136,22 @@ static char norm(uint32_t c, bool *umlaut) {
     return '?';
 }
 
+static void megafont_text(const char *src, char *dst, size_t n) {
+    if (!dst || n == 0) return;
+    const char *p = src ? src : "";
+    size_t i = 0;
+    while (*p && i + 1 < n) {
+        bool umlaut = false;
+        char c = norm(codepoint(&p), &umlaut);
+        if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ' || c == '-') {
+            dst[i++] = c;
+        } else {
+            dst[i++] = ' ';
+        }
+    }
+    dst[i] = '\0';
+}
+
 static int text_w(const char *text, int pitch) {
     int n=0; const char *p=text; while (*p) {codepoint(&p);n++;}
     return n ? n*6*pitch-pitch : 0;
@@ -248,10 +267,21 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     s_ink=GColorBlack;
 
     draw_bitmap_icon(ctx,s_icon_shell,GRect(10,py+6,34,34));
-    s_ink=GColorBlack;
-    bold_dot_text(ctx,"NEXT STOP",GRect(50,py+6,b.size.w-58,18),2,GTextAlignmentLeft);
-    int next_pitch = text_w(s_next_name_text,3) <= b.size.w-58 ? 3 : 2;
-    dot_text(ctx,s_next_name_text,GRect(50,py+25,b.size.w-58,27),next_pitch,GTextAlignmentLeft);
+    graphics_context_set_text_color(ctx,GColorBlack);
+    graphics_draw_text(ctx,"NEXT STOP",s_font_megafont_12,
+                       GRect(50,py+4,b.size.w-58,18),
+                       GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
+
+    char next_name[40];
+    megafont_text(s_next_name_text,next_name,sizeof(next_name));
+    GFont next_font=s_font_megafont_18;
+    GSize next_size=graphics_text_layout_get_content_size(
+        next_name,next_font,GRect(0,0,1000,32),
+        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft);
+    if(next_size.w>b.size.w-58) next_font=s_font_megafont_14;
+    graphics_draw_text(ctx,next_name,next_font,
+                       GRect(50,py+20,b.size.w-58,32),
+                       GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
 
     const int dy=py+55, ix=8, iw=b.size.w-16, cw=iw/3, by=dy+3;
     graphics_context_set_stroke_color(ctx,GColorBlack);
@@ -327,6 +357,9 @@ static void window_load(Window *w){
     s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);
     s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);
     s_icon_shell=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHELL);
+    s_font_megafont_12=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_12));
+    s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));
+    s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));
     s_dashboard_layer=layer_create(b);layer_set_update_proc(s_dashboard_layer,dashboard_update_proc);layer_add_child(root,s_dashboard_layer);
     window_set_background_color(w,GColorBlack);update_clock(NULL);update_battery(battery_state_service_peek());update_heart_rate();
 }
@@ -336,6 +369,9 @@ static void window_unload(Window *w){
     gbitmap_destroy(s_icon_blood);s_icon_blood=NULL;
     gbitmap_destroy(s_icon_shoe);s_icon_shoe=NULL;
     gbitmap_destroy(s_icon_shell);s_icon_shell=NULL;
+    if(s_font_megafont_12){fonts_unload_custom_font(s_font_megafont_12);s_font_megafont_12=NULL;}
+    if(s_font_megafont_14){fonts_unload_custom_font(s_font_megafont_14);s_font_megafont_14=NULL;}
+    if(s_font_megafont_18){fonts_unload_custom_font(s_font_megafont_18);s_font_megafont_18=NULL;}
 }
 
 static void init(void){
