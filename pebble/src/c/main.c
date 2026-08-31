@@ -170,25 +170,28 @@ static void draw_bitmap_icon(GContext *ctx, GBitmap *bitmap, GRect r) {
     graphics_draw_bitmap_in_rect(ctx, bitmap, r);
 }
 
-static void pixel_icon(GContext *ctx,const uint16_t *rows,int w,int h,GRect r) {
-    graphics_context_set_fill_color(ctx,s_ink);
-    int sx=r.size.w/w, sy=r.size.h/h, scale=sx<sy?sx:sy; if(scale<1) scale=1;
-    int ox=r.origin.x+(r.size.w-w*scale)/2, oy=r.origin.y+(r.size.h-h*scale)/2;
-    for(int y=0;y<h;y++) for(int x=0;x<w;x++) if(rows[y]&(1u<<(w-1-x)))
-        graphics_fill_rect(ctx,GRect(ox+x*scale,oy+y*scale,scale,scale),0,GCornerNone);
+static void pixel20_icon(GContext *ctx, const uint32_t rows[20], GRect r) {
+    graphics_context_set_fill_color(ctx,GColorBlack);
+    for (int y=0; y<20; ++y) {
+        for (int x=0; x<20; ++x) {
+            if (rows[y] & (1u << (19-x))) {
+                graphics_draw_pixel(ctx,GPoint(r.origin.x+x,r.origin.y+y));
+            }
+        }
+    }
 }
 
 static void route_icon(GContext *ctx,GRect r) {
-    static const uint16_t a[12]={0x0E0,0x1F0,0x110,0x1F0,0x0E0,0x040,0x040,0x070,0x008,0x00C,0x006,0x003};
-    pixel_icon(ctx,a,9,12,r);
+    static const uint32_t a[20]={0x00000u,0x00000u,0x00000u,0x00000u,0x00000u,0x00000u,0x1C000u,0x7E00Cu,0xFF07Cu,0xE3180u,0xC3800u,0xC3980u,0xFF0B0u,0x7F010u,0x7E00Cu,0x3C004u,0x1C000u,0x18018u,0x0B6D0u,0x0B600u};
+    pixel20_icon(ctx,a,r);
 }
 static void gauge_icon(GContext *ctx,GRect r) {
-    static const uint16_t a[10]={0x0F0,0x30C,0x402,0x801,0x801,0x811,0x0A0,0x040,0x040,0};
-    pixel_icon(ctx,a,12,10,r);
+    static const uint32_t a[20]={0x00000u,0x01F80u,0x07FE0u,0x0E670u,0x1C618u,0x3E00Cu,0x360ECu,0x601C6u,0x607C6u,0x78F9Eu,0x78F1Eu,0x60F06u,0x60606u,0x3000Cu,0x3000Cu,0x18018u,0x0C030u,0x04020u,0x00000u,0x00000u};
+    pixel20_icon(ctx,a,r);
 }
 static void clock_icon(GContext *ctx,GRect r) {
-    static const uint16_t a[12]={0x0F0,0x30C,0x402,0x801,0x841,0x841,0x821,0x802,0x402,0x30C,0x0F0,0};
-    pixel_icon(ctx,a,12,12,r);
+    static const uint32_t a[20]={0x00000u,0x00000u,0x1FFF8u,0x1FFF8u,0x1B378u,0x1FFF8u,0x1ECD8u,0x1FFF8u,0x1B378u,0x1FFF8u,0x1ECD8u,0x1FFF8u,0x1FFF8u,0x18000u,0x18000u,0x18000u,0x18000u,0x10000u,0x00000u,0x00000u};
+    pixel20_icon(ctx,a,r);
 }
 
 static int metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b) {
@@ -256,18 +259,14 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     graphics_draw_line(ctx,GPoint(ix+cw,by),GPoint(ix+cw,b.size.h-12));
     graphics_draw_line(ctx,GPoint(ix+cw*2,by),GPoint(ix+cw*2,b.size.h-12));
 
-    int iy=by+2;
-    route_icon(ctx,GRect(ix+(cw-22)/2,iy,22,20));
-    gauge_icon(ctx,GRect(ix+cw+(cw-22)/2,iy,22,20));
+    int iy=by+3;
+    route_icon(ctx,GRect(ix+(cw-20)/2,iy,20,20));
+    gauge_icon(ctx,GRect(ix+cw+(cw-20)/2,iy,20,20));
     clock_icon(ctx,GRect(ix+cw*2+(cw-20)/2,iy,20,20));
-    int vy=iy+21;
+    int vy=iy+22;
     ppf_draw_small_value_centered(ctx,s_distance_text,GRect(ix,vy,cw,18),GColorBlack);
     ppf_draw_small_value_centered(ctx,s_flat_speed_text,GRect(ix+cw,vy,cw,18),GColorBlack);
     ppf_draw_small_value_centered(ctx,s_next_time_text,GRect(ix+cw*2,vy,iw-cw*2,18),GColorBlack);
-    int ly=vy+20;
-    dot_text(ctx,"DIST",GRect(ix,ly,cw,19),2,GTextAlignmentCenter);
-    dot_text(ctx,"SPEED",GRect(ix+cw,ly,cw,19),2,GTextAlignmentCenter);
-    dot_text(ctx,"ETA",GRect(ix+cw*2,ly,iw-cw*2,19),2,GTextAlignmentCenter);
 
     if(s_alarm_active) {
         graphics_context_set_stroke_color(ctx,GColorRed); graphics_context_set_stroke_width(ctx,3);
