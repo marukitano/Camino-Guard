@@ -218,14 +218,12 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
 
     const int py=114, ph=b.size.h-py-5;
     GRect panel=GRect(5,py,b.size.w-10,ph);
-    graphics_context_set_fill_color(ctx,GColorYellow); graphics_fill_rect(ctx,panel,11,GCornersAll);
+    graphics_context_set_fill_color(ctx,GColorChromeYellow); graphics_fill_rect(ctx,panel,11,GCornersAll);
     graphics_context_set_stroke_color(ctx,GColorYellow); graphics_context_set_stroke_width(ctx,3);
     graphics_draw_round_rect(ctx,panel,11); graphics_context_set_stroke_width(ctx,1);
     s_ink=GColorBlack;
 
-    graphics_context_set_compositing_mode(ctx,GCompOpClear);
-    graphics_draw_bitmap_in_rect(ctx,s_icon_shell,GRect(11,py+8,24,24));
-    graphics_context_set_compositing_mode(ctx,GCompOpSet);
+    draw_bitmap_icon(ctx,s_icon_shell,GRect(11,py+8,24,24));
     dot_text(ctx,"NÄCHSTES ZIEL",GRect(43,py+8,b.size.w-51,22),2,GTextAlignmentLeft);
     dot_text(ctx,s_next_name_text,GRect(43,py+27,b.size.w-51,27),2,GTextAlignmentLeft);
 
