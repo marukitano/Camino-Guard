@@ -203,7 +203,6 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     dot_text(ctx,s_date_text,GRect(8,5,62,24),2,GTextAlignmentLeft);
     dot_text(ctx,s_battery_text,GRect((b.size.w-62)/2,5,62,24),2,GTextAlignmentCenter);
     dot_text(ctx,s_time_text,GRect(b.size.w-70,5,62,24),2,GTextAlignmentRight);
-    graphics_draw_line(ctx,GPoint(7,31),GPoint(b.size.w-8,31));
 
     char heart[16]="--"; if(s_heart_rate>0) snprintf(heart,sizeof(heart),"%d",s_heart_rate);
     int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0;
@@ -223,9 +222,10 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     graphics_draw_round_rect(ctx,panel,11); graphics_context_set_stroke_width(ctx,1);
     s_ink=GColorBlack;
 
-    draw_bitmap_icon(ctx,s_icon_shell,GRect(11,py+8,24,24));
-    dot_text(ctx,"NÄCHSTES ZIEL",GRect(43,py+8,b.size.w-51,22),2,GTextAlignmentLeft);
-    dot_text(ctx,s_next_name_text,GRect(43,py+27,b.size.w-51,27),2,GTextAlignmentLeft);
+    draw_bitmap_icon(ctx,s_icon_shell,GRect(10,py+6,34,34));
+    dot_text(ctx,"NÄCHSTES ZIEL",GRect(50,py+7,b.size.w-58,12),1,GTextAlignmentLeft);
+    int next_pitch = text_w(s_next_name_text,3) <= b.size.w-58 ? 3 : 2;
+    dot_text(ctx,s_next_name_text,GRect(50,py+20,b.size.w-58,31),next_pitch,GTextAlignmentLeft);
 
     const int dy=py+55, ix=8, iw=b.size.w-16, cw=iw/3, by=dy+3;
     graphics_context_set_stroke_color(ctx,GColorBlack);
