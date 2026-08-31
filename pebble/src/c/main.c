@@ -27,20 +27,20 @@ static Window *s_window;
 
 static TextLayer *s_time_layer;
 static TextLayer *s_date_layer;
-static TextLayer *s_heart_layer;
-static TextLayer *s_glucose_layer;
+static Layer *s_heart_bar_layer;
+static Layer *s_glucose_bar_layer;
 static TextLayer *s_battery_layer;
 
 static TextLayer *s_distance_layer;
 static TextLayer *s_next_time_layer;
 static TextLayer *s_speed_layer;
 
-static TextLayer *s_alarm_layer;
 
 
 static char s_time_text[16];
 static char s_date_text[24];
 static char s_heart_text[24];
+static int s_heart_rate = -1;
 static char s_battery_text[24];
 
 static char s_glucose_text[32] = "--";
@@ -70,7 +70,7 @@ static void configure_text_layer(
 
     text_layer_set_text_color(
             layer,
-            GColorWhite
+            GColorBlack
     );
 
     text_layer_set_font(
@@ -132,7 +132,7 @@ static void update_clock(
     strftime(
             s_date_text,
             sizeof(s_date_text),
-            "%d.%m.%Y",
+            "%d.%m",
             time_value
     );
 
@@ -164,7 +164,7 @@ static void update_battery(
     snprintf(
             s_battery_text,
             sizeof(s_battery_text),
-            "Akku %d%%",
+            "%d%%",
             state.charge_percent
     );
 
@@ -184,6 +184,109 @@ static void battery_handler(
 }
 
 
+static void heart_bar_update_proc(
+        Layer *layer,
+        GContext *ctx
+) {
+    GRect bounds = layer_get_bounds(layer);
+
+    const int min_rate = 20;
+    const int max_rate = 180;
+
+    if (s_heart_rate < 0) {
+        graphics_context_set_text_color(
+                ctx,
+                GColorBlack
+        );
+
+        graphics_draw_text(
+                ctx,
+                "--",
+                fonts_get_system_font(
+                        FONT_KEY_GOTHIC_24_BOLD
+                ),
+                bounds,
+                GTextOverflowModeFill,
+                GTextAlignmentLeft,
+                NULL
+        );
+
+        return;
+    }
+
+    int rate = s_heart_rate;
+
+    if (rate < min_rate) {
+        rate = min_rate;
+    }
+
+    if (rate > max_rate) {
+        rate = max_rate;
+    }
+
+    int bar_end =
+            ((rate - min_rate) * bounds.size.w)
+                    / (max_rate - min_rate);
+
+    graphics_context_set_fill_color(
+            ctx,
+            GColorRed
+    );
+
+    graphics_fill_rect(
+            ctx,
+            GRect(
+                    0,
+                    3,
+                    bar_end,
+                    22
+            ),
+            0,
+            GCornerNone
+    );
+
+    snprintf(
+            s_heart_text,
+            sizeof(s_heart_text),
+            "%d",
+            s_heart_rate
+    );
+
+    const int text_width = 42;
+    int text_x = bar_end + 3;
+
+    if (text_x + text_width > bounds.size.w) {
+        text_x = bar_end - text_width - 3;
+    }
+
+    if (text_x < 0) {
+        text_x = 0;
+    }
+
+    graphics_context_set_text_color(
+            ctx,
+            GColorBlack
+    );
+
+    graphics_draw_text(
+            ctx,
+            s_heart_text,
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_24_BOLD
+            ),
+            GRect(
+                    text_x,
+                    -2,
+                    text_width,
+                    bounds.size.h + 4
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
+    );
+}
+
+
 static void update_heart_rate(void) {
 #if defined(PBL_HEALTH)
     HealthValue value =
@@ -192,31 +295,19 @@ static void update_heart_rate(void) {
             );
 
     if (value > 0) {
-        snprintf(
-                s_heart_text,
-                sizeof(s_heart_text),
-                "Puls %ld bpm",
-                (long) value
-        );
+        s_heart_rate = (int) value;
     } else {
-        snprintf(
-                s_heart_text,
-                sizeof(s_heart_text),
-                "Puls --"
-        );
+        s_heart_rate = -1;
     }
 #else
-    snprintf(
-            s_heart_text,
-            sizeof(s_heart_text),
-            "Puls --"
-    );
+    s_heart_rate = -1;
 #endif
 
-    text_layer_set_text(
-            s_heart_layer,
-            s_heart_text
-    );
+    if (s_heart_bar_layer != NULL) {
+        layer_mark_dirty(
+                s_heart_bar_layer
+        );
+    }
 }
 
 
@@ -234,18 +325,160 @@ static void health_handler(
 #endif
 
 
+static bool parse_glucose_tenths(
+        const char *text,
+        int *value
+) {
+    if (text == NULL || value == NULL) {
+        return false;
+    }
+
+    int whole = 0;
+    int fraction = 0;
+    bool have_digit = false;
+    bool after_decimal = false;
+
+    for (const char *p = text; *p != '\0'; p++) {
+        if (*p >= '0' && *p <= '9') {
+            have_digit = true;
+
+            if (!after_decimal) {
+                whole = whole * 10 + (*p - '0');
+            } else {
+                fraction = *p - '0';
+                break;
+            }
+        } else if ((*p == '.' || *p == ',') && have_digit) {
+            after_decimal = true;
+        } else if (have_digit) {
+            break;
+        }
+    }
+
+    if (!have_digit) {
+        return false;
+    }
+
+    *value = whole * 10 + fraction;
+    return true;
+}
+
+
+static void glucose_bar_update_proc(
+        Layer *layer,
+        GContext *ctx
+) {
+    GRect bounds = layer_get_bounds(layer);
+
+    const int min_glucose = 20;   /* 2.0 mmol/L */
+    const int max_glucose = 140;  /* 14.0 mmol/L */
+
+    int glucose = 0;
+
+    if (!parse_glucose_tenths(
+            s_glucose_text,
+            &glucose
+    )) {
+        graphics_context_set_text_color(
+                ctx,
+                GColorBlack
+        );
+
+        graphics_draw_text(
+                ctx,
+                "--",
+                fonts_get_system_font(
+                        FONT_KEY_GOTHIC_24_BOLD
+                ),
+                bounds,
+                GTextOverflowModeFill,
+                GTextAlignmentLeft,
+                NULL
+        );
+
+        return;
+    }
+
+    int clamped = glucose;
+
+    if (clamped < min_glucose) {
+        clamped = min_glucose;
+    }
+
+    if (clamped > max_glucose) {
+        clamped = max_glucose;
+    }
+
+    int bar_end =
+            ((clamped - min_glucose) * bounds.size.w)
+                    / (max_glucose - min_glucose);
+
+    graphics_context_set_fill_color(
+            ctx,
+            GColorGreen
+    );
+
+    graphics_fill_rect(
+            ctx,
+            GRect(
+                    0,
+                    3,
+                    bar_end,
+                    22
+            ),
+            0,
+            GCornerNone
+    );
+
+    char value_text[16];
+
+    snprintf(
+            value_text,
+            sizeof(value_text),
+            "%d.%d",
+            glucose / 10,
+            glucose % 10
+    );
+
+    const int text_width = 48;
+    int text_x = bar_end + 3;
+
+    if (text_x + text_width > bounds.size.w) {
+        text_x = bar_end - text_width - 3;
+    }
+
+    if (text_x < 0) {
+        text_x = 0;
+    }
+
+    graphics_context_set_text_color(
+            ctx,
+            GColorBlack
+    );
+
+    graphics_draw_text(
+            ctx,
+            value_text,
+            fonts_get_system_font(
+                    FONT_KEY_GOTHIC_24_BOLD
+            ),
+            GRect(
+                    text_x,
+                    -2,
+                    text_width,
+                    bounds.size.h + 4
+            ),
+            GTextOverflowModeFill,
+            GTextAlignmentCenter,
+            NULL
+    );
+}
+
+
 static void apply_phone_values(void) {
-    static char glucose_line[48];
     static char distance_line[48];
     static char time_line[48];
     static char speed_line[48];
-
-    snprintf(
-            glucose_line,
-            sizeof(glucose_line),
-            "Glukose %s",
-            s_glucose_text
-    );
 
     snprintf(
             distance_line,
@@ -269,10 +502,11 @@ static void apply_phone_values(void) {
             s_speed_text
     );
 
-    text_layer_set_text(
-            s_glucose_layer,
-            glucose_line
-    );
+    if (s_glucose_bar_layer != NULL) {
+        layer_mark_dirty(
+                s_glucose_bar_layer
+        );
+    }
 
     text_layer_set_text(
             s_distance_layer,
@@ -290,57 +524,6 @@ static void apply_phone_values(void) {
     );
 }
 
-
-static void apply_alarm_visibility(void) {
-    /*
-     * Three distinct navigation states:
-     *
-     * route valid + no alarm -> ordinary route information
-     * route valid + alarm    -> OFF ROUTE
-     * no locked route        -> NO ROUTE
-     *
-     * OFF ROUTE wins if an inconsistent transport state ever contains
-     * both alarm=true and routeValid=false.
-     */
-    bool show_route =
-            s_route_valid
-                    && !s_alarm_active;
-
-    text_layer_set_text(
-            s_alarm_layer,
-            s_alarm_active
-                    ? "OFF ROUTE"
-                    : "NO ROUTE"
-    );
-
-    layer_set_hidden(
-            text_layer_get_layer(
-                    s_distance_layer
-            ),
-            !show_route
-    );
-
-    layer_set_hidden(
-            text_layer_get_layer(
-                    s_next_time_layer
-            ),
-            !show_route
-    );
-
-    layer_set_hidden(
-            text_layer_get_layer(
-                    s_speed_layer
-            ),
-            !show_route
-    );
-
-    layer_set_hidden(
-            text_layer_get_layer(
-                    s_alarm_layer
-            ),
-            show_route
-    );
-}
 
 
 static void copy_tuple_text(
@@ -398,9 +581,6 @@ static void inbox_received(
         DictionaryIterator *iterator,
         void *context
 ) {
-    bool previous_alarm =
-            s_alarm_active;
-
     copy_tuple_text(
             iterator,
             MESSAGE_KEY_GLUCOSE,
@@ -436,13 +616,6 @@ static void inbox_received(
             sizeof(s_speed_text)
     );
 
-    s_alarm_active =
-            tuple_is_one(
-                    iterator,
-                    MESSAGE_KEY_ALARM_ACTIVE,
-                    s_alarm_active
-            );
-
     s_route_valid =
             tuple_is_one(
                     iterator,
@@ -471,28 +644,9 @@ static void inbox_received(
                 "--"
         );
 
-        snprintf(
-                s_speed_text,
-                sizeof(s_speed_text),
-                "--"
-        );
     }
 
     apply_phone_values();
-    apply_alarm_visibility();
-
-    /*
-     * Alarm vibration only on:
-     *
-     *   ON ROUTE -> OFF ROUTE
-     *
-     * Staying off route therefore does not vibrate every GPS update.
-     */
-    if (!previous_alarm
-            && s_alarm_active) {
-
-        vibes_double_pulse();
-    }
 }
 
 
@@ -539,29 +693,29 @@ static void window_load(
             text_layer_create(
                     GRect(
                             0,
-                            38,
+                            2,
                             bounds.size.w,
-                            24
+                            38
                     )
             );
 
-    s_heart_layer =
-            text_layer_create(
+    s_heart_bar_layer =
+            layer_create(
                     GRect(
                             0,
                             66,
                             bounds.size.w,
-                            24
+                            28
                     )
             );
 
-    s_glucose_layer =
-            text_layer_create(
+    s_glucose_bar_layer =
+            layer_create(
                     GRect(
                             0,
-                            90,
+                            98,
                             bounds.size.w,
-                            24
+                            28
                     )
             );
 
@@ -569,9 +723,9 @@ static void window_load(
             text_layer_create(
                     GRect(
                             0,
-                            114,
+                            2,
                             bounds.size.w,
-                            24
+                            38
                     )
             );
 
@@ -605,49 +759,45 @@ static void window_load(
                     )
             );
 
-    s_alarm_layer =
-            text_layer_create(
-                    GRect(
-                            0,
-                            158,
-                            bounds.size.w,
-                            48
-                    )
-            );
-
 
     configure_text_layer(
             s_time_layer,
             root,
-            FONT_KEY_GOTHIC_28_BOLD,
-            GTextAlignmentCenter
+            FONT_KEY_GOTHIC_28,
+            GTextAlignmentRight
     );
 
     configure_text_layer(
             s_date_layer,
             root,
-            FONT_KEY_GOTHIC_18,
-            GTextAlignmentCenter
+            FONT_KEY_GOTHIC_28,
+            GTextAlignmentLeft
     );
 
-    configure_text_layer(
-            s_heart_layer,
-            root,
-            FONT_KEY_GOTHIC_18,
-            GTextAlignmentCenter
+    layer_set_update_proc(
+            s_heart_bar_layer,
+            heart_bar_update_proc
     );
 
-    configure_text_layer(
-            s_glucose_layer,
+    layer_add_child(
             root,
-            FONT_KEY_GOTHIC_18,
-            GTextAlignmentCenter
+            s_heart_bar_layer
+    );
+
+    layer_set_update_proc(
+            s_glucose_bar_layer,
+            glucose_bar_update_proc
+    );
+
+    layer_add_child(
+            root,
+            s_glucose_bar_layer
     );
 
     configure_text_layer(
             s_battery_layer,
             root,
-            FONT_KEY_GOTHIC_18,
+            FONT_KEY_GOTHIC_28,
             GTextAlignmentCenter
     );
 
@@ -672,27 +822,9 @@ static void window_load(
             GTextAlignmentCenter
     );
 
-    configure_text_layer(
-            s_alarm_layer,
-            root,
-            FONT_KEY_GOTHIC_24_BOLD,
-            GTextAlignmentCenter
-    );
-
-
-    text_layer_set_text(
-            s_alarm_layer,
-            "NO ROUTE"
-    );
-
-    text_layer_set_text_alignment(
-            s_alarm_layer,
-            GTextAlignmentCenter
-    );
-
     window_set_background_color(
             window,
-            GColorBlack
+            GColorWhite
     );
 
     update_clock(
@@ -706,7 +838,6 @@ static void window_load(
     update_heart_rate();
 
     apply_phone_values();
-    apply_alarm_visibility();
 }
 
 
@@ -721,12 +852,12 @@ static void window_unload(
             s_date_layer
     );
 
-    text_layer_destroy(
-            s_heart_layer
+    layer_destroy(
+            s_heart_bar_layer
     );
 
-    text_layer_destroy(
-            s_glucose_layer
+    layer_destroy(
+            s_glucose_bar_layer
     );
 
     text_layer_destroy(
@@ -745,9 +876,6 @@ static void window_unload(
             s_speed_layer
     );
 
-    text_layer_destroy(
-            s_alarm_layer
-    );
 }
 
 

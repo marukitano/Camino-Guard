@@ -75,8 +75,17 @@ public final class CaminoTrackingService extends Service
         }
     }
 
-    private static final String CHANNEL = "camino_tracking";
-    private static final int NOTIFICATION = 3601;
+    private static final String CHANNEL =
+            "camino_tracking";
+
+    private static final int NOTIFICATION =
+            3601;
+
+    private static final String OFF_ROUTE_CHANNEL =
+            "camino_off_route";
+
+    private static final int OFF_ROUTE_NOTIFICATION =
+            3602;
 
     private static final String ACTION_REFRESH_LIBRE =
             "com.marukitano.caminoguard.REFRESH_LIBRE";
@@ -215,6 +224,20 @@ public final class CaminoTrackingService extends Service
 
     private volatile double serviceMaxRouteOffsetM =
             Double.NaN;
+
+    /*
+     * Android owns the OFF-ROUTE warning.
+     *
+     * We notify only for a real ON_ROUTE -> OFF_ROUTE transition.
+     * Merely starting the service while already off-route must not create
+     * a spurious warning.
+     */
+    private int offRoutePathVersion =
+            Integer.MIN_VALUE;
+
+    private boolean offRouteStateInitialized;
+
+    private boolean lastOnRoute;
 
     public static void addListener(Listener listener) {
         if (listener == null) {
@@ -984,6 +1007,15 @@ public final class CaminoTrackingService extends Service
                         stationary
                 );
 
+        boolean onRoute =
+                acceptedLocation != null
+                        && lockedProjection != null;
+
+        updateOffRouteNotification(
+                locked,
+                onRoute
+        );
+
         Snapshot snapshot =
                 new Snapshot(
                         acceptedLocation,
@@ -1447,22 +1479,170 @@ public final class CaminoTrackingService extends Service
         }
     }
 
+    private void updateOffRouteNotification(
+            LockedMeasurementPathStore.Snapshot locked,
+            boolean onRoute
+    ) {
+        if (locked == null
+                || locked.path == null) {
+
+            offRoutePathVersion =
+                    Integer.MIN_VALUE;
+
+            offRouteStateInitialized =
+                    false;
+
+            cancelOffRouteNotification();
+
+            return;
+        }
+
+        if (offRoutePathVersion
+                != locked.version) {
+
+            offRoutePathVersion =
+                    locked.version;
+
+            offRouteStateInitialized =
+                    false;
+
+            cancelOffRouteNotification();
+        }
+
+        /*
+         * First state for a route is only our baseline.
+         * A warning needs a genuine ON -> OFF transition.
+         */
+        if (!offRouteStateInitialized) {
+            lastOnRoute =
+                    onRoute;
+
+            offRouteStateInitialized =
+                    true;
+
+            return;
+        }
+
+        if (lastOnRoute
+                && !onRoute) {
+
+            showOffRouteNotification();
+
+        } else if (!lastOnRoute
+                && onRoute) {
+
+            cancelOffRouteNotification();
+        }
+
+        lastOnRoute =
+                onRoute;
+    }
+
+
+    private void showOffRouteNotification() {
+        Notification.Builder builder;
+
+        if (Build.VERSION.SDK_INT
+                >= Build.VERSION_CODES.O) {
+
+            builder =
+                    new Notification.Builder(
+                            this,
+                            OFF_ROUTE_CHANNEL
+                    );
+
+        } else {
+            builder =
+                    new Notification.Builder(
+                            this
+                    );
+
+            builder.setPriority(
+                    Notification.PRIORITY_HIGH
+            );
+        }
+
+        Notification notification =
+                builder
+                        .setContentTitle(
+                                "Camino Guard"
+                        )
+                        .setContentText(
+                                "Strecke verlassen"
+                        )
+                        .setSmallIcon(
+                                android.R.drawable.ic_dialog_alert
+                        )
+                        .setAutoCancel(
+                                false
+                        )
+                        .setOngoing(
+                                false
+                        )
+                        .setOnlyAlertOnce(
+                                true
+                        )
+                        .build();
+
+        NotificationManager manager =
+                (NotificationManager)
+                        getSystemService(
+                                Context.NOTIFICATION_SERVICE
+                        );
+
+        manager.notify(
+                OFF_ROUTE_NOTIFICATION,
+                notification
+        );
+    }
+
+
+    private void cancelOffRouteNotification() {
+        NotificationManager manager =
+                (NotificationManager)
+                        getSystemService(
+                                Context.NOTIFICATION_SERVICE
+                        );
+
+        manager.cancel(
+                OFF_ROUTE_NOTIFICATION
+        );
+    }
+
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT
                 < Build.VERSION_CODES.O) {
             return;
         }
 
-        NotificationChannel channel =
+        NotificationChannel trackingChannel =
                 new NotificationChannel(
                         CHANNEL,
                         "Camino tracking",
                         NotificationManager.IMPORTANCE_LOW
                 );
 
-        channel.setDescription(
+        trackingChannel.setDescription(
                 "Camino Guard GPS tracking"
         );
+
+
+        NotificationChannel offRouteChannel =
+                new NotificationChannel(
+                        OFF_ROUTE_CHANNEL,
+                        "Camino warnings",
+                        NotificationManager.IMPORTANCE_HIGH
+                );
+
+        offRouteChannel.setDescription(
+                "Warnung beim Verlassen der eingelockten Strecke"
+        );
+
+        offRouteChannel.enableVibration(
+                true
+        );
+
 
         NotificationManager manager =
                 (NotificationManager)
@@ -1471,7 +1651,11 @@ public final class CaminoTrackingService extends Service
                         );
 
         manager.createNotificationChannel(
-                channel
+                trackingChannel
+        );
+
+        manager.createNotificationChannel(
+                offRouteChannel
         );
     }
 

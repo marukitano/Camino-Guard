@@ -129,20 +129,15 @@ final class LockedTimetableEtaAuthority {
         }
 
         /*
-         * OFF ROUTE freezes the complete authoritative timetable state.
-         * Re-entry is detected through etaWasOnRoute and refreshes immediately.
+         * OFF ROUTE keeps the last trustworthy route chainage frozen, but
+         * wall-clock delay must continue to move the ETA forward.
          *
-         * If no state exists yet, continue once so an initial lock can still
-         * establish an ETA when a trustworthy chainage is already known.
+         * Treat OFF ROUTE like a stationary route position for ETA cadence:
+         * the same chainage is rebuilt once per minute until re-entry.
          */
-        if (!onRoute
-                && latestState != null) {
-
-            etaWasOnRoute =
-                    false;
-
-            return latestState;
-        }
+        boolean etaStationary =
+                stationary
+                        || !onRoute;
 
         double elapsedSecondsAtCurrent =
                 planSource.elapsedSecondsAtChainage(
@@ -174,7 +169,7 @@ final class LockedTimetableEtaAuthority {
                         nowElapsedMs,
                         wallClockMinutes,
                         elapsedSecondsAtCurrent,
-                        stationary,
+                        etaStationary,
                         forceEtaRefresh
                 );
 

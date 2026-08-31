@@ -80,20 +80,28 @@ final class CaminoPebbleRoutePublisher {
             pathVersion =
                     Integer.MIN_VALUE;
 
-            hasMotionState =
-                    false;
-
             /*
-             * The watch clears route + speed when ROUTE_VALID becomes false.
+             * Speed is independent of Camino navigation.
+             * If GPS is available, keep publishing it even with no locked
+             * route. Route-specific values remain empty.
              */
             sendIfChanged(
                     "--",
                     "--",
                     "--",
-                    "--",
+                    formatSpeed(
+                            location,
+                            stationary
+                    ),
                     false,
                     false
             );
+
+            hasMotionState =
+                    true;
+
+            lastStationary =
+                    stationary;
 
             return;
         }
@@ -115,14 +123,16 @@ final class CaminoPebbleRoutePublisher {
                     locked.version;
         }
 
+        /*
+         * OFF ROUTE is no longer a Pebble presentation state.
+         * The Android notification system owns that warning.
+         */
         boolean alarmActive =
-                !onRoute;
+                false;
 
         boolean routeStateChanged =
                 !sentAnyState
                         || pathChanged
-                        || alarmActive
-                        != lastAlarmActive
                         || !lastRouteValid;
 
         boolean motionChanged =
@@ -132,31 +142,6 @@ final class CaminoPebbleRoutePublisher {
 
         long nowElapsed =
                 SystemClock.elapsedRealtime();
-
-        /*
-         * OFF ROUTE remains a transition, not a telemetry stream.
-         * Motion changes while the alarm is visible need no extra packet.
-         */
-        if (alarmActive) {
-            if (routeStateChanged) {
-                sendIfChanged(
-                        "--",
-                        "--",
-                        "--",
-                        "--",
-                        true,
-                        true
-                );
-            }
-
-            hasMotionState =
-                    true;
-
-            lastStationary =
-                    stationary;
-
-            return;
-        }
 
         boolean immediateEvaluation =
                 routeStateChanged
@@ -239,19 +224,13 @@ final class CaminoPebbleRoutePublisher {
                                 - state.currentChainageM
                 );
 
-        int remainingMinutes =
-                forwardMinutes(
-                        currentClockMinutes(),
-                        next.arrivalMinutesOfDay
-                );
-
         return new Values(
                 next.name,
                 formatDistance(
                         remainingDistanceM
                 ),
-                formatDuration(
-                        remainingMinutes
+                formatArrivalTime(
+                        next.arrivalMinutesOfDay
                 )
         );
     }
@@ -389,37 +368,6 @@ final class CaminoPebbleRoutePublisher {
     }
 
 
-    private static int currentClockMinutes() {
-        Calendar now =
-                Calendar.getInstance();
-
-        return now.get(
-                Calendar.HOUR_OF_DAY
-        )
-                * 60
-                + now.get(
-                Calendar.MINUTE
-        );
-    }
-
-
-    private static int forwardMinutes(
-            int from,
-            int to
-    ) {
-        int value =
-                (to - from)
-                        % (24 * 60);
-
-        if (value < 0) {
-            value +=
-                    24 * 60;
-        }
-
-        return value;
-    }
-
-
     private static String formatDistance(
             double distanceM
     ) {
@@ -439,28 +387,24 @@ final class CaminoPebbleRoutePublisher {
     }
 
 
-    private static String formatDuration(
-            int minutes
+    private static String formatArrivalTime(
+            int minutesOfDay
     ) {
-        int safe =
-                Math.max(
-                        0,
-                        minutes
-                );
+        int normalized =
+                minutesOfDay
+                        % (24 * 60);
 
-        if (safe < 60) {
-            return safe + " min";
+        if (normalized < 0) {
+            normalized +=
+                    24 * 60;
         }
 
-        int hours =
-                safe / 60;
-
-        int remainder =
-                safe % 60;
-
-        return remainder == 0
-                ? hours + " h"
-                : hours + " h " + remainder + " min";
+        return String.format(
+                Locale.US,
+                "%02d:%02d",
+                normalized / 60,
+                normalized % 60
+        );
     }
 
 

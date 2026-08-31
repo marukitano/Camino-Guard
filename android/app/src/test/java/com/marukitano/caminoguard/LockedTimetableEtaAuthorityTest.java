@@ -212,7 +212,7 @@ public final class LockedTimetableEtaAuthorityTest {
 
 
     @Test
-    public void offRouteFreezesExactStateUntilReentry() {
+    public void offRouteFreezesProgressButPushesArrivalLaterUntilReentry() {
         FakePlanSource source =
                 new FakePlanSource();
 
@@ -235,6 +235,9 @@ public final class LockedTimetableEtaAuthorityTest {
                         600
                 );
 
+        int originalArrival =
+                onRoute.nextStop.arrivalMinutesOfDay;
+
         CaminoTimetableState offRoute =
                 authority.update(
                         1,
@@ -246,19 +249,52 @@ public final class LockedTimetableEtaAuthorityTest {
                         610
                 );
 
-        assertSame(
-                onRoute,
-                offRoute
-        );
-
+        /*
+         * Progress freezes at the last trustworthy on-route position.
+         */
         assertEquals(
                 200.0,
                 offRoute.currentChainageM,
                 0.001
         );
 
+        /*
+         * Ten minutes without route progress push arrival ten minutes later.
+         */
         assertEquals(
-                1,
+                originalArrival + 10,
+                offRoute.nextStop.arrivalMinutesOfDay
+        );
+
+        assertEquals(
+                2,
+                source.buildCount
+        );
+
+        CaminoTimetableState oneMinuteLater =
+                authority.update(
+                        1,
+                        path,
+                        Double.NaN,
+                        false,
+                        false,
+                        11L * 60L * 1000L,
+                        611
+                );
+
+        assertEquals(
+                200.0,
+                oneMinuteLater.currentChainageM,
+                0.001
+        );
+
+        assertEquals(
+                offRoute.nextStop.arrivalMinutesOfDay + 1,
+                oneMinuteLater.nextStop.arrivalMinutesOfDay
+        );
+
+        assertEquals(
+                3,
                 source.buildCount
         );
 
@@ -269,8 +305,8 @@ public final class LockedTimetableEtaAuthorityTest {
                         250.0,
                         true,
                         false,
-                        10L * 60L * 1000L + 1_000L,
-                        611
+                        11L * 60L * 1000L + 1_000L,
+                        612
                 );
 
         assertEquals(
@@ -284,7 +320,7 @@ public final class LockedTimetableEtaAuthorityTest {
          * normal 15-minute moving interval.
          */
         assertEquals(
-                2,
+                4,
                 source.buildCount
         );
     }
