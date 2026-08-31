@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "ppf_digit_font.h"
+
 static Window *s_window;
 static Layer *s_dashboard_layer;
 
@@ -45,8 +47,11 @@ static bool parse_tenths(const char *text, int *value) {
             digit = true;
             if (!decimal) whole = whole * 10 + (*p - '0');
             else { frac = *p - '0'; break; }
-        } else if ((*p == '.' || *p == ',') && digit) decimal = true;
-        else if (digit) break;
+        } else if ((*p == '.' || *p == ',') && digit) {
+            decimal = true;
+        } else if (digit) {
+            break;
+        }
     }
     if (!digit) return false;
     *value = whole * 10 + frac;
@@ -180,20 +185,24 @@ static void clock_icon(GContext *ctx,GRect r) {
     pixel_icon(ctx,a,12,12,r);
 }
 
-static void metric_bar(GContext *ctx,GRect track,int f,GColor color) {
-    graphics_context_set_stroke_color(ctx,GColorWhite);
-    graphics_draw_round_rect(ctx,track,4);
-    int w=(track.size.w-2)*clamp_i(f,0,1000)/1000;
-    if(w>0) {graphics_context_set_fill_color(ctx,color);graphics_fill_rect(ctx,GRect(track.origin.x+1,track.origin.y+1,w,track.size.h-2),3,GCornersAll);}
+static void metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b) {
+    const int value_lane = 84;
+    const int max_w = b.size.w - value_lane;
+    const int w = max_w * clamp_i(fraction,0,1000) / 1000;
+    if (w <= 0) return;
+    graphics_context_set_fill_color(ctx,color);
+    graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
 }
 
 static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b) {
-    if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,GRect(8,y+2,20,20));
-    else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,GRect(8,y+2,20,20));
-    else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,y+2,20,20));
-    const int value_w=48, bar_x=34, bar_w=b.size.w-bar_x-value_w-8;
-    metric_bar(ctx,GRect(bar_x,y+3,bar_w,17),fraction,color);
-    dot_text(ctx,value,GRect(b.size.w-value_w-5,y+1,value_w,24),3,GTextAlignmentRight);
+    const int row_y = y + 2;
+    metric_bar(ctx,row_y,fraction,color,b);
+
+    if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,GRect(8,row_y,20,20));
+    else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,GRect(8,row_y,20,20));
+    else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,row_y,20,20));
+
+    ppf_draw_value(ctx,value,b.size.w-4,row_y,GColorWhite);
 }
 
 static void dashboard_update_proc(Layer *layer,GContext *ctx) {
