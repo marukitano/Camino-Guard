@@ -277,6 +277,14 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
                        next_stop_rect,
                        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
 
+    GSize next_prefix_size=graphics_text_layout_get_content_size(
+        "NE",s_font_megafont_12,GRect(0,0,100,18),
+        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft);
+    GRect next_x_rect=GRect(50+next_prefix_size.w+1,py+4,20,18);
+    graphics_draw_text(ctx,"X",s_font_megafont_12,
+                       next_x_rect,
+                       GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
+
     char next_name[40];
     megafont_text(s_next_name_text,next_name,sizeof(next_name));
     GFont next_font=s_font_megafont_18;
