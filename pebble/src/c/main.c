@@ -140,6 +140,7 @@ static void dot_text(GContext *ctx, const char *text, GRect r, int pitch, GTextA
     else if (align==GTextAlignmentRight) x+=r.size.w-w;
     int y=r.origin.y;
     graphics_context_set_fill_color(ctx,s_ink);
+    graphics_context_set_stroke_color(ctx,s_ink);
     const char *p=text;
     while (*p) {
         bool uml=false; char c=norm(codepoint(&p),&uml); const uint8_t *rows=glyph(c);
@@ -192,7 +193,7 @@ static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction
     else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,y+2,20,20));
     const int value_w=48, bar_x=34, bar_w=b.size.w-bar_x-value_w-8;
     metric_bar(ctx,GRect(bar_x,y+3,bar_w,17),fraction,color);
-    dot_text(ctx,value,GRect(b.size.w-value_w-5,y-2,value_w,27),3,GTextAlignmentRight);
+    dot_text(ctx,value,GRect(b.size.w-value_w-5,y+1,value_w,24),3,GTextAlignmentRight);
 }
 
 static void dashboard_update_proc(Layer *layer,GContext *ctx) {
