@@ -31,7 +31,28 @@
       "FLAT_SPEED": 7
     },
     "resources": {
-      "media": []
+      "media": [
+        {
+          "type": "png",
+          "name": "ICON_HEART",
+          "file": "resources/icons/heart.png"
+        },
+        {
+          "type": "png",
+          "name": "ICON_BLOOD",
+          "file": "resources/icons/blood.png"
+        },
+        {
+          "type": "png",
+          "name": "ICON_SHOE",
+          "file": "resources/icons/shoe.png"
+        },
+        {
+          "type": "png",
+          "name": "ICON_SHELL",
+          "file": "resources/icons/shell.png"
+        }
+      ]
     },
     "capabilities": [
       "health"

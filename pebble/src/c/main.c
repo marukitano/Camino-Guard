@@ -5,6 +5,11 @@
 static Window *s_window;
 static Layer *s_dashboard_layer;
 
+static GBitmap *s_icon_heart;
+static GBitmap *s_icon_blood;
+static GBitmap *s_icon_shoe;
+static GBitmap *s_icon_shell;
+
 static char s_time_text[16];
 static char s_date_text[24];
 static char s_battery_text[24];
@@ -147,6 +152,12 @@ static void dot_text(GContext *ctx, const char *text, GRect r, int pitch, GTextA
     }
 }
 
+static void draw_bitmap_icon(GContext *ctx, GBitmap *bitmap, GRect r) {
+    if (!bitmap) return;
+    graphics_context_set_compositing_mode(ctx, GCompOpSet);
+    graphics_draw_bitmap_in_rect(ctx, bitmap, r);
+}
+
 static void pixel_icon(GContext *ctx,const uint16_t *rows,int w,int h,GRect r) {
     graphics_context_set_fill_color(ctx,s_ink);
     int sx=r.size.w/w, sy=r.size.h/h, scale=sx<sy?sx:sy; if(scale<1) scale=1;
@@ -155,22 +166,6 @@ static void pixel_icon(GContext *ctx,const uint16_t *rows,int w,int h,GRect r) {
         graphics_fill_rect(ctx,GRect(ox+x*scale,oy+y*scale,scale,scale),0,GCornerNone);
 }
 
-static void heart_icon(GContext *ctx,GRect r) {
-    static const uint16_t a[10]={0x000,0x198,0x3FC,0x7FE,0x7FE,0x3FC,0x1F8,0x0F0,0x060,0};
-    pixel_icon(ctx,a,11,10,r);
-}
-static void drop_icon(GContext *ctx,GRect r) {
-    static const uint16_t a[12]={0x040,0x0E0,0x1F0,0x3F8,0x3F8,0x7FC,0x7FC,0x7FC,0x3F8,0x1F0,0x0E0,0};
-    pixel_icon(ctx,a,11,12,r);
-}
-static void shoe_icon(GContext *ctx,GRect r) {
-    static const uint16_t a[10]={0x600,0x700,0x780,0x3C0,0x1E0,0x1F8,0x3FE,0x7FF,0x7FF,0};
-    pixel_icon(ctx,a,11,10,r);
-}
-static void shell_icon(GContext *ctx,GRect r) {
-    static const uint16_t a[13]={0x020,0x0A8,0x154,0x2AA,0x555,0x7FF,0x3FE,0x1FC,0x0F8,0x070,0x020,0x020,0};
-    pixel_icon(ctx,a,11,13,r);
-}
 static void route_icon(GContext *ctx,GRect r) {
     static const uint16_t a[12]={0x0E0,0x1F0,0x110,0x1F0,0x0E0,0x040,0x040,0x070,0x008,0x00C,0x006,0x003};
     pixel_icon(ctx,a,9,12,r);
@@ -192,8 +187,10 @@ static void metric_bar(GContext *ctx,GRect track,int f,GColor color) {
 }
 
 static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b) {
-    GRect ir=GRect(8,y+2,20,18);
-    if(kind==0) heart_icon(ctx,ir); else if(kind==1) drop_icon(ctx,ir); else shoe_icon(ctx,ir);
+    GRect ir=GRect(8,y+2,20,20);
+    if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,ir);
+    else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,ir);
+    else draw_bitmap_icon(ctx,s_icon_shoe,ir);
     const int value_w=48, bar_x=34, bar_w=b.size.w-bar_x-value_w-8;
     metric_bar(ctx,GRect(bar_x,y+3,bar_w,17),fraction,color);
     dot_text(ctx,value,GRect(b.size.w-value_w-5,y-2,value_w,27),3,GTextAlignmentRight);
@@ -227,7 +224,7 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     graphics_draw_round_rect(ctx,panel,11); graphics_context_set_stroke_width(ctx,1);
     s_ink=GColorChromeYellow;
 
-    shell_icon(ctx,GRect(11,py+7,28,30));
+    draw_bitmap_icon(ctx,s_icon_shell,GRect(11,py+8,24,24));
     dot_text(ctx,"NÄCHSTES ZIEL",GRect(43,py+8,b.size.w-51,22),2,GTextAlignmentLeft);
     dot_text(ctx,s_next_name_text,GRect(43,py+27,b.size.w-51,27),2,GTextAlignmentLeft);
 
@@ -305,10 +302,20 @@ static void inbox_dropped(AppMessageResult r,void *ctx){APP_LOG(APP_LOG_LEVEL_WA
 
 static void window_load(Window *w){
     Layer *root=window_get_root_layer(w);GRect b=layer_get_bounds(root);
+    s_icon_heart=gbitmap_create_with_resource(RESOURCE_ID_ICON_HEART);
+    s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);
+    s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);
+    s_icon_shell=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHELL);
     s_dashboard_layer=layer_create(b);layer_set_update_proc(s_dashboard_layer,dashboard_update_proc);layer_add_child(root,s_dashboard_layer);
     window_set_background_color(w,GColorBlack);update_clock(NULL);update_battery(battery_state_service_peek());update_heart_rate();
 }
-static void window_unload(Window *w){layer_destroy(s_dashboard_layer);s_dashboard_layer=NULL;}
+static void window_unload(Window *w){
+    layer_destroy(s_dashboard_layer);s_dashboard_layer=NULL;
+    gbitmap_destroy(s_icon_heart);s_icon_heart=NULL;
+    gbitmap_destroy(s_icon_blood);s_icon_blood=NULL;
+    gbitmap_destroy(s_icon_shoe);s_icon_shoe=NULL;
+    gbitmap_destroy(s_icon_shell);s_icon_shell=NULL;
+}
 
 static void init(void){
     s_window=window_create();window_set_window_handlers(s_window,(WindowHandlers){.load=window_load,.unload=window_unload});window_stack_push(s_window,true);
