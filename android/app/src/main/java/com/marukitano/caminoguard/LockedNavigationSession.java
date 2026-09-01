@@ -95,6 +95,39 @@ final class LockedNavigationSession {
                         maxOffsetM
                 );
 
+        /*
+         * A freshly locked route may start while the walker is still at a
+         * hotel or another point outside the route corridor.
+         *
+         * Presentation must switch out of planning mode immediately and use
+         * the selected route start as the ETA anchor instead of leaving the
+         * old planned start time on screen. This fallback is deliberately NOT
+         * a trustworthy GPS projection: its offset is greater than maxOffsetM,
+         * so updateRouteState() continues to classify the physical position as
+         * OFF ROUTE. Once one real on-route projection has been accepted,
+         * later off-route periods keep the last trustworthy progress instead
+         * of jumping back to the route start.
+         */
+        if (projectionCacheResult != null
+                && projectionCacheResult.route == null
+                && !Double.isFinite(
+                        lastGoodChainageM
+                )) {
+
+            MeasurementPathProjection.Result routeStart =
+                    routeStartPresentationProjection(
+                            path
+                    );
+
+            if (routeStart != null) {
+                projectionCacheResult =
+                        new MeasurementPathProjection.LockedResult(
+                                routeStart,
+                                projectionCacheResult.heightProfile
+                        );
+            }
+        }
+
         projectionCachePath =
                 path;
 
@@ -121,10 +154,14 @@ final class LockedNavigationSession {
             MeasurementPathProjection.Result projection
     ) {
         double chainageM =
-                routeChainageM(
+                isTrustworthyRouteProjection(
+                        projection
+                )
+                        ? routeChainageM(
                         path,
                         projection
-                );
+                )
+                        : Double.NaN;
 
         if (Double.isFinite(
                 chainageM
@@ -228,6 +265,87 @@ final class LockedNavigationSession {
 
         projectionCacheResult =
                 null;
+    }
+
+
+    private boolean isTrustworthyRouteProjection(
+            MeasurementPathProjection.Result projection
+    ) {
+        return projection != null
+                && Double.isFinite(
+                        projection.offsetM
+                )
+                && projection.offsetM
+                <= maxOffsetM;
+    }
+
+
+    private MeasurementPathProjection.Result
+    routeStartPresentationProjection(
+            MeasurementPath path
+    ) {
+        if (path == null
+                || !Double.isFinite(
+                        path.distanceM
+                )
+                || path.distanceM < 0.0
+                || path.profilePoints == null
+                || path.profilePoints.isEmpty()) {
+
+            return null;
+        }
+
+        double profileStartDistanceM =
+                0.0;
+
+        double startElevationM =
+                Double.NaN;
+
+        ProfilePoint first =
+                path.profilePoints.get(
+                        0
+                );
+
+        if (first != null) {
+            if (Double.isFinite(
+                    first.distanceM
+            )) {
+                profileStartDistanceM =
+                        first.distanceM;
+            }
+
+            if (Double.isFinite(
+                    first.elevationM
+            )) {
+                startElevationM =
+                        first.elevationM;
+            }
+        }
+
+        if (!Double.isFinite(
+                startElevationM
+        )) {
+            for (ProfilePoint point
+                    : path.profilePoints) {
+
+                if (point != null
+                        && Double.isFinite(
+                                point.elevationM
+                        )) {
+
+                    startElevationM =
+                            point.elevationM;
+                    break;
+                }
+            }
+        }
+
+        return new MeasurementPathProjection.Result(
+                maxOffsetM + 1.0,
+                profileStartDistanceM,
+                startElevationM,
+                0.0
+        );
     }
 
 
