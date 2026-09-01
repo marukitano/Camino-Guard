@@ -67,7 +67,7 @@ check(info_presenter_path.is_file(), "missing CaminoInfoPresenter.java")
 check(info_controller_path.is_file(), "missing CaminoInfoController.java")
 check(map_coordinator_path.is_file(), "missing MapCoordinator.java")
 check(interaction_renderer_path.is_file(), "missing CaminoInteractionRenderer.java")
-check(travel_stats_path.is_file(), "missing TravelStatsController.java")
+check(not travel_stats_path.exists(), "obsolete TravelStatsController.java still exists")
 check(drag_path.is_file(), "missing CaminoDragController.java")
 check(selection_path.is_file(), "missing CaminoSelectionController.java")
 check(info_panel_path.is_file(), "missing CaminoInfoPanel.java")
@@ -271,7 +271,8 @@ if live_navigation_camera_path.is_file():
     check("FOLLOW_ZOOM =" in live_navigation_camera
           and "16.5;" in live_navigation_camera,
           "LiveNavigationCameraController lost tuned z16.5 follow zoom")
-    check("GPS walking course" in live_navigation_camera,
+    check("GPS-course-only" in live_navigation_camera
+          or "GPS walking course" in live_navigation_camera,
           "LiveNavigationCameraController no longer documents course-only rotation")
 
 gps_orientation_path = JAVA / "GpsGyroOrientationController.java"
@@ -436,21 +437,6 @@ if controller_path.is_file():
     check("measurementEngine.buildMeasurementPath(" in controller,
           "CaminoController unexpectedly lost measurement decision ownership")
 
-if travel_stats_path.is_file():
-    travel_stats = travel_stats_path.read_text()
-    check("void noteSample(" in travel_stats,
-          "TravelStatsController does not own travel sampling")
-    check("buildSpeedStatsText()" in travel_stats,
-          "TravelStatsController does not own speed/ETA formatting")
-    check("nextVillageMetrics()" in travel_stats,
-          "TravelStatsController does not own next-village metrics")
-    check("positiveAscentFromHitToTrackEnd(" in travel_stats,
-          "TravelStatsController does not own village ascent calculation")
-    check("CaminoTrackingService" not in travel_stats,
-          "TravelStatsController incorrectly owns GPS tracking")
-    check("MapLibreMap" not in travel_stats,
-          "TravelStatsController incorrectly owns map state")
-
 if controller_path.is_file():
     controller = controller_path.read_text()
     check("travelSessionStartElapsedMs" not in controller,
@@ -463,8 +449,8 @@ if controller_path.is_file():
           "CaminoController still owns travel stats formatting")
     check("private double[] nextVillageMetrics()" not in controller,
           "CaminoController still owns next-village metrics")
-    check("TravelStatsController" in controller,
-          "CaminoController is not wired to TravelStatsController")
+    check("TravelStatsController" not in controller,
+          "CaminoController still references obsolete TravelStatsController")
 
 if drag_path.is_file():
     drag = drag_path.read_text()
@@ -621,15 +607,15 @@ check(
 if style_path.is_file():
     style_text = style_path.read_text()
     check(
-        '"schaffhausen-munot-mask": {' in style_text,
+        '\"schaffhausen-munot-mask\": {' in style_text,
         "style missing Schaffhausen Munot mask source",
     )
     check(
-        '"source": "schaffhausen-munot-mask"' in style_text,
+        '\"source\": \"schaffhausen-munot-mask\"' in style_text,
         "style missing Schaffhausen Munot mask layer binding",
     )
     check(
-        '"id": "schaffhausen-munot-mask-fill"' in style_text,
+        '\"id\": \"schaffhausen-munot-mask-fill\"' in style_text,
         "style missing Schaffhausen Munot mask fill layer",
     )
     check(
@@ -662,11 +648,11 @@ if test_file.is_file():
 if app_gradle.is_file():
     gradle_text = app_gradle.read_text()
     check(
-        'testImplementation("junit:junit:4.13.2")' in gradle_text,
+        'testImplementation(\"junit:junit:4.13.2\")' in gradle_text,
         "missing JUnit unit-test dependency",
     )
     check(
-        'testImplementation("org.json:json:20250517")' in gradle_text,
+        'testImplementation(\"org.json:json:20250517\")' in gradle_text,
         "missing pure-JVM JSON test dependency",
     )
     check(
@@ -731,7 +717,7 @@ print("  one Camino projection / nearest-hit engine")
 print("  one Camino info-panel presenter")
 print("  one Camino info / HUD orchestration controller")
 print("  one MapLibre startup / style coordinator")
-print("  one travel statistics / village ETA controller")
+print("  obsolete foreground travel-stats path removed")
 print("  one Camino drag interaction controller")
 print("  one Camino tap-selection controller")
 print("  separated Camino info-panel drawing controls")
