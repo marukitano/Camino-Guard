@@ -50,12 +50,14 @@ final class CaminoInfoPanel extends FrameLayout {
 
         /*
          * The old bottom information card is temporarily disabled.
-         * This view now acts only as a transparent host for the two map
+         * This view now acts only as a transparent host for the three map
          * controls that remain active: navigation mode + lock + attribution.
+         * The 60dp controls are separated by 16dp so they remain easy to hit
+         * while walking.
          */
         setClickable(false);
-        setMinimumWidth(dpInt(48));
-        setMinimumHeight(dpInt(144));
+        setMinimumWidth(dpInt(68));
+        setMinimumHeight(dpInt(220));
 
         setBackground(
                 null
@@ -265,13 +267,13 @@ final class CaminoInfoPanel extends FrameLayout {
 
         FrameLayout.LayoutParams navigationParams =
                 new FrameLayout.LayoutParams(
-                        dpInt(40),
-                        dpInt(40),
+                        dpInt(60),
+                        dpInt(60),
                         Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
                 );
 
         navigationParams.bottomMargin =
-                dpInt(100);
+                dpInt(156);
 
         addView(
                 navigationButton,
@@ -297,8 +299,8 @@ final class CaminoInfoPanel extends FrameLayout {
 
         FrameLayout.LayoutParams attributionParams =
                 new FrameLayout.LayoutParams(
-                        dpInt(40),
-                        dpInt(40),
+                        dpInt(60),
+                        dpInt(60),
                         Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
                 );
 
@@ -329,13 +331,13 @@ final class CaminoInfoPanel extends FrameLayout {
 
         FrameLayout.LayoutParams lockParams =
                 new FrameLayout.LayoutParams(
-                        dpInt(40),
-                        dpInt(40),
+                        dpInt(60),
+                        dpInt(60),
                         Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL
                 );
 
         lockParams.bottomMargin =
-                dpInt(52);
+                dpInt(80);
 
         addView(
                 selectionLockButton,
