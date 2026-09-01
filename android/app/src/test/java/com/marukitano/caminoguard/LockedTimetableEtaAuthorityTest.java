@@ -327,7 +327,7 @@ public final class LockedTimetableEtaAuthorityTest {
 
 
     @Test
-    public void newPathVersionCannotReuseOldProgress() {
+    public void newPathVersionOffRouteStartsAtSelectedRouteStart() {
         FakePlanSource source =
                 new FakePlanSource();
 
@@ -351,7 +351,7 @@ public final class LockedTimetableEtaAuthorityTest {
                 )
         );
 
-        assertNull(
+        CaminoTimetableState freshOffRoute =
                 authority.update(
                         2,
                         path,
@@ -360,7 +360,34 @@ public final class LockedTimetableEtaAuthorityTest {
                         false,
                         2_000L,
                         601
-                )
+                );
+
+        assertNotNull(
+                freshOffRoute
+        );
+
+        assertEquals(
+                0.0,
+                freshOffRoute.currentChainageM,
+                0.001
+        );
+
+        assertNotNull(
+                freshOffRoute.nextStop
+        );
+
+        /*
+         * Fresh lock at 10:01 while still off-route anchors the selected route
+         * start at 10:01; the one-hour goal therefore arrives at 11:01.
+         */
+        assertEquals(
+                661,
+                freshOffRoute.nextStop.arrivalMinutesOfDay
+        );
+
+        assertEquals(
+                2,
+                source.buildCount
         );
     }
 
