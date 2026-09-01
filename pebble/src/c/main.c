@@ -252,6 +252,38 @@ static void clock_icon(GContext *ctx,GRect r) {
     pixel20_icon(ctx,a,r);
 }
 
+/*
+ * Pebble-side display zones only. These do not change tracking, alarms or
+ * Android-side glucose handling.
+ *
+ * Glucose follows the standard CGM ranges:
+ *   <3.0 mmol/L        red
+ *   3.0-3.8 mmol/L     yellow
+ *   3.9-10.0 mmol/L    green
+ *   10.1-13.9 mmol/L   yellow
+ *   >=14.0 mmol/L      red
+ *
+ * Heart-rate colors use a simple exercise-zone display based on an estimated
+ * maximum of 180 bpm: <70% green, 70-85% yellow, >85% red.
+ */
+static GColor glucose_bar_color(int value_tenths) {
+    if (value_tenths < 30) return GColorRed;
+    if (value_tenths < 39) return GColorYellow;
+    if (value_tenths <= 100) return GColorGreen;
+    if (value_tenths < 140) return GColorYellow;
+    return GColorRed;
+}
+
+static GColor heart_rate_bar_color(int bpm) {
+    const int estimated_max_bpm = 180;
+    const int moderate_limit = estimated_max_bpm * 70 / 100;
+    const int vigorous_limit = estimated_max_bpm * 85 / 100;
+
+    if (bpm < moderate_limit) return GColorGreen;
+    if (bpm <= vigorous_limit) return GColorYellow;
+    return GColorRed;
+}
+
 static int metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b, int max_w_limit) {
     const int min_w = 30;
     const int value_lane = 84;
@@ -324,8 +356,10 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     if(hg) snprintf(gv,sizeof(gv),"%d.%d",gt/10,gt%10);
     if(hs) snprintf(sv,sizeof(sv),"%d.%d",st/10,st%10);
     format_age_short(parse_age_minutes(s_glucose_text),glucose_age,sizeof(glucose_age));
-    live_row(ctx,31,0,heart,hf,GColorRed,b,NULL);
-    live_row(ctx,56,1,gv,gf,GColorGreen,b,glucose_age);
+    GColor heart_color=s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed;
+    GColor glucose_color=hg?glucose_bar_color(gt):GColorGreen;
+    live_row(ctx,31,0,heart,hf,heart_color,b,NULL);
+    live_row(ctx,56,1,gv,gf,glucose_color,b,glucose_age);
     live_row(ctx,81,2,sv,sf,GColorBlue,b,NULL);
 
     const int py=114, ph=b.size.h-py-5;
