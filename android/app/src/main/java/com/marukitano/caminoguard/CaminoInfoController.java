@@ -210,16 +210,16 @@ final class CaminoInfoController {
 
         /*
          * The former bottom info card is currently disabled. Its remaining
-         * navigation-mode + lock + attribution controls live as a compact vertical
-         * stack at the left screen edge.
+         * navigation-mode + lock + attribution controls live as a larger,
+         * finger-friendly vertical stack at the left screen edge.
          */
         FrameLayout.LayoutParams params =
                 new FrameLayout.LayoutParams(
                         dp(
-                                48
+                                68
                         ),
                         dp(
-                                144
+                                220
                         ),
                         Gravity.START
                                 | Gravity.BOTTOM
@@ -227,7 +227,7 @@ final class CaminoInfoController {
 
         params.leftMargin =
                 dp(
-                        2
+                        4
                 );
 
         /*
