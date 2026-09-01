@@ -255,16 +255,15 @@ static void clock_icon(GContext *ctx,GRect r) {
 static int metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b, int max_w_limit) {
     const int min_w = 30;
     const int value_lane = 84;
-    int max_w = b.size.w - value_lane;
+    const int base_max_w = b.size.w - value_lane;
 
-    if (max_w_limit > 0 && max_w_limit < max_w) {
-        max_w = max_w_limit;
-    }
-    if (max_w < min_w) max_w = min_w;
-
-    int w = max_w * clamp_i(fraction,0,1000) / 1000;
+    int w = base_max_w * clamp_i(fraction,0,1000) / 1000;
     if (w < min_w) w = min_w;
-    if (w > max_w) w = max_w;
+
+    int cap_w = max_w_limit > 0 ? max_w_limit : base_max_w;
+    if (cap_w > base_max_w) cap_w = base_max_w;
+    if (cap_w < min_w) cap_w = min_w;
+    if (w > cap_w) w = cap_w;
 
     graphics_context_set_fill_color(ctx,color);
     graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
@@ -276,11 +275,21 @@ static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction
     const int value_w = ppf_value_width(value);
     const int suffix_w = suffix && suffix[0] ? text_w(suffix,1) : 0;
 
-    int max_w_limit = 0;
-    if (suffix_w > 0) {
-        max_w_limit = b.size.w - value_w - suffix_w - 8;
-        if (max_w_limit < 30) max_w_limit = 30;
-    }
+    /*
+     * The value is attached to the bar, but it must never be pushed off-screen.
+     * Keep the normal bar scale, then hard-stop its visible growth as soon as
+     * the complete trailing text reaches the right-hand safety margin.
+     */
+    const int value_gap = 2;
+    const int suffix_gap = suffix_w > 0 ? 2 : 0;
+    const int right_margin = 4;
+    int max_w_limit = b.size.w
+            - value_gap
+            - value_w
+            - suffix_gap
+            - suffix_w
+            - right_margin;
+    if (max_w_limit < 30) max_w_limit = 30;
 
     const int bar_w = metric_bar(ctx,row_y,fraction,color,b,max_w_limit);
 
@@ -288,11 +297,11 @@ static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction
     else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,GRect(8,row_y,20,20));
     else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,row_y,20,20));
 
-    const int value_x = bar_w + 2;
+    const int value_x = bar_w + value_gap;
     ppf_draw_value(ctx,value,value_x + value_w,row_y,GColorWhite);
 
     if (suffix_w > 0) {
-        const int suffix_x = value_x + value_w + 2;
+        const int suffix_x = value_x + value_w + suffix_gap;
         s_ink = GColorWhite;
         dot_text(ctx,suffix,GRect(suffix_x,row_y+6,b.size.w-suffix_x,12),1,GTextAlignmentLeft);
     }
