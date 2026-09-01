@@ -20,11 +20,22 @@ final class GpsMotionStateDetector {
     /*
      * 0.20 m/s = 0.72 km/h.
      *
-     * A speed must stay below this boundary for the complete confirmation
-     * period before a real walking interval becomes a pause.
+     * A stationary confirmation may START only at or below this speed. This
+     * protects very slow real walking from being classified as a pause.
      */
-    private static final float STATIONARY_MAX_SPEED_MPS =
+    private static final float STATIONARY_START_MAX_SPEED_MPS =
             0.20f;
+
+    /*
+     * 0.35 m/s = 1.26 km/h.
+     *
+     * Once a genuine low-speed sample has started a stationary candidate,
+     * ordinary GNSS jitter is allowed to rise into this band without throwing
+     * away the complete five-second confirmation. Field testing showed that a
+     * seated phone can otherwise hover around 0.7..1.0 km/h for minutes.
+     */
+    private static final float STATIONARY_HOLD_MAX_SPEED_MPS =
+            0.35f;
 
     /*
      * 0.45 m/s = 1.62 km/h.
@@ -69,7 +80,7 @@ final class GpsMotionStateDetector {
         }
 
         if (speedMps
-                <= STATIONARY_MAX_SPEED_MPS) {
+                <= STATIONARY_START_MAX_SPEED_MPS) {
 
             movingCandidateSinceMs =
                     -1L;
@@ -79,14 +90,27 @@ final class GpsMotionStateDetector {
                         nowMs;
             }
 
-            if (state != State.STATIONARY
-                    && nowMs
-                    - stationaryCandidateSinceMs
-                    >= STATIONARY_CONFIRM_MS) {
+            confirmStationaryIfReady(
+                    nowMs
+            );
 
-                state =
-                        State.STATIONARY;
-            }
+            return state;
+        }
+
+        /*
+         * Do not START a pause from this band, but do let an already-started
+         * low-speed candidate survive typical stationary GNSS noise.
+         */
+        if (speedMps
+                <= STATIONARY_HOLD_MAX_SPEED_MPS
+                && stationaryCandidateSinceMs >= 0L) {
+
+            movingCandidateSinceMs =
+                    -1L;
+
+            confirmStationaryIfReady(
+                    nowMs
+            );
 
             return state;
         }
@@ -115,9 +139,8 @@ final class GpsMotionStateDetector {
         }
 
         /*
-         * Hysteresis band 0.20..0.45 m/s:
-         * preserve the already established state but require a fresh complete
-         * confirmation after leaving the band.
+         * Neutral band 0.35..0.45 m/s: preserve the established state, but a
+         * value this high is enough to invalidate a pending pause candidate.
          */
         resetCandidates();
 
@@ -130,6 +153,21 @@ final class GpsMotionStateDetector {
                 State.UNKNOWN;
 
         resetCandidates();
+    }
+
+
+    private void confirmStationaryIfReady(
+            long nowMs
+    ) {
+        if (state != State.STATIONARY
+                && stationaryCandidateSinceMs >= 0L
+                && nowMs
+                - stationaryCandidateSinceMs
+                >= STATIONARY_CONFIRM_MS) {
+
+            state =
+                    State.STATIONARY;
+        }
     }
 
 
