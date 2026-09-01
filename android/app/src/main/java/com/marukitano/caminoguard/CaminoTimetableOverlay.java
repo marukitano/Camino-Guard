@@ -30,7 +30,7 @@ final class CaminoTimetableOverlay {
             180L;
 
     private static final float PANEL_LEFT_DP =
-            58.0f;
+            78.0f;
 
     private final Activity activity;
     private final MapView mapView;
