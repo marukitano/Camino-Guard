@@ -129,16 +129,23 @@ final class LockedTimetableEtaAuthority {
                             path,
                             projectedChainageM
                     );
+
+        } else if (pathChanged) {
+            /*
+             * A freshly locked route may begin while the walker is still at a
+             * hotel or another off-route location. ETA presentation should
+             * nevertheless switch to live mode immediately: use the selected
+             * route start as the initial chainage and the current wall clock as
+             * its time anchor. The physical onRoute flag remains false, so this
+             * does not pretend that the GPS position is already on the Camino.
+             */
+            lastGoodChainageM =
+                    0.0;
         }
 
         double chainageM =
                 lastGoodChainageM;
 
-        /*
-         * No trustworthy route position yet.
-         *
-         * Never invent km 0 merely to produce an ETA.
-         */
         if (!Double.isFinite(
                 chainageM
         )) {
