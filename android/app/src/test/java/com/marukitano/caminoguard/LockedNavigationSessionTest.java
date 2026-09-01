@@ -2,6 +2,8 @@ package com.marukitano.caminoguard;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -85,6 +87,71 @@ public final class LockedNavigationSessionTest {
 
 
     @Test
+    public void initialOffRouteProjectionUsesRouteStartForPresentationOnly() {
+        MeasurementPath path =
+                simplePath();
+
+        LockedNavigationSession session =
+                new LockedNavigationSession(
+                        20.0
+                );
+
+        MeasurementPathProjection.LockedResult offRoute =
+                session.projectionFor(
+                        path,
+                        new LatLng(
+                                48.0,
+                                8.0
+                        )
+                );
+
+        assertNotNull(
+                offRoute
+        );
+
+        assertNotNull(
+                offRoute.route
+        );
+
+        assertEquals(
+                0.0,
+                offRoute.route.fraction,
+                0.001
+        );
+
+        assertTrue(
+                offRoute.route.offsetM
+                        > 20.0
+        );
+
+        /*
+         * The route-start value is presentation-only. The physical position
+         * remains OFF ROUTE until a real projection falls inside the corridor.
+         */
+        assertTrue(
+                session.updateRouteState(
+                        path,
+                        offRoute.route
+                )
+        );
+
+        assertTrue(
+                session.isOffRoute()
+        );
+
+        assertEquals(
+                0.0,
+                session.currentChainageM(
+                        path,
+                        offRoute.route,
+                        true
+                ),
+                0.001
+        );
+    }
+
+
+    @Test
     public void offRouteTransitionFiresOnlyOnceAndFreezesProgress() {
         MeasurementPath path =
                 simplePath();
@@ -114,10 +181,27 @@ public final class LockedNavigationSessionTest {
                 session.isOffRoute()
         );
 
+        MeasurementPathProjection.LockedResult far =
+                session.projectionFor(
+                        path,
+                        new LatLng(
+                                48.0,
+                                8.0
+                        )
+                );
+
+        /*
+         * Once real progress exists, leaving the corridor must not reuse the
+         * initial route-start fallback.
+         */
+        assertNull(
+                far.route
+        );
+
         assertTrue(
                 session.updateRouteState(
                         path,
-                        null
+                        far.route
                 )
         );
 
