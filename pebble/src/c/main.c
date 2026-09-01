@@ -61,6 +61,44 @@ static bool parse_tenths(const char *text, int *value) {
     return true;
 }
 
+static int parse_age_minutes(const char *text) {
+    if (!text) return -1;
+
+    const char *min_text = strstr(text, " min");
+    if (!min_text) return -1;
+
+    const char *start = min_text;
+    while (start > text
+            && start[-1] >= '0'
+            && start[-1] <= '9') {
+        --start;
+    }
+
+    if (start == min_text) return -1;
+
+    int age = 0;
+    for (const char *p = start; p < min_text; ++p) {
+        age = age * 10 + (*p - '0');
+    }
+
+    return age;
+}
+
+static void format_age_short(int age_minutes, char *dst, size_t n) {
+    if (!dst || n == 0) return;
+
+    if (age_minutes < 0) {
+        dst[0] = '\0';
+        return;
+    }
+
+    if (age_minutes < 60) {
+        snprintf(dst, n, "%dm", age_minutes);
+    } else {
+        snprintf(dst, n, "%dh", age_minutes / 60);
+    }
+}
+
 static const uint8_t *glyph(char c) {
     static const uint8_t blank[7]={0,0,0,0,0,0,0};
     static const uint8_t q[7]={14,17,1,2,4,0,4};
@@ -214,27 +252,50 @@ static void clock_icon(GContext *ctx,GRect r) {
     pixel20_icon(ctx,a,r);
 }
 
-static int metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b) {
+static int metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b, int max_w_limit) {
     const int min_w = 30;
     const int value_lane = 84;
-    const int max_w = b.size.w - value_lane;
+    int max_w = b.size.w - value_lane;
+
+    if (max_w_limit > 0 && max_w_limit < max_w) {
+        max_w = max_w_limit;
+    }
+    if (max_w < min_w) max_w = min_w;
+
     int w = max_w * clamp_i(fraction,0,1000) / 1000;
     if (w < min_w) w = min_w;
+    if (w > max_w) w = max_w;
+
     graphics_context_set_fill_color(ctx,color);
     graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
     return w;
 }
 
-static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b) {
+static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b,const char *suffix) {
     const int row_y = y + 2;
-    const int bar_w = metric_bar(ctx,row_y,fraction,color,b);
+    const int value_w = ppf_value_width(value);
+    const int suffix_w = suffix && suffix[0] ? text_w(suffix,1) : 0;
+
+    int max_w_limit = 0;
+    if (suffix_w > 0) {
+        max_w_limit = b.size.w - value_w - suffix_w - 8;
+        if (max_w_limit < 30) max_w_limit = 30;
+    }
+
+    const int bar_w = metric_bar(ctx,row_y,fraction,color,b,max_w_limit);
 
     if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,GRect(8,row_y,20,20));
     else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,GRect(8,row_y,20,20));
     else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,row_y,20,20));
 
     const int value_x = bar_w + 2;
-    ppf_draw_value(ctx,value,value_x + ppf_value_width(value),row_y,GColorWhite);
+    ppf_draw_value(ctx,value,value_x + value_w,row_y,GColorWhite);
+
+    if (suffix_w > 0) {
+        const int suffix_x = value_x + value_w + 2;
+        s_ink = GColorWhite;
+        dot_text(ctx,suffix,GRect(suffix_x,row_y+6,b.size.w-suffix_x,12),1,GTextAlignmentLeft);
+    }
 }
 
 static void dashboard_update_proc(Layer *layer,GContext *ctx) {
@@ -250,12 +311,13 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0;
     int gt=0,st=0; bool hg=parse_tenths(s_glucose_text,&gt), hs=parse_tenths(s_speed_text,&st);
     int gf=hg?(clamp_i(gt,20,140)-20)*1000/120:0, sf=hs?clamp_i(st,0,80)*1000/80:0;
-    char gv[16]="--",sv[16]="--";
+    char gv[16]="--",sv[16]="--",glucose_age[8]="";
     if(hg) snprintf(gv,sizeof(gv),"%d.%d",gt/10,gt%10);
     if(hs) snprintf(sv,sizeof(sv),"%d.%d",st/10,st%10);
-    live_row(ctx,31,0,heart,hf,GColorRed,b);
-    live_row(ctx,56,1,gv,gf,GColorGreen,b);
-    live_row(ctx,81,2,sv,sf,GColorBlue,b);
+    format_age_short(parse_age_minutes(s_glucose_text),glucose_age,sizeof(glucose_age));
+    live_row(ctx,31,0,heart,hf,GColorRed,b,NULL);
+    live_row(ctx,56,1,gv,gf,GColorGreen,b,glucose_age);
+    live_row(ctx,81,2,sv,sf,GColorBlue,b,NULL);
 
     const int py=114, ph=b.size.h-py-5;
     GRect panel=GRect(5,py,b.size.w-10,ph);
