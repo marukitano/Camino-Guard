@@ -15,7 +15,7 @@ final class LiveNavigationCameraController {
 
     private static final double FOLLOW_ZOOM =
             16.5;
-    private static final double BEARING_TAU_MS = 2200.0;
+    private static final double BEARING_TAU_MS = 900.0;
     private static final double BEARING_DEADBAND_DEG = 1.25;
 
     private final Activity activity;
