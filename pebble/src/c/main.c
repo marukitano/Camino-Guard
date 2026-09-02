@@ -17,7 +17,6 @@ static GFont s_font_megafont_18;
 
 static char s_time_text[16];
 static char s_date_text[24];
-static char s_battery_text[24];
 static char s_glucose_text[32] = "--";
 static char s_next_name_text[40] = "--";
 static char s_distance_text[32] = "--";
@@ -31,6 +30,7 @@ static GColor s_ink;
 
 #if defined(PBL_HEALTH)
 static bool s_health_subscribed;
+static AppTimer *s_heart_rate_timer;
 #endif
 
 static int clamp_i(int v, int lo, int hi) {
@@ -344,9 +344,13 @@ static void dashboard_update_proc(Layer *layer,GContext *ctx) {
     graphics_context_set_fill_color(ctx,GColorBlack); graphics_fill_rect(ctx,b,0,GCornerNone);
     s_ink=GColorWhite; graphics_context_set_stroke_color(ctx,GColorWhite);
 
-    dot_text(ctx,s_date_text,GRect(8,5,62,24),2,GTextAlignmentLeft);
-    dot_text(ctx,s_battery_text,GRect((b.size.w-62)/2,5,62,24),2,GTextAlignmentCenter);
-    dot_text(ctx,s_time_text,GRect(b.size.w-70,5,62,24),2,GTextAlignmentRight);
+    /*
+     * Keep the clock at exactly the same PPF value height as the live metrics.
+     * The date uses the compact renderer from the same PPF glyph family so the
+     * two fields fit cleanly on one 200 px row without reintroducing clutter.
+     */
+    ppf_draw_small_value_centered(ctx,s_date_text,GRect(6,5,72,PPF_VALUE_HEIGHT),GColorWhite);
+    ppf_draw_value(ctx,s_time_text,b.size.w-8,5,GColorWhite);
 
     char heart[16]="--"; if(s_heart_rate>0) snprintf(heart,sizeof(heart),"%d",s_heart_rate);
     int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0;
@@ -433,19 +437,31 @@ static void update_clock(struct tm *t) {
     strftime(s_date_text,sizeof(s_date_text),"%d.%m",t); dirty();
 }
 static void tick_handler(struct tm *t,TimeUnits u){update_clock(t);}
-static void update_battery(BatteryChargeState s){snprintf(s_battery_text,sizeof(s_battery_text),"%d%%",s.charge_percent);dirty();}
-static void battery_handler(BatteryChargeState s){update_battery(s);}
 
 static void update_heart_rate(void) {
 #if defined(PBL_HEALTH)
-    HealthValue v=health_service_peek_current_value(HealthMetricHeartRateBPM); s_heart_rate=v>0?(int)v:-1;
+    /*
+     * HealthMetricHeartRateBPM is filtered and may be several minutes old.
+     * The dashboard is meant to behave like the live Health view, so use the
+     * newest raw sensor sample instead. If no valid raw sample exists, show --
+     * rather than presenting an old filtered value as current.
+     */
+    HealthValue v=health_service_peek_current_value(HealthMetricHeartRateRawBPM);
+    s_heart_rate=v>0?(int)v:-1;
 #else
     s_heart_rate=-1;
 #endif
     dirty();
 }
 #if defined(PBL_HEALTH)
-static void health_handler(HealthEventType e,void *c){if(e==HealthEventHeartRateUpdate||e==HealthEventSignificantUpdate)update_heart_rate();}
+static void heart_rate_timer_handler(void *context) {
+    update_heart_rate();
+    s_heart_rate_timer=app_timer_register(1000,heart_rate_timer_handler,NULL);
+}
+
+static void health_handler(HealthEventType e,void *c){
+    if(e==HealthEventHeartRateUpdate||e==HealthEventSignificantUpdate)update_heart_rate();
+}
 #endif
 
 static void copy_text(DictionaryIterator *it,uint32_t key,char *dst,size_t n){Tuple *t=dict_find(it,key);if(t&&dst&&n)snprintf(dst,n,"%s",t->value->cstring);}
@@ -480,7 +496,7 @@ static void window_load(Window *w){
     s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));
     s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));
     s_dashboard_layer=layer_create(b);layer_set_update_proc(s_dashboard_layer,dashboard_update_proc);layer_add_child(root,s_dashboard_layer);
-    window_set_background_color(w,GColorBlack);update_clock(NULL);update_battery(battery_state_service_peek());update_heart_rate();
+    window_set_background_color(w,GColorBlack);update_clock(NULL);update_heart_rate();
 }
 static void window_unload(Window *w){
     layer_destroy(s_dashboard_layer);s_dashboard_layer=NULL;
@@ -495,16 +511,25 @@ static void window_unload(Window *w){
 
 static void init(void){
     s_window=window_create();window_set_window_handlers(s_window,(WindowHandlers){.load=window_load,.unload=window_unload});window_stack_push(s_window,true);
-    tick_timer_service_subscribe(MINUTE_UNIT,tick_handler);battery_state_service_subscribe(battery_handler);
+    tick_timer_service_subscribe(MINUTE_UNIT,tick_handler);
 #if defined(PBL_HEALTH)
     s_health_subscribed=health_service_events_subscribe(health_handler,NULL);
+    /*
+     * Ask PebbleOS for the fastest HR sampling cadence while Camino Guard is
+     * active. This is a request, not a guarantee; sensor quality/system policy
+     * can still choose a different cadence.
+     */
+    health_service_set_heart_rate_sample_period(1);
+    s_heart_rate_timer=app_timer_register(1000,heart_rate_timer_handler,NULL);
 #endif
     app_message_register_inbox_received(inbox_received);app_message_register_inbox_dropped(inbox_dropped);
     AppMessageResult r=app_message_open(256,64);if(r!=APP_MSG_OK)APP_LOG(APP_LOG_LEVEL_ERROR,"AppMessage open failed: %d",(int)r);
 }
 static void deinit(void){
-    tick_timer_service_unsubscribe();battery_state_service_unsubscribe();
+    tick_timer_service_unsubscribe();
 #if defined(PBL_HEALTH)
+    if(s_heart_rate_timer){app_timer_cancel(s_heart_rate_timer);s_heart_rate_timer=NULL;}
+    health_service_set_heart_rate_sample_period(0);
     if(s_health_subscribed)health_service_events_unsubscribe();
 #endif
     window_destroy(s_window);
