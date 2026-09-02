@@ -262,8 +262,8 @@ if live_navigation_camera_path.is_file():
           "LiveNavigationCameraController does not keep follow pivot on GPS position")
     check("RETURN_MS = 1650" in live_navigation_camera,
           "LiveNavigationCameraController lost proven 1650 ms return timing")
-    check("BEARING_TAU_MS = 2200.0" in live_navigation_camera,
-          "LiveNavigationCameraController lost proven bearing smoothing")
+    check("BEARING_TAU_MS = 900.0" in live_navigation_camera,
+          "LiveNavigationCameraController lost tuned 900 ms bearing smoothing")
     check("BEARING_DEADBAND_DEG = 1.25" in live_navigation_camera,
           "LiveNavigationCameraController lost proven bearing deadband")
     check("direction arrow is the rotation pivot" in live_navigation_camera,
