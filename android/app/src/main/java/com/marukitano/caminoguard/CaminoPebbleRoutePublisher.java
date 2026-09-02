@@ -3,7 +3,6 @@ package com.marukitano.caminoguard;
 import android.location.Location;
 import android.os.SystemClock;
 
-import java.util.Calendar;
 import java.util.Locale;
 
 
@@ -35,6 +34,14 @@ final class CaminoPebbleRoutePublisher {
     private boolean sentAnyState;
     private boolean lastAlarmActive;
     private boolean lastRouteValid;
+
+    /*
+     * AppMessage delivery is asynchronous. A timeout/NACK must invalidate the
+     * delta stream; otherwise Android can believe a transition reached the
+     * watch and suppress it forever. The next normal evaluation then sends one
+     * complete self-contained snapshot without resetting the navigation lock.
+     */
+    private boolean forceFullSend;
 
     /*
      * Motion transitions bypass the ordinary five-second telemetry throttle.
@@ -251,7 +258,8 @@ final class CaminoPebbleRoutePublisher {
             boolean alarmActive,
             boolean routeValid
     ) {
-        if (sentAnyState
+        if (!forceFullSend
+                && sentAnyState
                 && alarmActive == lastAlarmActive
                 && routeValid == lastRouteValid
                 && sameText(
@@ -278,11 +286,12 @@ final class CaminoPebbleRoutePublisher {
             return;
         }
 
-        boolean firstSend =
-                !sentAnyState;
+        boolean fullSend =
+                !sentAnyState
+                        || forceFullSend;
 
         String nextNameDelta =
-                firstSend
+                fullSend
                         || !sameText(
                                 nextName,
                                 lastSentNextName
@@ -291,7 +300,7 @@ final class CaminoPebbleRoutePublisher {
                         : null;
 
         String nextDistanceDelta =
-                firstSend
+                fullSend
                         || !sameText(
                                 nextDistance,
                                 lastSentNextDistance
@@ -300,7 +309,7 @@ final class CaminoPebbleRoutePublisher {
                         : null;
 
         String nextTimeDelta =
-                firstSend
+                fullSend
                         || !sameText(
                                 nextTime,
                                 lastSentNextTime
@@ -309,7 +318,7 @@ final class CaminoPebbleRoutePublisher {
                         : null;
 
         String speedDelta =
-                firstSend
+                fullSend
                         || !sameText(
                                 speed,
                                 lastSentSpeed
@@ -318,7 +327,7 @@ final class CaminoPebbleRoutePublisher {
                         : null;
 
         String flatSpeedDelta =
-                firstSend
+                fullSend
                         || !sameText(
                                 flatSpeed,
                                 lastSentFlatSpeed
@@ -327,7 +336,7 @@ final class CaminoPebbleRoutePublisher {
                         : null;
 
         Boolean alarmDelta =
-                firstSend
+                fullSend
                         || alarmActive
                         != lastAlarmActive
                         ? Boolean.valueOf(
@@ -336,13 +345,21 @@ final class CaminoPebbleRoutePublisher {
                         : null;
 
         Boolean routeValidDelta =
-                firstSend
+                fullSend
                         || routeValid
                         != lastRouteValid
                         ? Boolean.valueOf(
                                 routeValid
                         )
                         : null;
+
+        /*
+         * Optimistically keep the normal delta stream small. If PebbleKit later
+         * reports that this packet did not reach the watch, the callback flips
+         * forceFullSend and the next evaluation resynchronizes every field.
+         */
+        forceFullSend =
+                false;
 
         bridge.sendRouteState(
                 nextNameDelta,
@@ -351,7 +368,17 @@ final class CaminoPebbleRoutePublisher {
                 speedDelta,
                 flatSpeedDelta,
                 alarmDelta,
-                routeValidDelta
+                routeValidDelta,
+                delivered -> {
+                    if (delivered) {
+                        return;
+                    }
+
+                    synchronized (CaminoPebbleRoutePublisher.this) {
+                        forceFullSend =
+                                true;
+                    }
+                }
         );
 
         sentAnyState =
