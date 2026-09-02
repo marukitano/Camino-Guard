@@ -20,7 +20,8 @@
         <service
             android:name=".CaminoTrackingService"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="location"
+            android:stopWithTask="true" />
 
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
