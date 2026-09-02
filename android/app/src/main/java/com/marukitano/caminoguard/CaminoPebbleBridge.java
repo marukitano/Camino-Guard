@@ -6,10 +6,13 @@ import android.util.Log;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import io.rebble.pebblekit2.client.java.DefaultJavaPebbleSender;
 import io.rebble.pebblekit2.client.java.JavaPebbleSender;
 import io.rebble.pebblekit2.common.model.PebbleDictionaryItem;
+import io.rebble.pebblekit2.common.model.TransmissionResult;
+import io.rebble.pebblekit2.common.model.WatchIdentifier;
 
 
 /**
@@ -94,10 +97,13 @@ final class CaminoPebbleBridge
                     APP_UUID,
                     dictionary,
                     result -> {
-                        if (result == null) {
+                        if (!transmissionSucceeded(
+                                result
+                        )) {
                             Log.d(
                                     TAG,
-                                    "Pebble currently unreachable"
+                                    "Glucose not delivered to Pebble: "
+                                            + result
                             );
 
                         } else {
@@ -130,7 +136,8 @@ final class CaminoPebbleBridge
             String currentSpeed,
             String flatSpeed,
             Boolean alarmActive,
-            Boolean routeValid
+            Boolean routeValid,
+            Consumer<Boolean> onResult
     ) {
         Map<Integer, PebbleDictionaryItem> dictionary =
                 new HashMap<>();
@@ -194,6 +201,12 @@ final class CaminoPebbleBridge
         );
 
         if (dictionary.isEmpty()) {
+            if (onResult != null) {
+                onResult.accept(
+                        true
+                );
+            }
+
             return;
         }
 
@@ -202,10 +215,22 @@ final class CaminoPebbleBridge
                     APP_UUID,
                     dictionary,
                     result -> {
-                        if (result == null) {
-                            Log.d(
+                        boolean delivered =
+                                transmissionSucceeded(
+                                        result
+                                );
+
+                        if (!delivered) {
+                            Log.w(
                                     TAG,
-                                    "Pebble currently unreachable"
+                                    "Route state not delivered to Pebble: "
+                                            + result
+                            );
+                        }
+
+                        if (onResult != null) {
+                            onResult.accept(
+                                    delivered
                             );
                         }
                     }
@@ -221,7 +246,36 @@ final class CaminoPebbleBridge
                     "Could not send route state to Pebble",
                     error
             );
+
+            if (onResult != null) {
+                onResult.accept(
+                        false
+                );
+            }
         }
+    }
+
+
+    static boolean transmissionSucceeded(
+            Map<WatchIdentifier, TransmissionResult> result
+    ) {
+        if (result == null
+                || result.isEmpty()) {
+
+            return false;
+        }
+
+        for (TransmissionResult transmission :
+                result.values()) {
+
+            if (!(transmission
+                    instanceof TransmissionResult.Success)) {
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
 
