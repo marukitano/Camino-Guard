@@ -241,7 +241,7 @@ static const uint8_t *glyph(char c) {
         case 'E': {static const uint8_t r[7]={31,16,16,30,16,16,31};return r;}
         case 'F': {static const uint8_t r[7]={31,16,16,30,16,16,16};return r;}
         case 'G': {static const uint8_t r[7]={14,17,16,23,17,17,15};return r;}
-        case 'H': {static const uint8_t r[7]={17,25,21,19,17,17,17};return r;}
+        case 'H': {static const uint8_t r[7]={17,17,17,31,17,17,17};return r;}
         case 'I': {static const uint8_t r[7]={14,4,4,4,4,4,14};return r;}
         case 'J': {static const uint8_t r[7]={7,2,2,2,18,18,12};return r;}
         case 'K': {static const uint8_t r[7]={17,18,20,24,20,18,17};return r;}
