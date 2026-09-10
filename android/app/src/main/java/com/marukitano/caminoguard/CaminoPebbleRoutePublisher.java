@@ -776,8 +776,14 @@ final class CaminoPebbleRoutePublisher
                         ? -1
                         : routeProgressPercent;
 
-        boolean isGoal =
-                selectedStopIndex
+        /*
+         * The existing Pebble endpoint flag is true for both ends of the
+         * timetable. The watch distinguishes START vs GOAL from the browsing
+         * direction and keeps that endpoint identity for later refreshes.
+         */
+        boolean isEndpoint =
+                selectedStopIndex == 0
+                        || selectedStopIndex
                         == stops.size() - 1;
 
         forceStopSend =
@@ -796,7 +802,7 @@ final class CaminoPebbleRoutePublisher
                 ),
                 percent,
                 temperatureCurrent,
-                isGoal,
+                isEndpoint,
                 delivered -> {
                     if (delivered) {
                         return;
