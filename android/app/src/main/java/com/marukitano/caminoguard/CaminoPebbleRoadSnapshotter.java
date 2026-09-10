@@ -21,19 +21,19 @@ import java.util.concurrent.Executors;
  * Produces a roads-only snapshot from the same offline PMTiles repository used
  * by Camino Guard's Android map.
  *
- * The watch finally needs one road bit per physical display pixel. Rendering
- * those bits directly at Pebble resolution made diagonals visibly stair-step,
- * especially after compass rotation. This class therefore acts as the map
- * preprocessor: MapLibre renders the 200 x 228 m window at 4x resolution,
- * then a conservative supersample/downsample pass turns that into a smooth
- * 200 x 228 one-bit road mask. A tiny gap-bridging pass removes single-pixel
- * holes without moving junctions or changing the underlying road geometry.
+ * Screen 3 itself is only 200 x 228 px, but a heading-up map needs geometry
+ * beyond those screen edges: the corners exposed by rotation would otherwise
+ * be empty. Android therefore renders a 360 x 360 m square around the user at
+ * 4x supersampling, then reduces it to a compact 256 x 256 one-bit road mask.
+ * The Pebble samples that overscanned mask into its fixed 200 x 228 frame.
+ * This keeps roads available at every heading without allocating a giant
+ * colour bitmap on the watch.
  */
 final class CaminoPebbleRoadSnapshotter
         implements AutoCloseable {
 
-    static final int MASK_WIDTH = 200;
-    static final int MASK_HEIGHT = 228;
+    static final int MASK_WIDTH = 256;
+    static final int MASK_HEIGHT = 256;
 
     private static final int SUPERSAMPLE = 4;
     private static final int RENDER_WIDTH =
@@ -41,8 +41,8 @@ final class CaminoPebbleRoadSnapshotter
     private static final int RENDER_HEIGHT =
             MASK_HEIGHT * SUPERSAMPLE;
 
-    private static final double HALF_WIDTH_M = 100.0;
-    private static final double HALF_HEIGHT_M = 114.0;
+    private static final double HALF_WIDTH_M = 180.0;
+    private static final double HALF_HEIGHT_M = 180.0;
     private static final float CACHE_REUSE_DISTANCE_M = 20.0f;
     private static final int MASK_BYTES =
             (MASK_WIDTH * MASK_HEIGHT + 7) / 8;
