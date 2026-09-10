@@ -51,7 +51,7 @@
 #define TIMETABLE_BOUNCE_PX 16
 #define TIMETABLE_LINE_X 20
 #define TIMETABLE_STOP_Y 28
-#define TIMETABLE_STOP_RADIUS 6
+#define TIMETABLE_STOP_RADIUS 9
 #define TIMETABLE_CONTENT_X 38
 #define TIMETABLE_NAME_Y 0
 #define TIMETABLE_NAME_H 60
@@ -426,7 +426,7 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS);
     if(!v->is_goal&&!v->is_start){
         graphics_context_set_fill_color(ctx,GColorBlack);
-        graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-2);
+        graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-3);
     }
     graphics_context_set_stroke_width(ctx,1);
 
@@ -436,7 +436,12 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     GRect name_box=GRect(TIMETABLE_CONTENT_X,TIMETABLE_NAME_Y+off,b.size.w-TIMETABLE_CONTENT_X-5,TIMETABLE_NAME_H);
     GFont f=fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
     GSize name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
-    if(name_size.h>TIMETABLE_NAME_H)f=fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+    if(name_size.h>TIMETABLE_NAME_H){
+        f=fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+        name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
+    }
+    /* Keep the dot fixed. Only one-line names move down to its vertical centre. */
+    if(name_size.h<=32)name_box.origin.y=TIMETABLE_STOP_Y+off-name_size.h/2;
     graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);
 
     draw_timetable_value(ctx,b,v->distance,TIMETABLE_DISTANCE_Y+off,"KM");

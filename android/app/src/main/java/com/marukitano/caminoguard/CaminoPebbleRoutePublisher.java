@@ -767,14 +767,32 @@ final class CaminoPebbleRoutePublisher
                         ? 0.0
                         : latestTimetableState.currentChainageM;
 
-        int routeProgressPercent =
-                routeProgressPercent();
-
+        /* Fixed percentage of the whole locked route at this stop. */
         int percent =
-                routeProgressPercent
-                        == UNKNOWN_METRIC
-                        ? -1
-                        : routeProgressPercent;
+                -1;
+
+        if (latestLocked != null
+                && latestLocked.path != null
+                && Double.isFinite(latestLocked.path.distanceM)
+                && latestLocked.path.distanceM > 0.0
+                && Double.isFinite(stop.chainageM)) {
+
+            percent =
+                    (int) Math.round(
+                            100.0
+                                    * stop.chainageM
+                                    / latestLocked.path.distanceM
+                    );
+
+            percent =
+                    Math.max(
+                            0,
+                            Math.min(
+                                    100,
+                                    percent
+                            )
+                    );
+        }
 
         int endpointFlags =
                 (selectedStopIndex
