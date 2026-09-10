@@ -529,21 +529,24 @@ static void draw_map(GContext*ctx,GRect b){
     prepare_map_transform();
     draw_road_bitmap(ctx,b);
 
+    GColor camino_outline=GColorFromHEX(0x000055);
+    GColor camino_core=GColorFromHEX(0x55AAFF);
+
     if(s_map_payload_len>=5&&s_map_payload[0]==2){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            /* Blue Camino with a 3 px yellow casing on each side. */
-            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,11);
-            draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
+            /* 5 px light-blue Camino with a 3 px dark-blue casing on each side. */
+            draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);
+            draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
         }
     }else if(s_map_payload_len>=3&&s_map_payload[0]==1){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=3,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,11);
-            draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
+            draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);
+            draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
         }
     }
