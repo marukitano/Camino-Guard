@@ -653,13 +653,7 @@ static void copy_stop_fields(DictionaryIterator*it,StopView*v){
     if(!v)return;
     copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);
     Tuple*endpoint=dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);
-    if(endpoint){
-        bool marked=endpoint->value->int32!=0;
-        if(!marked){v->is_goal=false;v->is_start=false;}
-        else if(s_stop_request_pending&&s_stop_request_delta>0){v->is_start=true;v->is_goal=false;}
-        else if(s_stop_request_pending&&s_stop_request_delta<0){v->is_goal=true;v->is_start=false;}
-        else if(!v->is_start&&!v->is_goal){v->is_goal=true;}
-    }
+    if(endpoint){int32_t flags=endpoint->value->int32;v->is_goal=(flags&0x1)!=0;v->is_start=(flags&0x2)!=0;}
 }
 static void inbox_received(DictionaryIterator*it,void*c){
     copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));copy_int32(it,MESSAGE_KEY_TEMP_CURRENT_TENTHS,&s_temp_current);copy_int32(it,MESSAGE_KEY_TEMP_MIN_TENTHS,&s_temp_min);copy_int32(it,MESSAGE_KEY_TEMP_MAX_TENTHS,&s_temp_max);copy_int32(it,MESSAGE_KEY_SUNRISE_MINUTES,&s_sunrise_minutes);copy_int32(it,MESSAGE_KEY_SUNSET_MINUTES,&s_sunset_minutes);copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);copy_int32(it,MESSAGE_KEY_ROUTE_PROGRESS_PERCENT,&s_route_progress_percent);
