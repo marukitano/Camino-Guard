@@ -48,6 +48,7 @@ final class CaminoPebbleBridge
     private static final int KEY_STOP_DISTANCE = 18;
     private static final int KEY_STOP_PERCENT = 19;
     private static final int KEY_MAP_VECTOR = 20;
+    private static final int KEY_ROUTE_PROGRESS_PERCENT = 23;
 
     private final JavaPebbleSender sender;
     private final CaminoPebbleWeatherClient weatherClient;
@@ -155,6 +156,7 @@ final class CaminoPebbleBridge
             Integer elevationCurrentM,
             Integer elevationMinM,
             Integer elevationMaxM,
+            Integer routeProgressPercent,
             Consumer<Boolean> onResult
     ) {
         Map<Integer, PebbleDictionaryItem> dictionary =
@@ -212,6 +214,12 @@ final class CaminoPebbleBridge
                 dictionary,
                 KEY_ELEVATION_MAX,
                 elevationMaxM
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_ROUTE_PROGRESS_PERCENT,
+                routeProgressPercent
         );
 
         sendDictionary(
