@@ -213,8 +213,10 @@ public final class CaminoTrackingService extends Service
      * Pebble route presentation and the four-week study consume the same
      * persisted locked MeasurementPath.
      *
-     * Keep one store and one projection in the service so one physical GPS
-     * fix cannot scan the same selected route independently in both consumers.
+     * Keep one store and one nearest selected-route projection in the service
+     * so Android and Pebble share exactly the same route progress. The
+     * off-route threshold is applied separately only where it is semantically
+     * required: warnings and study-data admission.
      */
     private final Object lockedPathProjectionLock =
             new Object();
@@ -895,10 +897,17 @@ public final class CaminoTrackingService extends Service
                 walkingSpeedStudyRecorder;
 
         if (studyRecorder != null) {
+            MeasurementPathProjection.Result studyProjection =
+                    isProjectionOnRoute(
+                            lockedProjection
+                    )
+                            ? lockedProjection
+                            : null;
+
             studyRecorder.noteGpsFix(
                     location,
                     locked,
-                    lockedProjection
+                    studyProjection
             );
         }
 
@@ -1009,7 +1018,9 @@ public final class CaminoTrackingService extends Service
 
         boolean onRoute =
                 acceptedLocation != null
-                        && lockedProjection != null;
+                        && isProjectionOnRoute(
+                                lockedProjection
+                        );
 
         updateOffRouteNotification(
                 locked,
@@ -1040,7 +1051,7 @@ public final class CaminoTrackingService extends Service
             publisher.onGpsFix(
                     acceptedLocation,
                     locked,
-                    lockedProjection != null,
+                    onRoute,
                     timetableState,
                     lockedTimetableEtaAuthority == null
                             ? Double.NaN
@@ -1088,23 +1099,29 @@ public final class CaminoTrackingService extends Service
             return null;
         }
 
-        boolean onRoute =
+        boolean hasRouteProjection =
                 acceptedLocation != null
                         && projection != null;
 
         double chainageM =
-                onRoute
+                hasRouteProjection
                         ? LockedTimetableEtaAuthority.routeChainageM(
                                 locked.path,
                                 projection
                         )
                         : Double.NaN;
 
+        /*
+         * Timetable progress follows the nearest point on the locked Camino
+         * even while the physical GPS fix is outside the off-route threshold.
+         * The authority therefore receives projection availability here; the
+         * separate warning state still uses the real thresholded onRoute flag.
+         */
         return authority.update(
                 locked.version,
                 locked.path,
                 chainageM,
-                onRoute,
+                hasRouteProjection,
                 stationary,
                 SystemClock.elapsedRealtime(),
                 currentClockMinutes()
@@ -1150,11 +1167,7 @@ public final class CaminoTrackingService extends Service
 
         if (locked == null
                 || locked.path == null
-                || location == null
-                || !Double.isFinite(
-                        serviceMaxRouteOffsetM
-                )
-                || serviceMaxRouteOffsetM < 0.0) {
+                || location == null) {
 
             return null;
         }
@@ -1165,11 +1178,31 @@ public final class CaminoTrackingService extends Service
                         location.getLongitude()
                 );
 
+        /*
+         * Always obtain the nearest point on the selected route. Whether the
+         * walker is considered ON ROUTE is decided separately from offsetM.
+         */
         return MeasurementPathProjection.projectWithin(
                 locked.path,
                 position,
-                serviceMaxRouteOffsetM
+                Double.MAX_VALUE
         );
+    }
+
+
+    private boolean isProjectionOnRoute(
+            MeasurementPathProjection.Result projection
+    ) {
+        return projection != null
+                && Double.isFinite(
+                        projection.offsetM
+                )
+                && Double.isFinite(
+                        serviceMaxRouteOffsetM
+                )
+                && serviceMaxRouteOffsetM >= 0.0
+                && projection.offsetM
+                        <= serviceMaxRouteOffsetM;
     }
 
 
@@ -1353,7 +1386,10 @@ public final class CaminoTrackingService extends Service
             pebbleRoutePublisher.onGpsFix(
                     acceptedLocation,
                     locked,
-                    lockedProjection != null,
+                    acceptedLocation != null
+                            && isProjectionOnRoute(
+                                    lockedProjection
+                            ),
                     timetableState,
                     lockedTimetableEtaAuthority == null
                             ? Double.NaN
