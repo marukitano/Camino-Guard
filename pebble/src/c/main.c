@@ -51,7 +51,7 @@
 #define TIMETABLE_BOUNCE_PX 16
 #define TIMETABLE_LINE_X 20
 #define TIMETABLE_STOP_Y 28
-#define TIMETABLE_STOP_RADIUS 9
+#define TIMETABLE_STOP_RADIUS 8
 #define TIMETABLE_CONTENT_X 38
 #define TIMETABLE_NAME_Y 0
 #define TIMETABLE_NAME_H 60
@@ -440,8 +440,12 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
         f=fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
         name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
     }
-    /* Keep the dot fixed. Only one-line names move down to its vertical centre. */
-    if(name_size.h<=32)name_box.origin.y=TIMETABLE_STOP_Y+off-name_size.h/2;
+    /* Two-line names already center perfectly on the fixed dot. Use the font's
+     * actual line height to identify a one-line layout, then move only that
+     * text down by half a line. */
+    int line_h=fonts_get_font_height(f);
+    bool one_line=name_size.h<=line_h+2;
+    if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+line_h/2;
     graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);
 
     draw_timetable_value(ctx,b,v->distance,TIMETABLE_DISTANCE_Y+off,"KM");
