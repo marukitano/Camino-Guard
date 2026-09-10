@@ -14,8 +14,8 @@ import java.util.Locale;
  * Pebble presentation adapter for the explicitly locked MeasurementPath.
  *
  * Android remains the single authority for route geometry, progress and ETA.
- * The Pebble watchapp only requests one of three presentation pages:
- * dashboard, timetable stop browser, or a tiny local route map.
+ * The watchapp only requests one of three presentation pages: dashboard,
+ * timetable stop browser, or a small north-up local route map.
  */
 final class CaminoPebbleRoutePublisher
         implements CaminoPebbleSession.Listener {
@@ -32,8 +32,12 @@ final class CaminoPebbleRoutePublisher
     private static final int TRACE_MAX_POINTS =
             64;
 
-    private static final double MAP_CAPTURE_M =
-            120.0;
+    /* Screen 3 is 200 x 228 px and deliberately uses 1 metre per pixel. */
+    private static final double MAP_HALF_WIDTH_M =
+            100.0;
+
+    private static final double MAP_HALF_HEIGHT_M =
+            114.0;
 
     private static final int MAP_MAX_ROUTE_POINTS =
             48;
@@ -41,7 +45,6 @@ final class CaminoPebbleRoutePublisher
     private static final int MAP_MAX_TRAIL_POINTS =
             30;
 
-    /* Integer sentinel used to explicitly clear a metric on the watch. */
     private static final int UNKNOWN_METRIC =
             Integer.MIN_VALUE;
 
@@ -59,8 +62,6 @@ final class CaminoPebbleRoutePublisher
     private Location latestLocation;
     private LockedMeasurementPathStore.Snapshot latestLocked;
     private CaminoTimetableState latestTimetableState;
-    private double latestFlatSpeedKmh =
-            Double.NaN;
     private boolean latestStationary;
 
     private int visiblePage;
@@ -84,8 +85,6 @@ final class CaminoPebbleRoutePublisher
 
     private CaminoPebbleWeatherClient.Snapshot weather;
 
-    private int elevationScalePathVersion =
-            Integer.MIN_VALUE;
     private Integer routeElevationMinM;
     private Integer routeElevationMaxM;
 
@@ -94,6 +93,18 @@ final class CaminoPebbleRoutePublisher
 
     private boolean forceMapSend =
             true;
+
+    private boolean mapRequestInFlight;
+    private CaminoPebbleRoadSnapshotter.Result latestRoadResult;
+    private int roadGeneration;
+    private int lastSentRoadGeneration =
+            Integer.MIN_VALUE;
+
+    /* Independent edge detector for the watch's one-shot off-route jump. */
+    private int offRouteWatchPathVersion =
+            Integer.MIN_VALUE;
+    private boolean offRouteWatchStateInitialized;
+    private boolean lastWatchOnRoute;
 
     private final Deque<Location> recentTrail =
             new ArrayDeque<>();
@@ -129,18 +140,13 @@ final class CaminoPebbleRoutePublisher
         latestLocation =
                 location == null
                         ? null
-                        : new Location(
-                                location
-                        );
+                        : new Location(location);
 
         latestLocked =
                 locked;
 
         latestTimetableState =
                 timetableState;
-
-        latestFlatSpeedKmh =
-                flatSpeedKmh;
 
         latestStationary =
                 stationary;
@@ -179,10 +185,24 @@ final class CaminoPebbleRoutePublisher
             forceMapSend =
                     true;
 
+            latestRoadResult =
+                    null;
+
+            roadGeneration =
+                    0;
+
+            lastSentRoadGeneration =
+                    Integer.MIN_VALUE;
+
             refreshElevationScale(
                     locked
             );
         }
+
+        updateOffRouteWatchState(
+                locked,
+                onRoute
+        );
 
         boolean motionChanged =
                 !hasMotionState
@@ -237,6 +257,9 @@ final class CaminoPebbleRoutePublisher
 
         forceMapSend =
                 true;
+
+        lastSentRoadGeneration =
+                Integer.MIN_VALUE;
 
         lastEvaluationElapsedMs =
                 Long.MIN_VALUE;
@@ -339,6 +362,67 @@ final class CaminoPebbleRoutePublisher
         sendTimetableStop();
     }
 
+    private void updateOffRouteWatchState(
+            LockedMeasurementPathStore.Snapshot locked,
+            boolean onRoute
+    ) {
+        int version =
+                locked == null
+                        || locked.path == null
+                        ? Integer.MIN_VALUE
+                        : locked.version;
+
+        if (version == Integer.MIN_VALUE) {
+            offRouteWatchPathVersion =
+                    Integer.MIN_VALUE;
+
+            offRouteWatchStateInitialized =
+                    false;
+
+            return;
+        }
+
+        if (version != offRouteWatchPathVersion) {
+            offRouteWatchPathVersion =
+                    version;
+
+            offRouteWatchStateInitialized =
+                    false;
+        }
+
+        /* First state is a baseline. Never alarm merely because tracking began. */
+        if (!offRouteWatchStateInitialized) {
+            lastWatchOnRoute =
+                    onRoute;
+
+            offRouteWatchStateInitialized =
+                    true;
+
+            return;
+        }
+
+        boolean leftRoute =
+                lastWatchOnRoute
+                        && !onRoute;
+
+        lastWatchOnRoute =
+                onRoute;
+
+        if (leftRoute
+                && CaminoPebbleSession.isWatchOpen()) {
+
+            forceMapSend =
+                    true;
+
+            /*
+             * The watch handles vibration + one automatic page change. No
+             * repeated command is sent while the user remains off-route, so
+             * manual swiping stays completely free afterwards.
+             */
+            bridge.sendShowMapOnce();
+        }
+    }
+
     private void sendCurrentPage(
             boolean force
     ) {
@@ -430,121 +514,52 @@ final class CaminoPebbleRoutePublisher
                         || !sentAnyDashboard;
 
         if (!fullSend
-                && sameText(
-                        speed,
-                        lastSentSpeed
-                )
-                && sameInt(
-                        temperatureCurrent,
-                        lastSentTemperatureCurrent
-                )
-                && sameInt(
-                        temperatureMin,
-                        lastSentTemperatureMin
-                )
-                && sameInt(
-                        temperatureMax,
-                        lastSentTemperatureMax
-                )
-                && sameInt(
-                        sunrise,
-                        lastSentSunrise
-                )
-                && sameInt(
-                        sunset,
-                        lastSentSunset
-                )
-                && sameInt(
-                        elevationCurrent,
-                        lastSentElevationCurrent
-                )
-                && sameInt(
-                        elevationMin,
-                        lastSentElevationMin
-                )
-                && sameInt(
-                        elevationMax,
-                        lastSentElevationMax
-                )
-                && sameInt(
-                        routeProgressPercent,
-                        lastSentRouteProgressPercent
-                )) {
+                && sameText(speed, lastSentSpeed)
+                && sameInt(temperatureCurrent, lastSentTemperatureCurrent)
+                && sameInt(temperatureMin, lastSentTemperatureMin)
+                && sameInt(temperatureMax, lastSentTemperatureMax)
+                && sameInt(sunrise, lastSentSunrise)
+                && sameInt(sunset, lastSentSunset)
+                && sameInt(elevationCurrent, lastSentElevationCurrent)
+                && sameInt(elevationMin, lastSentElevationMin)
+                && sameInt(elevationMax, lastSentElevationMax)
+                && sameInt(routeProgressPercent, lastSentRouteProgressPercent)) {
 
             return;
         }
 
         String speedDelta =
                 fullSend
-                        || !sameText(
-                                speed,
-                                lastSentSpeed
-                        )
+                        || !sameText(speed, lastSentSpeed)
                         ? speed
                         : null;
 
         Integer temperatureCurrentDelta =
-                intDelta(
-                        fullSend,
-                        temperatureCurrent,
-                        lastSentTemperatureCurrent
-                );
+                intDelta(fullSend, temperatureCurrent, lastSentTemperatureCurrent);
 
         Integer temperatureMinDelta =
-                intDelta(
-                        fullSend,
-                        temperatureMin,
-                        lastSentTemperatureMin
-                );
+                intDelta(fullSend, temperatureMin, lastSentTemperatureMin);
 
         Integer temperatureMaxDelta =
-                intDelta(
-                        fullSend,
-                        temperatureMax,
-                        lastSentTemperatureMax
-                );
+                intDelta(fullSend, temperatureMax, lastSentTemperatureMax);
 
         Integer sunriseDelta =
-                intDelta(
-                        fullSend,
-                        sunrise,
-                        lastSentSunrise
-                );
+                intDelta(fullSend, sunrise, lastSentSunrise);
 
         Integer sunsetDelta =
-                intDelta(
-                        fullSend,
-                        sunset,
-                        lastSentSunset
-                );
+                intDelta(fullSend, sunset, lastSentSunset);
 
         Integer elevationCurrentDelta =
-                intDelta(
-                        fullSend,
-                        elevationCurrent,
-                        lastSentElevationCurrent
-                );
+                intDelta(fullSend, elevationCurrent, lastSentElevationCurrent);
 
         Integer elevationMinDelta =
-                intDelta(
-                        fullSend,
-                        elevationMin,
-                        lastSentElevationMin
-                );
+                intDelta(fullSend, elevationMin, lastSentElevationMin);
 
         Integer elevationMaxDelta =
-                intDelta(
-                        fullSend,
-                        elevationMax,
-                        lastSentElevationMax
-                );
+                intDelta(fullSend, elevationMax, lastSentElevationMax);
 
         Integer routeProgressDelta =
-                intDelta(
-                        fullSend,
-                        routeProgressPercent,
-                        lastSentRouteProgressPercent
-                );
+                intDelta(fullSend, routeProgressPercent, lastSentRouteProgressPercent);
 
         forceDashboardFull =
                 false;
@@ -701,8 +716,7 @@ final class CaminoPebbleRoutePublisher
                 !Double.isFinite(routeDistanceM)
                         || routeDistanceM <= 0.0
                         ? -1
-                        : (int)
-                        Math.round(
+                        : (int) Math.round(
                                 100.0
                                         * stop.chainageM
                                         / routeDistanceM
@@ -748,33 +762,143 @@ final class CaminoPebbleRoutePublisher
     }
 
     private void sendMiniMap() {
-        byte[] payload =
-                buildMiniMapPayload();
+        if (mapRequestInFlight) {
+            return;
+        }
+
+        Location center =
+                latestLocation;
+
+        if (center == null) {
+            forceMapSend =
+                    false;
+
+            bridge.sendMiniMap(
+                    new byte[]{2, 0, 0, 0, 0},
+                    0,
+                    null,
+                    delivered -> {
+                        synchronized (CaminoPebbleRoutePublisher.this) {
+                            forceMapSend =
+                                    !delivered;
+                        }
+                    }
+            );
+
+            return;
+        }
+
+        mapRequestInFlight =
+                true;
 
         forceMapSend =
                 false;
 
+        bridge.requestRoadSnapshot(
+                new Location(center),
+                this::onRoadSnapshot
+        );
+    }
+
+    private synchronized void onRoadSnapshot(
+            CaminoPebbleRoadSnapshotter.Result result
+    ) {
+        mapRequestInFlight =
+                false;
+
+        if (!CaminoPebbleSession.isWatchOpen()
+                || visiblePage != 2) {
+
+            forceMapSend =
+                    true;
+
+            return;
+        }
+
+        CaminoPebbleRoadSnapshotter.Result usable =
+                result != null
+                        && result.hasRoadMask()
+                        && result.center != null
+                        ? result
+                        : null;
+
+        if (usable != null) {
+            boolean newRoadCenter =
+                    latestRoadResult == null
+                            || latestRoadResult.center == null
+                            || latestRoadResult.center.distanceTo(
+                                    usable.center
+                            ) > 1.0f;
+
+            latestRoadResult =
+                    usable;
+
+            if (newRoadCenter
+                    || roadGeneration <= 0) {
+
+                roadGeneration =
+                        roadGeneration == Integer.MAX_VALUE
+                                ? 1
+                                : roadGeneration + 1;
+            }
+        }
+
+        Location mapCenter =
+                usable != null
+                        ? usable.center
+                        : latestLocation;
+
+        if (mapCenter == null) {
+            forceMapSend =
+                    true;
+            return;
+        }
+
+        int generation =
+                usable == null
+                        ? 0
+                        : roadGeneration;
+
+        byte[] roadMask =
+                usable != null
+                        && generation
+                        != lastSentRoadGeneration
+                        ? usable.roadMask
+                        : null;
+
+        boolean sendingRoadMask =
+                roadMask != null;
+
+        byte[] payload =
+                buildMiniMapPayload(
+                        mapCenter
+                );
+
         bridge.sendMiniMap(
                 payload,
+                generation,
+                roadMask,
                 delivered -> {
-                    if (delivered) {
-                        return;
-                    }
-
                     synchronized (CaminoPebbleRoutePublisher.this) {
+                        if (delivered
+                                && sendingRoadMask) {
+
+                            lastSentRoadGeneration =
+                                    generation;
+                        }
+
                         forceMapSend =
-                                true;
+                                !delivered;
                     }
                 }
         );
     }
 
-    private byte[] buildMiniMapPayload() {
-        Location center =
-                latestLocation;
-
+    private byte[] buildMiniMapPayload(
+            Location center
+    ) {
         if (center == null) {
-            return new byte[]{1, 0, 0};
+            return new byte[]{2, 0, 0, 0, 0};
         }
 
         ByteArrayOutputStream route =
@@ -820,12 +944,10 @@ final class CaminoPebbleRoutePublisher
                         );
 
                 boolean included =
-                        Math.abs(
-                                local.eastM
-                        ) <= MAP_CAPTURE_M
-                                && Math.abs(
-                                local.northM
-                        ) <= MAP_CAPTURE_M;
+                        Math.abs(local.eastM)
+                                <= MAP_HALF_WIDTH_M
+                                && Math.abs(local.northM)
+                                <= MAP_HALF_HEIGHT_M;
 
                 if (!included) {
                     previousIncluded =
@@ -904,12 +1026,10 @@ final class CaminoPebbleRoutePublisher
                             point.getLongitude()
                     );
 
-            if (Math.abs(
-                    local.eastM
-            ) > MAP_CAPTURE_M
-                    || Math.abs(
-                    local.northM
-            ) > MAP_CAPTURE_M) {
+            if (Math.abs(local.eastM)
+                    > MAP_HALF_WIDTH_M
+                    || Math.abs(local.northM)
+                    > MAP_HALF_HEIGHT_M) {
 
                 continue;
             }
@@ -927,15 +1047,24 @@ final class CaminoPebbleRoutePublisher
             trailPairs++;
         }
 
+        LocalPoint marker =
+                latestLocation == null
+                        ? new LocalPoint(0.0, 0.0)
+                        : localPoint(
+                                center,
+                                latestLocation.getLatitude(),
+                                latestLocation.getLongitude()
+                        );
+
         ByteArrayOutputStream payload =
                 new ByteArrayOutputStream(
-                        3
+                        5
                                 + route.size()
                                 + trail.size()
                 );
 
         payload.write(
-                1
+                2
         );
 
         payload.write(
@@ -944,6 +1073,16 @@ final class CaminoPebbleRoutePublisher
 
         payload.write(
                 trailPairs
+        );
+
+        payload.write(
+                encodeMeters(marker.eastM)
+                        & 0xff
+        );
+
+        payload.write(
+                encodeMeters(marker.northM)
+                        & 0xff
         );
 
         byte[] routeBytes =
@@ -979,9 +1118,8 @@ final class CaminoPebbleRoutePublisher
 
             if (oldest == null
                     || nowElapsed
-                    - locationElapsedMs(
-                            oldest
-                    ) <= TRACE_MAX_AGE_MS) {
+                    - locationElapsedMs(oldest)
+                    <= TRACE_MAX_AGE_MS) {
 
                 break;
             }
@@ -993,17 +1131,14 @@ final class CaminoPebbleRoutePublisher
                 recentTrail.peekLast();
 
         if (newest != null
-                && newest.distanceTo(
-                        location
-                ) < TRACE_SPACING_M) {
+                && newest.distanceTo(location)
+                < TRACE_SPACING_M) {
 
             return;
         }
 
         recentTrail.addLast(
-                new Location(
-                        location
-                )
+                new Location(location)
         );
 
         while (recentTrail.size()
@@ -1029,12 +1164,11 @@ final class CaminoPebbleRoutePublisher
         }
 
         int percent =
-                (int)
-                        Math.round(
-                                100.0
-                                        * latestTimetableState.currentChainageM
-                                        / latestLocked.path.distanceM
-                        );
+                (int) Math.round(
+                        100.0
+                                * latestTimetableState.currentChainageM
+                                / latestLocked.path.distanceM
+                );
 
         return Math.max(
                 0,
@@ -1098,10 +1232,9 @@ final class CaminoPebbleRoutePublisher
         }
 
         return new ElevationValues(
-                (int)
-                        Math.round(
-                                nearest.elevationM
-                        ),
+                (int) Math.round(
+                        nearest.elevationM
+                ),
                 routeElevationMinM,
                 routeElevationMaxM
         );
@@ -1110,11 +1243,6 @@ final class CaminoPebbleRoutePublisher
     private void refreshElevationScale(
             LockedMeasurementPathStore.Snapshot locked
     ) {
-        elevationScalePathVersion =
-                locked == null
-                        ? Integer.MIN_VALUE
-                        : locked.version;
-
         routeElevationMinM =
                 null;
 
@@ -1165,16 +1293,10 @@ final class CaminoPebbleRoutePublisher
         }
 
         routeElevationMinM =
-                (int)
-                        Math.round(
-                                min
-                        );
+                (int) Math.round(min);
 
         routeElevationMaxM =
-                (int)
-                        Math.round(
-                                max
-                        );
+                (int) Math.round(max);
     }
 
     private static List<CaminoTimetableStop> allStops(
@@ -1213,9 +1335,7 @@ final class CaminoPebbleRoutePublisher
                 index < stops.size();
                 index++) {
 
-            if (stops.get(
-                    index
-            ).chainageM
+            if (stops.get(index).chainageM
                     > current + 0.5) {
 
                 return index;
@@ -1258,16 +1378,15 @@ final class CaminoPebbleRoutePublisher
     private static int encodeMeters(
             double meters
     ) {
-        return (int)
-                Math.round(
-                        Math.max(
-                                -120.0,
-                                Math.min(
-                                        120.0,
-                                        meters
-                                )
+        return (int) Math.round(
+                Math.max(
+                        -127.0,
+                        Math.min(
+                                127.0,
+                                meters
                         )
-                );
+                )
+        );
     }
 
     private static void writeMapPair(
