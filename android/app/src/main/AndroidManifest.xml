@@ -23,6 +23,14 @@
             android:foregroundServiceType="location"
             android:stopWithTask="true" />
 
+        <service
+            android:name=".CaminoPebbleListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="io.rebble.pebblekit2.RECEIVE_DATA_FROM_WATCH" />
+            </intent-filter>
+        </service>
+
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
