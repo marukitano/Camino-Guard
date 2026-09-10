@@ -378,10 +378,8 @@ static GPoint map_point(GRect b,int east,int north){
 #endif
     int cx=b.origin.x+b.size.w/2;
     int cy=b.origin.y+b.size.h/2;
-    return GPoint(
-        clamp_i(cx+right,b.origin.x,b.origin.x+b.size.w-1),
-        clamp_i(cy-forward,b.origin.y,b.origin.y+b.size.h-1)
-    );
+    /* Let the graphics layer clip rotated geometry naturally at the edge. */
+    return GPoint(cx+right,cy-forward);
 }
 
 static void draw_road_mask(GContext*ctx,GRect b){
@@ -495,7 +493,7 @@ static void finish_page_scroll(bool committed){cancel_page_scroll_timer();if(com
     update_heart_rate_sampling();
 #endif
 } s_page_neighbor=-1;s_page_direction=0;s_page_position_q8=0;s_page_target_q8=0;s_page_velocity_q8=0;s_page_scroll_mode=PAGE_SCROLL_IDLE;reset_page_layers();update_compass_sampling();dirty();}
-static void page_scroll_tick(void*c){s_page_scroll_timer=NULL;if(s_page_scroll_mode==PAGE_SCROLL_IDLE)return;int32_t force=(s_page_target_q8-s_page_position_q8)*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_NUM:SCROLL_SNAP_SPRING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_DEN:SCROLL_SNAP_SPRING_DEN);s_page_velocity_q8+=force;s_page_velocity_q8=s_page_velocity_q8*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_NUM:SCROLL_SNAP_DAMPING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_DEN:SCROLL_SNAP_DAMPING_DEN);s_page_velocity_q8=clamp_symmetric_i32(s_page_velocity_q8,SCROLL_MAX_VELOCITY_Q8);s_page_position_q8+=s_page_velocity_q8;update_page_layer_positions();if(s_page_scroll_mode==PAGE_SCROLL_SNAP&&abs_i32(s_page_target_q8-s_page_position_q8)<=SCROLL_STOP_POSITION_Q8&&abs_i32(s_page_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8){bool committed=s_page_target_q8!=0&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page;finish_page_scroll(committed);return;}schedule_page_scroll();}
+static void page_scroll_tick(void*c){s_page_scroll_timer=NULL;if(s_page_scroll_mode==PAGE_SCROLL_IDLE)return;int32_t force=(s_page_target_q8-s_page_position_q8)*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_NUM:SCROLL_SNAP_SPRING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_DEN:SCROLL_SNAP_DAMPING_DEN);s_page_velocity_q8+=force;s_page_velocity_q8=s_page_velocity_q8*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_NUM:SCROLL_SNAP_DAMPING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_DEN:SCROLL_SNAP_DAMPING_DEN);s_page_velocity_q8=clamp_symmetric_i32(s_page_velocity_q8,SCROLL_MAX_VELOCITY_Q8);s_page_position_q8+=s_page_velocity_q8;update_page_layer_positions();if(s_page_scroll_mode==PAGE_SCROLL_SNAP&&abs_i32(s_page_target_q8-s_page_position_q8)<=SCROLL_STOP_POSITION_Q8&&abs_i32(s_page_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8){bool committed=s_page_target_q8!=0&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page;finish_page_scroll(committed);return;}schedule_page_scroll();}
 static void schedule_page_scroll(void){if(!s_page_scroll_timer&&s_page_scroll_mode!=PAGE_SCROLL_IDLE)s_page_scroll_timer=app_timer_register(SCROLL_FRAME_MS,page_scroll_tick,NULL);}
 static bool prepare_page_neighbor(int dir){int n=s_page+dir;if(n<PAGE_DASHBOARD||n>PAGE_MAP){s_page_neighbor=-1;s_page_direction=dir;return false;}s_page_neighbor=n;s_page_direction=dir;if(s_page_layers[n]){layer_set_hidden(s_page_layers[n],false);set_page_layer_x(n,dir*page_width());layer_mark_dirty(s_page_layers[n]);}return true;}
 static void start_page_touch(int dir){if(s_page_scroll_mode!=PAGE_SCROLL_IDLE)return;prepare_page_neighbor(dir);s_page_position_q8=s_page_target_q8=s_page_velocity_q8=0;s_page_scroll_mode=PAGE_SCROLL_TOUCH;schedule_page_scroll();}
