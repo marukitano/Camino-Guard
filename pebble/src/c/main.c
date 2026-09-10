@@ -43,6 +43,14 @@
 #define PAGE_SLOW_COMMIT_PERCENT 42
 #define TIMETABLE_SLOW_SWIPE_PX 30
 #define STOP_REQUEST_TIMEOUT_MS 1500
+#define TIMETABLE_LINE_X 20
+#define TIMETABLE_STOP_Y 26
+#define TIMETABLE_STOP_RADIUS 6
+#define TIMETABLE_CONTENT_X 38
+#define TIMETABLE_DISTANCE_Y 58
+#define TIMETABLE_TIME_Y 96
+#define TIMETABLE_PROGRESS_Y 134
+#define TIMETABLE_TEMP_Y 172
 
 #if defined(PBL_TOUCH)
 typedef enum {
@@ -63,6 +71,7 @@ typedef struct {
     char time[24];
     char distance[24];
     int32_t percent;
+    bool is_goal;
 } StopView;
 
 enum DashboardIcon {
@@ -101,8 +110,8 @@ static int32_t s_elevation_min = UNKNOWN_METRIC;
 static int32_t s_elevation_max = UNKNOWN_METRIC;
 static int32_t s_route_progress_percent = UNKNOWN_METRIC;
 
-static StopView s_stop = {"--", "--", "--", -1};
-static StopView s_stop_previous = {"--", "--", "--", -1};
+static StopView s_stop = {"--", "--", "--", -1, false};
+static StopView s_stop_previous = {"--", "--", "--", -1, false};
 static bool s_stop_request_pending;
 static int s_stop_request_delta;
 static int s_stop_queued_delta;
@@ -376,8 +385,68 @@ static void draw_dashboard(GContext *ctx,GRect b){
     live_row(ctx,1,DASH_ICON_HEART,heart,hf,s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed,b,NULL);live_row(ctx,29,DASH_ICON_GLUCOSE,glucose,gf,hg?glucose_bar_color(gt):GColorGreen,b,age);live_row(ctx,57,DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL);live_row(ctx,85,DASH_ICON_TEMP,temp,tf,GColorOrange,b,NULL);live_row(ctx,113,DASH_ICON_STEPS,steps,stepf,GColorGreen,b,NULL);live_row(ctx,141,DASH_ICON_TIME,s_time_text,timef,GColorYellow,b,NULL);live_row(ctx,169,DASH_ICON_ELEVATION,elev,elevf,GColorCyan,b,NULL);live_row(ctx,197,DASH_ICON_PROGRESS,progress,pf,GColorBlue,b,"%");
 }
 
-static void draw_centered_ppf(GContext*ctx,const char*value,int y,const char*suffix,GRect b){int vw=ppf_value_width(value),sw=suffix&&suffix[0]?text_w(suffix,1):0,gap=sw?4:0,left=(b.size.w-vw-gap-sw)/2;ppf_draw_value(ctx,value,left+vw,y,GColorWhite);if(sw){s_ink=GColorWhite;dot_text(ctx,suffix,GRect(left+vw+gap,y+6,sw,12),1,GTextAlignmentLeft);}}
-static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){char name[48];megafont_text(v?v->name:"--",name,sizeof(name));graphics_context_set_text_color(ctx,GColorWhite);GFont f=s_font_megafont_18;GSize s=graphics_text_layout_get_content_size(name,f,GRect(0,0,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter);if(s.h>58)f=s_font_megafont_14;graphics_draw_text(ctx,name,f,GRect(6,10+off,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter,NULL);draw_centered_ppf(ctx,v?v->time:"--",82+off,NULL,b);draw_centered_ppf(ctx,v?v->distance:"--",128+off,"KM",b);char p[16]="--";if(v&&v->percent>=0)snprintf(p,sizeof(p),"%ld",(long)v->percent);draw_centered_ppf(ctx,p,174+off,"%",b);}
+static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,const char*suffix){
+    const char*shown=value&&value[0]?value:"--";
+    int vw=ppf_value_width(shown);
+    int x=TIMETABLE_CONTENT_X;
+    ppf_draw_value(ctx,shown,x+vw,y,GColorWhite);
+    if(suffix&&suffix[0]){
+        s_ink=GColorWhite;
+        dot_text(ctx,suffix,GRect(x+vw+5,y+6,b.size.w-(x+vw+5)-4,12),1,GTextAlignmentLeft);
+    }
+}
+
+static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
+    StopView fallback={"--","--","--",-1,false};
+    if(!v)v=&fallback;
+
+    GColor timeline=GColorFromHEX(0xFFDD69);
+    int line_x=b.origin.x+TIMETABLE_LINE_X;
+    int stop_y=b.origin.y+TIMETABLE_STOP_Y+off;
+    int top=b.origin.y+off;
+    int bottom=b.origin.y+b.size.h-1+off;
+
+    graphics_context_set_antialiased(ctx,true);
+    graphics_context_set_stroke_color(ctx,timeline);
+    graphics_context_set_fill_color(ctx,timeline);
+    graphics_context_set_stroke_width(ctx,2);
+
+    if(!v->is_goal){
+        graphics_draw_line(ctx,GPoint(line_x,top),GPoint(line_x,stop_y-TIMETABLE_STOP_RADIUS));
+    }
+    graphics_draw_line(ctx,GPoint(line_x,stop_y+TIMETABLE_STOP_RADIUS),GPoint(line_x,bottom));
+
+    graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS);
+    if(!v->is_goal){
+        graphics_context_set_fill_color(ctx,GColorBlack);
+        graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-2);
+    }
+    graphics_context_set_stroke_width(ctx,1);
+
+    char name[48];
+    megafont_text(v->name,name,sizeof(name));
+    graphics_context_set_text_color(ctx,GColorWhite);
+    GRect name_box=GRect(TIMETABLE_CONTENT_X,5+off,b.size.w-TIMETABLE_CONTENT_X-5,44);
+    GFont f=s_font_megafont_18;
+    GSize s=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
+    if(s.h>40)f=s_font_megafont_14;
+    graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);
+
+    draw_timetable_value(ctx,b,v->distance,TIMETABLE_DISTANCE_Y+off,"KM");
+    draw_timetable_value(ctx,b,v->time,TIMETABLE_TIME_Y+off,NULL);
+
+    char p[16]="--";
+    if(v->percent>=0)snprintf(p,sizeof(p),"%ld",(long)clamp_i((int)v->percent,0,100));
+    draw_timetable_value(ctx,b,p,TIMETABLE_PROGRESS_Y+off,"%");
+
+    char temp[16]="--";
+    if(metric_known(s_temp_current)){
+        int rounded=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;
+        snprintf(temp,sizeof(temp),"%d",rounded);
+    }
+    draw_timetable_value(ctx,b,temp,TIMETABLE_TEMP_Y+off,"C");
+}
+
 static void draw_timetable(GContext*ctx,GRect b){if(!s_stop_animating){draw_timetable_view(ctx,b,&s_stop,0);return;}int off=(int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);draw_timetable_view(ctx,b,&s_stop_previous,off);draw_timetable_view(ctx,b,&s_stop,off+s_stop_anim_direction*b.size.h);}
 
 /*
@@ -676,8 +745,8 @@ static bool decompress_road_mask(size_t compressed_len){
 
 static void note_road_generation(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION);if(!t)return;int32_t g=t->value->int32;if(g<=0){s_road_generation=s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;s_road_mask_valid=false;s_map_frame_dirty=true;return;}if(g!=s_road_generation&&g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;}}
 static void copy_road_chunk(DictionaryIterator*it){Tuple*data=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_DATA),*gt=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION),*itx=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_INDEX),*ct=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_COUNT);if(!data||!gt||!itx||!ct)return;int32_t g=gt->value->int32;int idx=itx->value->int32,count=ct->value->int32;if(g<=0||idx<0||count<=0||count>MAP_ROAD_MAX_CHUNKS||idx>=count)return;if(idx==0||g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=count;s_road_received_chunks=0;s_road_compressed_len=0;}if(g!=s_road_receiving_generation||count!=s_road_expected_chunks||idx!=s_road_received_chunks)return;size_t off=(size_t)idx*MAP_ROAD_CHUNK_BYTES,n=data->length;if(off+n>sizeof(s_road_compressed))return;memcpy(s_road_compressed+off,data->value->data,n);s_road_received_chunks++;if(s_road_received_chunks==s_road_expected_chunks){s_road_compressed_len=off+n;s_road_mask_valid=decompress_road_mask(s_road_compressed_len);if(s_road_mask_valid){s_road_generation=g;s_map_frame_dirty=true;}s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;}}
-static bool stop_fields_present(DictionaryIterator*it){return dict_find(it,MESSAGE_KEY_STOP_NAME)||dict_find(it,MESSAGE_KEY_STOP_TIME)||dict_find(it,MESSAGE_KEY_STOP_DISTANCE)||dict_find(it,MESSAGE_KEY_STOP_PERCENT);}
-static void copy_stop_fields(DictionaryIterator*it,StopView*v){if(!v)return;copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);}
+static bool stop_fields_present(DictionaryIterator*it){return dict_find(it,MESSAGE_KEY_STOP_NAME)||dict_find(it,MESSAGE_KEY_STOP_TIME)||dict_find(it,MESSAGE_KEY_STOP_DISTANCE)||dict_find(it,MESSAGE_KEY_STOP_PERCENT)||dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);}
+static void copy_stop_fields(DictionaryIterator*it,StopView*v){if(!v)return;copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);Tuple*goal=dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);if(goal)v->is_goal=goal->value->int32!=0;}
 static void inbox_received(DictionaryIterator*it,void*c){copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));copy_int32(it,MESSAGE_KEY_TEMP_CURRENT_TENTHS,&s_temp_current);copy_int32(it,MESSAGE_KEY_TEMP_MIN_TENTHS,&s_temp_min);copy_int32(it,MESSAGE_KEY_TEMP_MAX_TENTHS,&s_temp_max);copy_int32(it,MESSAGE_KEY_SUNRISE_MINUTES,&s_sunrise_minutes);copy_int32(it,MESSAGE_KEY_SUNSET_MINUTES,&s_sunset_minutes);copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);copy_int32(it,MESSAGE_KEY_ROUTE_PROGRESS_PERCENT,&s_route_progress_percent);if(stop_fields_present(it)){StopView old=s_stop,incoming=s_stop;copy_stop_fields(it,&incoming);s_stop=incoming;if(s_stop_request_pending){int d=s_stop_request_delta;s_stop_request_pending=false;s_stop_request_delta=0;cancel_stop_request_timeout();begin_stop_animation(d,&old);}}copy_map_vector(it);note_road_generation(it);copy_road_chunk(it);Tuple*show=dict_find(it,MESSAGE_KEY_SHOW_MAP_ONCE);if(show&&show->value->int32)show_map_once();dirty();}
 static void inbox_dropped(AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage dropped: %d",(int)r);}
 static void outbox_failed(DictionaryIterator*it,AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage control failed: %d",(int)r);}
