@@ -1,50 +1,102 @@
 #include <pebble.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "ppf_digit_font.h"
 
+#define PAGE_DASHBOARD 0
+#define PAGE_TIMETABLE 1
+#define PAGE_MAP 2
+#define UNKNOWN_METRIC ((int32_t)0x80000000)
+#define MAP_PAYLOAD_MAX 192
+#define TOUCH_SWIPE_THRESHOLD 30
+
+enum DashboardIcon {
+    DASH_ICON_HEART = 0,
+    DASH_ICON_GLUCOSE = 1,
+    DASH_ICON_SPEED = 2,
+    DASH_ICON_TEMP = 3,
+    DASH_ICON_STEPS = 4,
+    DASH_ICON_TIME = 5,
+    DASH_ICON_ELEVATION = 6
+};
+
 static Window *s_window;
-static Layer *s_dashboard_layer;
+static Layer *s_root_layer;
 
 static GBitmap *s_icon_heart;
 static GBitmap *s_icon_blood;
 static GBitmap *s_icon_shoe;
-static GBitmap *s_icon_shell;
-static GFont s_font_megafont_12;
 static GFont s_font_megafont_14;
 static GFont s_font_megafont_18;
 
-static char s_time_text[16];
-static char s_date_text[24];
-static char s_glucose_text[32] = "--";
-static char s_next_name_text[40] = "--";
-static char s_distance_text[32] = "--";
-static char s_next_time_text[32] = "--";
-static char s_speed_text[32] = "--";
-static char s_flat_speed_text[32] = "--";
-static int s_heart_rate = -1;
-static bool s_alarm_active;
-static bool s_route_valid;
+static int s_page = PAGE_DASHBOARD;
 static GColor s_ink;
+
+static char s_time_text[16] = "--:--";
+static char s_glucose_text[32] = "--";
+static char s_speed_text[32] = "--";
+static int s_heart_rate = -1;
+static int s_steps = -1;
+
+static int32_t s_temp_current = UNKNOWN_METRIC;
+static int32_t s_temp_min = UNKNOWN_METRIC;
+static int32_t s_temp_max = UNKNOWN_METRIC;
+static int32_t s_sunrise_minutes = UNKNOWN_METRIC;
+static int32_t s_sunset_minutes = UNKNOWN_METRIC;
+static int32_t s_elevation_current = UNKNOWN_METRIC;
+static int32_t s_elevation_min = UNKNOWN_METRIC;
+static int32_t s_elevation_max = UNKNOWN_METRIC;
+
+static char s_stop_name[48] = "--";
+static char s_stop_time[24] = "--";
+static char s_stop_distance[24] = "--";
+static int32_t s_stop_percent = -1;
+
+static uint8_t s_map_payload[MAP_PAYLOAD_MAX];
+static size_t s_map_payload_len;
 
 #if defined(PBL_HEALTH)
 static bool s_health_subscribed;
 static AppTimer *s_heart_rate_timer;
 #endif
 
-static int clamp_i(int v, int lo, int hi) {
-    return v < lo ? lo : (v > hi ? hi : v);
+#if defined(PBL_TOUCH)
+static bool s_touch_subscribed;
+static bool s_touch_active;
+static int16_t s_touch_start_x;
+static int16_t s_touch_start_y;
+#endif
+
+static int clamp_i(int value, int low, int high) {
+    return value < low ? low : (value > high ? high : value);
 }
 
 static void dirty(void) {
-    if (s_dashboard_layer) layer_mark_dirty(s_dashboard_layer);
+    if (s_root_layer) {
+        layer_mark_dirty(s_root_layer);
+    }
+}
+
+static bool metric_known(int32_t value) {
+    return value != UNKNOWN_METRIC;
+}
+
+static int fraction_between(int32_t value, int32_t low, int32_t high) {
+    if (!metric_known(value) || !metric_known(low) || !metric_known(high) || high <= low) {
+        return 0;
+    }
+    int64_t scaled = ((int64_t)value - low) * 1000LL / ((int64_t)high - low);
+    return clamp_i((int)scaled, 0, 1000);
 }
 
 static bool parse_tenths(const char *text, int *value) {
     if (!text || !value) return false;
-    int whole = 0, frac = 0;
-    bool digit = false, decimal = false;
+    int whole = 0;
+    int frac = 0;
+    bool digit = false;
+    bool decimal = false;
     for (const char *p = text; *p; ++p) {
         if (*p >= '0' && *p <= '9') {
             digit = true;
@@ -63,39 +115,29 @@ static bool parse_tenths(const char *text, int *value) {
 
 static int parse_age_minutes(const char *text) {
     if (!text) return -1;
-
     const char *min_text = strstr(text, " min");
     if (!min_text) return -1;
-
     const char *start = min_text;
-    while (start > text
-            && start[-1] >= '0'
-            && start[-1] <= '9') {
-        --start;
-    }
-
+    while (start > text && start[-1] >= '0' && start[-1] <= '9') --start;
     if (start == min_text) return -1;
-
     int age = 0;
     for (const char *p = start; p < min_text; ++p) {
         age = age * 10 + (*p - '0');
+        if (age > 9999) return 9999;
     }
-
     return age;
 }
 
-static void format_age_short(int age_minutes, char *dst, size_t n) {
-    if (!dst || n == 0) return;
-
+static void format_age_short(int age_minutes, char *dst, size_t size) {
+    if (!dst || size == 0) return;
     if (age_minutes < 0) {
         dst[0] = '\0';
-        return;
-    }
-
-    if (age_minutes < 60) {
-        snprintf(dst, n, "%dm", age_minutes);
+    } else if (age_minutes < 60) {
+        snprintf(dst, size, "%dm", age_minutes);
     } else {
-        snprintf(dst, n, "%dh", age_minutes / 60);
+        int hours = age_minutes / 60;
+        if (hours > 999) hours = 999;
+        snprintf(dst, size, "%dh", hours);
     }
 }
 
@@ -181,17 +223,15 @@ static void megafont_text(const char *src, char *dst, size_t n) {
     while (*p && i + 1 < n) {
         bool umlaut = false;
         char c = norm(codepoint(&p), &umlaut);
-        if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ' || c == '-') {
-            dst[i++] = c;
-        } else {
-            dst[i++] = ' ';
-        }
+        if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ' || c == '-') dst[i++] = c;
+        else dst[i++] = ' ';
     }
     dst[i] = '\0';
 }
 
 static int text_w(const char *text, int pitch) {
-    int n=0; const char *p=text; while (*p) {codepoint(&p);n++;}
+    int n=0; const char *p=text;
+    while (p && *p) {codepoint(&p);n++;}
     return n ? n*6*pitch-pitch : 0;
 }
 
@@ -215,57 +255,61 @@ static void dot_text(GContext *ctx, const char *text, GRect r, int pitch, GTextA
     }
 }
 
-static void bold_dot_text(GContext *ctx, const char *text, GRect r, int pitch, GTextAlignment align) {
-    dot_text(ctx,text,r,pitch,align);
-    r.origin.x += 1;
-    dot_text(ctx,text,r,pitch,align);
-}
-
 static void draw_bitmap_icon(GContext *ctx, GBitmap *bitmap, GRect r) {
     if (!bitmap) return;
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
     graphics_draw_bitmap_in_rect(ctx, bitmap, r);
 }
 
-static void pixel20_icon(GContext *ctx, const uint32_t rows[20], GRect r) {
-    graphics_context_set_fill_color(ctx,GColorBlack);
+static void draw_temperature_icon(GContext *ctx,GRect r) {
     graphics_context_set_stroke_color(ctx,GColorBlack);
-    for (int y=0; y<20; ++y) {
-        for (int x=0; x<20; ++x) {
-            if (rows[y] & (1u << (19-x))) {
-                graphics_draw_pixel(ctx,GPoint(r.origin.x+x,r.origin.y+y));
-            }
-        }
-    }
+    graphics_context_set_fill_color(ctx,GColorBlack);
+    graphics_context_set_stroke_width(ctx,2);
+    graphics_draw_round_rect(ctx,GRect(r.origin.x+8,r.origin.y+2,5,12),2);
+    graphics_fill_circle(ctx,GPoint(r.origin.x+10,r.origin.y+15),4);
+    graphics_draw_line(ctx,GPoint(r.origin.x+10,r.origin.y+6),GPoint(r.origin.x+10,r.origin.y+15));
+    graphics_context_set_stroke_width(ctx,1);
 }
 
-static void route_icon(GContext *ctx,GRect r) {
-    static const uint32_t a[20]={0x00000u,0x00000u,0x00000u,0x00000u,0x00000u,0x00000u,0x1C000u,0x7E00Cu,0xFF07Cu,0xE3180u,0xC3800u,0xC3980u,0xFF0B0u,0x7F010u,0x7E00Cu,0x3C004u,0x1C000u,0x18018u,0x0B6D0u,0x0B600u};
-    pixel20_icon(ctx,a,r);
-}
-static void gauge_icon(GContext *ctx,GRect r) {
-    static const uint32_t a[20]={0x00000u,0x01F80u,0x07FE0u,0x0E670u,0x1C618u,0x3E00Cu,0x360ECu,0x601C6u,0x607C6u,0x78F9Eu,0x78F1Eu,0x60F06u,0x60606u,0x3000Cu,0x3000Cu,0x18018u,0x0C030u,0x04020u,0x00000u,0x00000u};
-    pixel20_icon(ctx,a,r);
-}
-static void clock_icon(GContext *ctx,GRect r) {
-    static const uint32_t a[20]={0x00000u,0x00000u,0x1FFF8u,0x1FFF8u,0x1B378u,0x1FFF8u,0x1ECD8u,0x1FFF8u,0x1B378u,0x1FFF8u,0x1ECD8u,0x1FFF8u,0x1FFF8u,0x18000u,0x18000u,0x18000u,0x18000u,0x10000u,0x00000u,0x00000u};
-    pixel20_icon(ctx,a,r);
+static void draw_steps_icon(GContext *ctx,GRect r) {
+    graphics_context_set_fill_color(ctx,GColorBlack);
+    graphics_fill_rect(ctx,GRect(r.origin.x+4,r.origin.y+3,6,9),2,GCornersAll);
+    graphics_fill_circle(ctx,GPoint(r.origin.x+6,r.origin.y+14),2);
+    graphics_fill_rect(ctx,GRect(r.origin.x+12,r.origin.y+9,6,8),2,GCornersAll);
+    graphics_fill_circle(ctx,GPoint(r.origin.x+16,r.origin.y+5),2);
 }
 
-/*
- * Pebble-side display zones only. These do not change tracking, alarms or
- * Android-side glucose handling.
- *
- * Glucose follows the standard CGM ranges:
- *   <3.0 mmol/L        red
- *   3.0-3.8 mmol/L     yellow
- *   3.9-10.0 mmol/L    green
- *   10.1-13.9 mmol/L   yellow
- *   >=14.0 mmol/L      red
- *
- * Heart-rate colors use a simple exercise-zone display based on an estimated
- * maximum of 180 bpm: <70% green, 70-85% yellow, >85% red.
- */
+static void draw_clock_icon(GContext *ctx,GRect r) {
+    graphics_context_set_stroke_color(ctx,GColorBlack);
+    graphics_context_set_stroke_width(ctx,2);
+    GPoint c=GPoint(r.origin.x+10,r.origin.y+10);
+    graphics_draw_circle(ctx,c,8);
+    graphics_draw_line(ctx,c,GPoint(c.x,c.y-5));
+    graphics_draw_line(ctx,c,GPoint(c.x+4,c.y+2));
+    graphics_context_set_stroke_width(ctx,1);
+}
+
+static void draw_elevation_icon(GContext *ctx,GRect r) {
+    graphics_context_set_stroke_color(ctx,GColorBlack);
+    graphics_context_set_stroke_width(ctx,2);
+    graphics_draw_line(ctx,GPoint(r.origin.x+1,r.origin.y+17),GPoint(r.origin.x+8,r.origin.y+7));
+    graphics_draw_line(ctx,GPoint(r.origin.x+8,r.origin.y+7),GPoint(r.origin.x+12,r.origin.y+12));
+    graphics_draw_line(ctx,GPoint(r.origin.x+12,r.origin.y+12),GPoint(r.origin.x+16,r.origin.y+4));
+    graphics_draw_line(ctx,GPoint(r.origin.x+16,r.origin.y+4),GPoint(r.origin.x+20,r.origin.y+17));
+    graphics_context_set_stroke_width(ctx,1);
+}
+
+static void draw_dashboard_icon(GContext *ctx,int kind,int row_y) {
+    GRect r=GRect(8,row_y,20,20);
+    if(kind==DASH_ICON_HEART) draw_bitmap_icon(ctx,s_icon_heart,r);
+    else if(kind==DASH_ICON_GLUCOSE) draw_bitmap_icon(ctx,s_icon_blood,r);
+    else if(kind==DASH_ICON_SPEED) draw_bitmap_icon(ctx,s_icon_shoe,r);
+    else if(kind==DASH_ICON_TEMP) draw_temperature_icon(ctx,r);
+    else if(kind==DASH_ICON_STEPS) draw_steps_icon(ctx,r);
+    else if(kind==DASH_ICON_TIME) draw_clock_icon(ctx,r);
+    else if(kind==DASH_ICON_ELEVATION) draw_elevation_icon(ctx,r);
+}
+
 static GColor glucose_bar_color(int value_tenths) {
     if (value_tenths < 30) return GColorRed;
     if (value_tenths < 39) return GColorYellow;
@@ -275,158 +319,53 @@ static GColor glucose_bar_color(int value_tenths) {
 }
 
 static GColor heart_rate_bar_color(int bpm) {
-    const int estimated_max_bpm = 180;
-    const int moderate_limit = estimated_max_bpm * 70 / 100;
-    const int vigorous_limit = estimated_max_bpm * 85 / 100;
-
-    if (bpm < moderate_limit) return GColorGreen;
-    if (bpm <= vigorous_limit) return GColorYellow;
+    const int estimated_max_bpm=180;
+    const int moderate_limit=estimated_max_bpm*70/100;
+    const int vigorous_limit=estimated_max_bpm*85/100;
+    if(bpm<moderate_limit) return GColorGreen;
+    if(bpm<=vigorous_limit) return GColorYellow;
     return GColorRed;
 }
 
-static int metric_bar(GContext *ctx, int y, int fraction, GColor color, GRect b, int max_w_limit) {
-    const int min_w = 30;
-    const int value_lane = 84;
-    const int base_max_w = b.size.w - value_lane;
-
-    int w = base_max_w * clamp_i(fraction,0,1000) / 1000;
-    if (w < min_w) w = min_w;
-
-    int cap_w = max_w_limit > 0 ? max_w_limit : base_max_w;
-    if (cap_w > base_max_w) cap_w = base_max_w;
-    if (cap_w < min_w) cap_w = min_w;
-    if (w > cap_w) w = cap_w;
-
+static int metric_bar(GContext *ctx,int y,int fraction,GColor color,GRect b,int max_w_limit) {
+    const int min_w=30;
+    const int value_lane=84;
+    const int base_max_w=b.size.w-value_lane;
+    int w=base_max_w*clamp_i(fraction,0,1000)/1000;
+    if(w<min_w) w=min_w;
+    int cap_w=max_w_limit>0?max_w_limit:base_max_w;
+    if(cap_w>base_max_w) cap_w=base_max_w;
+    if(cap_w<min_w) cap_w=min_w;
+    if(w>cap_w) w=cap_w;
     graphics_context_set_fill_color(ctx,color);
     graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
     return w;
 }
 
 static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b,const char *suffix) {
-    const int row_y = y + 2;
-    const int value_w = ppf_value_width(value);
-    const int suffix_w = suffix && suffix[0] ? text_w(suffix,1) : 0;
-
-    /*
-     * The value is attached to the bar, but it must never be pushed off-screen.
-     * Keep the normal bar scale, then hard-stop its visible growth as soon as
-     * the complete trailing text reaches the right-hand safety margin.
-     */
-    const int value_gap = 2;
-    const int suffix_gap = suffix_w > 0 ? 2 : 0;
-    const int right_margin = 4;
-    int max_w_limit = b.size.w
-            - value_gap
-            - value_w
-            - suffix_gap
-            - suffix_w
-            - right_margin;
-    if (max_w_limit < 30) max_w_limit = 30;
-
-    const int bar_w = metric_bar(ctx,row_y,fraction,color,b,max_w_limit);
-
-    if(kind==0) draw_bitmap_icon(ctx,s_icon_heart,GRect(8,row_y,20,20));
-    else if(kind==1) draw_bitmap_icon(ctx,s_icon_blood,GRect(8,row_y,20,20));
-    else draw_bitmap_icon(ctx,s_icon_shoe,GRect(8,row_y,20,20));
-
-    const int value_x = bar_w + value_gap;
-    ppf_draw_value(ctx,value,value_x + value_w,row_y,GColorWhite);
-
-    if (suffix_w > 0) {
-        const int suffix_x = value_x + value_w + suffix_gap;
-        s_ink = GColorWhite;
+    const int row_y=y+2;
+    const int value_w=ppf_value_width(value);
+    const int suffix_w=suffix&&suffix[0]?text_w(suffix,1):0;
+    const int value_gap=2;
+    const int suffix_gap=suffix_w>0?2:0;
+    const int right_margin=4;
+    int max_w_limit=b.size.w-value_gap-value_w-suffix_gap-suffix_w-right_margin;
+    if(max_w_limit<30) max_w_limit=30;
+    const int bar_w=metric_bar(ctx,row_y,fraction,color,b,max_w_limit);
+    draw_dashboard_icon(ctx,kind,row_y);
+    const int value_x=bar_w+value_gap;
+    ppf_draw_value(ctx,value,value_x+value_w,row_y,GColorWhite);
+    if(suffix_w>0) {
+        const int suffix_x=value_x+value_w+suffix_gap;
+        s_ink=GColorWhite;
         dot_text(ctx,suffix,GRect(suffix_x,row_y+6,b.size.w-suffix_x,12),1,GTextAlignmentLeft);
     }
 }
 
-static void dashboard_update_proc(Layer *layer,GContext *ctx) {
-    GRect b=layer_get_bounds(layer);
-    graphics_context_set_fill_color(ctx,GColorBlack); graphics_fill_rect(ctx,b,0,GCornerNone);
-    s_ink=GColorWhite; graphics_context_set_stroke_color(ctx,GColorWhite);
-
-    /*
-     * Keep the clock at exactly the same PPF value height as the live metrics.
-     * The date uses the compact renderer from the same PPF glyph family so the
-     * two fields fit cleanly on one 200 px row without reintroducing clutter.
-     */
-    ppf_draw_small_value_centered(ctx,s_date_text,GRect(6,5,72,PPF_VALUE_HEIGHT),GColorWhite);
-    ppf_draw_value(ctx,s_time_text,b.size.w-8,5,GColorWhite);
-
-    char heart[16]="--"; if(s_heart_rate>0) snprintf(heart,sizeof(heart),"%d",s_heart_rate);
-    int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0;
-    int gt=0,st=0; bool hg=parse_tenths(s_glucose_text,&gt), hs=parse_tenths(s_speed_text,&st);
-    int gf=hg?(clamp_i(gt,20,140)-20)*1000/120:0, sf=hs?clamp_i(st,0,80)*1000/80:0;
-    char gv[16]="--",sv[16]="--",glucose_age[8]="";
-    if(hg) snprintf(gv,sizeof(gv),"%d.%d",gt/10,gt%10);
-    if(hs) snprintf(sv,sizeof(sv),"%d.%d",st/10,st%10);
-    format_age_short(parse_age_minutes(s_glucose_text),glucose_age,sizeof(glucose_age));
-    GColor heart_color=s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed;
-    GColor glucose_color=hg?glucose_bar_color(gt):GColorGreen;
-    live_row(ctx,31,0,heart,hf,heart_color,b,NULL);
-    live_row(ctx,56,1,gv,gf,glucose_color,b,glucose_age);
-    live_row(ctx,81,2,sv,sf,GColorBlue,b,NULL);
-
-    const int py=114, ph=b.size.h-py-5;
-    GRect panel=GRect(5,py,b.size.w-10,ph);
-    GRect outer_panel=GRect(panel.origin.x-1,panel.origin.y-1,panel.size.w+2,panel.size.h+2);
-    graphics_context_set_fill_color(ctx,GColorChromeYellow); graphics_fill_rect(ctx,panel,11,GCornersAll);
-    graphics_context_set_stroke_color(ctx,GColorWhite); graphics_context_set_stroke_width(ctx,1);
-    graphics_draw_round_rect(ctx,outer_panel,12);
-    graphics_context_set_stroke_color(ctx,GColorYellow); graphics_context_set_stroke_width(ctx,3);
-    graphics_draw_round_rect(ctx,panel,11); graphics_context_set_stroke_width(ctx,1);
-    s_ink=GColorBlack;
-
-    draw_bitmap_icon(ctx,s_icon_shell,GRect(10,py+6,34,34));
-    graphics_context_set_text_color(ctx,GColorBlack);
-    GRect next_stop_rect=GRect(50,py+4,b.size.w-58,18);
-    graphics_draw_text(ctx,"NEXT STOP",s_font_megafont_12,
-                       next_stop_rect,
-                       GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
-    next_stop_rect.origin.y += 1;
-    graphics_draw_text(ctx,"NEXT STOP",s_font_megafont_12,
-                       next_stop_rect,
-                       GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
-
-    GSize next_prefix_size=graphics_text_layout_get_content_size(
-        "NE",s_font_megafont_12,GRect(0,0,100,18),
-        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft);
-    GRect next_x_rect=GRect(50+next_prefix_size.w+1,py+4,20,18);
-    graphics_draw_text(ctx,"X",s_font_megafont_12,
-                       next_x_rect,
-                       GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
-
-    char next_name[40];
-    megafont_text(s_next_name_text,next_name,sizeof(next_name));
-    GFont next_font=s_font_megafont_18;
-    GSize next_size=graphics_text_layout_get_content_size(
-        next_name,next_font,GRect(0,0,1000,32),
-        GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft);
-    if(next_size.w>b.size.w-58) next_font=s_font_megafont_14;
-    graphics_draw_text(ctx,next_name,next_font,
-                       GRect(50,py+20,b.size.w-58,32),
-                       GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft,NULL);
-
-    const int dy=py+55, ix=8, iw=b.size.w-16, cw=iw/3, by=dy+3;
-    graphics_context_set_stroke_color(ctx,GColorDarkGray);
-    graphics_draw_line(ctx,GPoint(12,dy),GPoint(b.size.w-13,dy));
-    graphics_draw_line(ctx,GPoint(ix+cw,by),GPoint(ix+cw,b.size.h-12));
-    graphics_draw_line(ctx,GPoint(ix+cw*2,by),GPoint(ix+cw*2,b.size.h-12));
-
-    int iy=by+3;
-    route_icon(ctx,GRect(ix+(cw-20)/2,iy,20,20));
-    gauge_icon(ctx,GRect(ix+cw+(cw-20)/2,iy,20,20));
-    clock_icon(ctx,GRect(ix+cw*2+(cw-20)/2,iy,20,20));
-    int vy=iy+22;
-    ppf_draw_small_value_centered(ctx,s_distance_text,GRect(ix,vy,cw,18),GColorBlack);
-    ppf_draw_small_value_centered(ctx,s_flat_speed_text,GRect(ix+cw,vy,cw,18),GColorBlack);
-    ppf_draw_small_value_centered(ctx,s_next_time_text,GRect(ix+cw*2,vy,iw-cw*2,18),GColorBlack);
-
-    if(s_alarm_active) {
-        graphics_context_set_stroke_color(ctx,GColorRed); graphics_context_set_stroke_width(ctx,3);
-        graphics_draw_round_rect(ctx,GRect(panel.origin.x+1,panel.origin.y+1,panel.size.w-2,panel.size.h-2),10);
-        graphics_context_set_stroke_width(ctx,1);
-    }
-    s_ink=GColorWhite;
+static void format_int_value(int32_t value,char *dst,size_t n) {
+    if(!dst||n==0) return;
+    if(!metric_known(value)) snprintf(dst,n,"--");
+    else snprintf(dst,n,"%ld",(long)value);
 }
 
 static void update_clock(struct tm *t) {
@@ -434,99 +373,346 @@ static void update_clock(struct tm *t) {
     if(!t){time_t now=time(NULL);local=*localtime(&now);t=&local;}
     if(clock_is_24h_style()) strftime(s_time_text,sizeof(s_time_text),"%H:%M",t);
     else {strftime(s_time_text,sizeof(s_time_text),"%I:%M",t);if(s_time_text[0]=='0')memmove(s_time_text,s_time_text+1,strlen(s_time_text));}
-    strftime(s_date_text,sizeof(s_date_text),"%d.%m",t); dirty();
 }
-static void tick_handler(struct tm *t,TimeUnits u){update_clock(t);}
+
+static int current_minutes_of_day(void) {
+    time_t now=time(NULL);
+    struct tm *local=localtime(&now);
+    return local?local->tm_hour*60+local->tm_min:0;
+}
+
+static void update_steps(void) {
+#if defined(PBL_HEALTH)
+    HealthValue steps=health_service_sum_today(HealthMetricStepCount);
+    s_steps=steps>=0?(int)steps:-1;
+#else
+    s_steps=-1;
+#endif
+}
 
 static void update_heart_rate(void) {
 #if defined(PBL_HEALTH)
-    /*
-     * HealthMetricHeartRateBPM is filtered and may be several minutes old.
-     * The dashboard is meant to behave like the live Health view, so use the
-     * newest raw sensor sample instead. If no valid raw sample exists, show --
-     * rather than presenting an old filtered value as current.
-     */
     HealthValue v=health_service_peek_current_value(HealthMetricHeartRateRawBPM);
     s_heart_rate=v>0?(int)v:-1;
 #else
     s_heart_rate=-1;
 #endif
-    dirty();
 }
+
 #if defined(PBL_HEALTH)
 static void heart_rate_timer_handler(void *context) {
-    update_heart_rate();
-    s_heart_rate_timer=app_timer_register(1000,heart_rate_timer_handler,NULL);
+    s_heart_rate_timer=NULL;
+    if(s_page==PAGE_DASHBOARD) {
+        update_heart_rate();
+        dirty();
+        s_heart_rate_timer=app_timer_register(1000,heart_rate_timer_handler,NULL);
+    }
 }
 
-static void health_handler(HealthEventType e,void *c){
-    if(e==HealthEventHeartRateUpdate||e==HealthEventSignificantUpdate)update_heart_rate();
+static void update_heart_rate_sampling(void) {
+    if(s_page==PAGE_DASHBOARD) {
+        health_service_set_heart_rate_sample_period(1);
+        update_heart_rate();
+        if(!s_heart_rate_timer) s_heart_rate_timer=app_timer_register(1000,heart_rate_timer_handler,NULL);
+    } else {
+        if(s_heart_rate_timer){app_timer_cancel(s_heart_rate_timer);s_heart_rate_timer=NULL;}
+        health_service_set_heart_rate_sample_period(0);
+    }
 }
-#endif
 
-static void copy_text(DictionaryIterator *it,uint32_t key,char *dst,size_t n){Tuple *t=dict_find(it,key);if(t&&dst&&n)snprintf(dst,n,"%s",t->value->cstring);}
-static bool tuple_one(DictionaryIterator *it,uint32_t key,bool fallback){Tuple *t=dict_find(it,key);return t?strcmp(t->value->cstring,"1")==0:fallback;}
-
-static void inbox_received(DictionaryIterator *it,void *ctx) {
-    copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));
-    copy_text(it,MESSAGE_KEY_NEXT_NAME,s_next_name_text,sizeof(s_next_name_text));
-    copy_text(it,MESSAGE_KEY_NEXT_DISTANCE,s_distance_text,sizeof(s_distance_text));
-    copy_text(it,MESSAGE_KEY_NEXT_TIME,s_next_time_text,sizeof(s_next_time_text));
-    copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));
-    copy_text(it,MESSAGE_KEY_FLAT_SPEED,s_flat_speed_text,sizeof(s_flat_speed_text));
-    s_alarm_active=tuple_one(it,MESSAGE_KEY_ALARM_ACTIVE,s_alarm_active);
-    s_route_valid=tuple_one(it,MESSAGE_KEY_ROUTE_VALID,s_route_valid);
-    if(!s_route_valid&&!s_alarm_active){
-        snprintf(s_next_name_text,sizeof(s_next_name_text),"--");
-        snprintf(s_distance_text,sizeof(s_distance_text),"--");
-        snprintf(s_next_time_text,sizeof(s_next_time_text),"--");
-        snprintf(s_flat_speed_text,sizeof(s_flat_speed_text),"--");
+static void health_handler(HealthEventType e,void *c) {
+    if(e==HealthEventHeartRateUpdate&&s_page==PAGE_DASHBOARD) update_heart_rate();
+    if(e==HealthEventMovementUpdate||e==HealthEventSignificantUpdate) {
+        update_steps();
+        if(s_page==PAGE_DASHBOARD) update_heart_rate();
     }
     dirty();
 }
-static void inbox_dropped(AppMessageResult r,void *ctx){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage dropped: %d",(int)r);}
+#endif
 
-static void window_load(Window *w){
-    Layer *root=window_get_root_layer(w);GRect b=layer_get_bounds(root);
+static void draw_dashboard(GContext *ctx,GRect b) {
+    char heart[16]="--",glucose[16]="--",glucose_age[8]="",speed[16]="--",temp[16]="--",steps[16]="--",elevation[16]="--";
+    if(s_heart_rate>0) snprintf(heart,sizeof(heart),"%d",s_heart_rate);
+    int gt=0,st=0;
+    bool hg=parse_tenths(s_glucose_text,&gt),hs=parse_tenths(s_speed_text,&st);
+    if(hg) snprintf(glucose,sizeof(glucose),"%d.%d",gt/10,gt%10);
+    if(hs) snprintf(speed,sizeof(speed),"%d.%d",st/10,st%10);
+    format_age_short(parse_age_minutes(s_glucose_text),glucose_age,sizeof(glucose_age));
+    if(metric_known(s_temp_current)) {
+        int rounded=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;
+        snprintf(temp,sizeof(temp),"%d",rounded);
+    }
+    if(s_steps>=0) snprintf(steps,sizeof(steps),"%d",s_steps);
+    format_int_value(s_elevation_current,elevation,sizeof(elevation));
+
+    int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0;
+    int gf=hg?(clamp_i(gt,20,140)-20)*1000/120:0;
+    int sf=hs?clamp_i(st,0,80)*1000/80:0;
+    int tf=fraction_between(s_temp_current,s_temp_min,s_temp_max);
+    int stepf=s_steps<0?0:clamp_i(s_steps,0,10000)*1000/10000;
+    int timef=fraction_between(current_minutes_of_day(),s_sunrise_minutes,s_sunset_minutes);
+    int elevf=fraction_between(s_elevation_current,s_elevation_min,s_elevation_max);
+
+    GColor hc=s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed;
+    GColor gc=hg?glucose_bar_color(gt):GColorGreen;
+
+    /* Same 21 px PPF values and 21 px bars as the original dashboard. */
+    live_row(ctx,4,  DASH_ICON_HEART,heart,hf,hc,b,NULL);
+    live_row(ctx,35, DASH_ICON_GLUCOSE,glucose,gf,gc,b,glucose_age);
+    live_row(ctx,66, DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL);
+    live_row(ctx,97, DASH_ICON_TEMP,temp,tf,GColorOrange,b,NULL);
+    live_row(ctx,128,DASH_ICON_STEPS,steps,stepf,GColorGreen,b,NULL);
+    live_row(ctx,159,DASH_ICON_TIME,s_time_text,timef,GColorYellow,b,NULL);
+    live_row(ctx,190,DASH_ICON_ELEVATION,elevation,elevf,GColorCyan,b,NULL);
+}
+
+static void draw_centered_ppf(GContext *ctx,const char *value,int y,const char *suffix,GRect b) {
+    int value_w=ppf_value_width(value);
+    int suffix_w=suffix&&suffix[0]?text_w(suffix,1):0;
+    int gap=suffix_w>0?4:0;
+    int total_w=value_w+gap+suffix_w;
+    int left=(b.size.w-total_w)/2;
+    ppf_draw_value(ctx,value,left+value_w,y,GColorWhite);
+    if(suffix_w>0) {
+        s_ink=GColorWhite;
+        dot_text(ctx,suffix,GRect(left+value_w+gap,y+6,suffix_w,12),1,GTextAlignmentLeft);
+    }
+}
+
+static void draw_timetable(GContext *ctx,GRect b) {
+    char name[48];
+    megafont_text(s_stop_name,name,sizeof(name));
+    graphics_context_set_text_color(ctx,GColorWhite);
+    GFont font=s_font_megafont_18;
+    GSize size=graphics_text_layout_get_content_size(name,font,GRect(0,0,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter);
+    if(size.h>58) font=s_font_megafont_14;
+    graphics_draw_text(ctx,name,font,GRect(6,10,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter,NULL);
+    draw_centered_ppf(ctx,s_stop_time,82,NULL,b);
+    draw_centered_ppf(ctx,s_stop_distance,128,"KM",b);
+    char percent[16]="--";
+    if(s_stop_percent>=0) snprintf(percent,sizeof(percent),"%ld",(long)s_stop_percent);
+    draw_centered_ppf(ctx,percent,174,"%",b);
+}
+
+static GPoint map_point(GRect b,int east_m,int north_m) {
+    const int margin=8;
+    const int half_w=(b.size.w-2*margin)/2;
+    const int half_h=(b.size.h-2*margin)/2;
+    const int cx=b.origin.x+b.size.w/2;
+    const int cy=b.origin.y+b.size.h/2;
+    int x=cx+east_m*half_w/100;
+    int y=cy-north_m*half_h/100;
+    x=clamp_i(x,b.origin.x+margin,b.origin.x+b.size.w-margin-1);
+    y=clamp_i(y,b.origin.y+margin,b.origin.y+b.size.h-margin-1);
+    return GPoint(x,y);
+}
+
+static void draw_map_polyline(GContext *ctx,GRect b,size_t offset,int pairs,bool allow_breaks,GColor color,int width) {
+    bool have=false;
+    GPoint previous=GPoint(0,0);
+    graphics_context_set_stroke_color(ctx,color);
+    graphics_context_set_stroke_width(ctx,width);
+    for(int i=0;i<pairs;i++) {
+        if(offset+1>=s_map_payload_len) break;
+        int east=(int8_t)s_map_payload[offset++];
+        int north=(int8_t)s_map_payload[offset++];
+        if(allow_breaks&&east==-128&&north==-128){have=false;continue;}
+        GPoint point=map_point(b,east,north);
+        if(have) graphics_draw_line(ctx,previous,point);
+        previous=point;
+        have=true;
+    }
+    graphics_context_set_stroke_width(ctx,1);
+}
+
+static void draw_map(GContext *ctx,GRect b) {
+    if(s_map_payload_len>=3&&s_map_payload[0]==1) {
+        int route_pairs=s_map_payload[1];
+        int trail_pairs=s_map_payload[2];
+        size_t route_offset=3;
+        size_t trail_offset=route_offset+(size_t)route_pairs*2;
+        draw_map_polyline(ctx,b,route_offset,route_pairs,true,GColorYellow,3);
+        draw_map_polyline(ctx,b,trail_offset,trail_pairs,false,GColorCyan,2);
+    }
+    GPoint center=GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2);
+    graphics_context_set_fill_color(ctx,GColorWhite);
+    graphics_fill_circle(ctx,center,6);
+    graphics_context_set_fill_color(ctx,GColorRed);
+    graphics_fill_circle(ctx,center,4);
+}
+
+static void root_update_proc(Layer *layer,GContext *ctx) {
+    GRect b=layer_get_bounds(layer);
+    graphics_context_set_fill_color(ctx,GColorBlack);
+    graphics_fill_rect(ctx,b,0,GCornerNone);
+    s_ink=GColorWhite;
+    if(s_page==PAGE_DASHBOARD) draw_dashboard(ctx,b);
+    else if(s_page==PAGE_TIMETABLE) draw_timetable(ctx,b);
+    else draw_map(ctx,b);
+}
+
+static void send_control(uint32_t key,int32_t value) {
+    DictionaryIterator *it=NULL;
+    AppMessageResult r=app_message_outbox_begin(&it);
+    if(r!=APP_MSG_OK||!it){APP_LOG(APP_LOG_LEVEL_WARNING,"Control outbox begin failed: %d",(int)r);return;}
+    DictionaryResult dr=dict_write_int32(it,key,value);
+    if(dr!=DICT_OK){APP_LOG(APP_LOG_LEVEL_WARNING,"Control dict write failed: %d",(int)dr);return;}
+    r=app_message_outbox_send();
+    if(r!=APP_MSG_OK) APP_LOG(APP_LOG_LEVEL_WARNING,"Control send failed: %d",(int)r);
+}
+
+static void set_page(int page) {
+    page=clamp_i(page,PAGE_DASHBOARD,PAGE_MAP);
+    if(page==s_page) return;
+    s_page=page;
+#if defined(PBL_HEALTH)
+    update_heart_rate_sampling();
+#endif
+    dirty();
+    send_control(MESSAGE_KEY_WATCH_PAGE,s_page);
+}
+
+static void change_stop(int delta) {
+    if(s_page!=PAGE_TIMETABLE||delta==0) return;
+    send_control(MESSAGE_KEY_WATCH_STOP_DELTA,delta<0?-1:1);
+}
+
+static void select_click_handler(ClickRecognizerRef r,void *c){set_page((s_page+1)%3);}
+static void up_click_handler(ClickRecognizerRef r,void *c){if(s_page==PAGE_TIMETABLE)change_stop(-1);else set_page(s_page-1);}
+static void down_click_handler(ClickRecognizerRef r,void *c){if(s_page==PAGE_TIMETABLE)change_stop(1);else set_page(s_page+1);}
+
+static void click_config_provider(void *context) {
+    window_single_click_subscribe(BUTTON_ID_SELECT,select_click_handler);
+    window_single_click_subscribe(BUTTON_ID_UP,up_click_handler);
+    window_single_click_subscribe(BUTTON_ID_DOWN,down_click_handler);
+}
+
+#if defined(PBL_TOUCH)
+static void touch_handler(const TouchEvent *event,void *context) {
+    if(!event) return;
+    if(event->type==TouchEvent_Touchdown) {
+        s_touch_active=true;
+        s_touch_start_x=event->x;
+        s_touch_start_y=event->y;
+        return;
+    }
+    if(event->type!=TouchEvent_Liftoff||!s_touch_active) return;
+    s_touch_active=false;
+    int dx=event->x-s_touch_start_x;
+    int dy=event->y-s_touch_start_y;
+    int adx=dx<0?-dx:dx;
+    int ady=dy<0?-dy:dy;
+    if(adx>=TOUCH_SWIPE_THRESHOLD&&adx>ady) {
+        if(dx<0) set_page(s_page+1); else set_page(s_page-1);
+        return;
+    }
+    if(s_page==PAGE_TIMETABLE&&ady>=TOUCH_SWIPE_THRESHOLD&&ady>adx) change_stop(dy<0?1:-1);
+}
+#endif
+
+static void tick_handler(struct tm *t,TimeUnits u){update_clock(t);update_steps();dirty();}
+
+static void copy_text(DictionaryIterator *it,uint32_t key,char *dst,size_t n){Tuple *t=dict_find(it,key);if(t&&dst&&n)snprintf(dst,n,"%s",t->value->cstring);}
+static void copy_int32(DictionaryIterator *it,uint32_t key,int32_t *dst){Tuple *t=dict_find(it,key);if(t&&dst)*dst=t->value->int32;}
+static void copy_bytes(DictionaryIterator *it,uint32_t key) {
+    Tuple *t=dict_find(it,key);
+    if(!t) return;
+    size_t n=t->length;
+    if(n>sizeof(s_map_payload)) n=sizeof(s_map_payload);
+    memcpy(s_map_payload,t->value->data,n);
+    s_map_payload_len=n;
+}
+
+static void inbox_received(DictionaryIterator *it,void *ctx) {
+    copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));
+    copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));
+    copy_int32(it,MESSAGE_KEY_TEMP_CURRENT_TENTHS,&s_temp_current);
+    copy_int32(it,MESSAGE_KEY_TEMP_MIN_TENTHS,&s_temp_min);
+    copy_int32(it,MESSAGE_KEY_TEMP_MAX_TENTHS,&s_temp_max);
+    copy_int32(it,MESSAGE_KEY_SUNRISE_MINUTES,&s_sunrise_minutes);
+    copy_int32(it,MESSAGE_KEY_SUNSET_MINUTES,&s_sunset_minutes);
+    copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);
+    copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);
+    copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);
+    copy_text(it,MESSAGE_KEY_STOP_NAME,s_stop_name,sizeof(s_stop_name));
+    copy_text(it,MESSAGE_KEY_STOP_TIME,s_stop_time,sizeof(s_stop_time));
+    copy_text(it,MESSAGE_KEY_STOP_DISTANCE,s_stop_distance,sizeof(s_stop_distance));
+    copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&s_stop_percent);
+    copy_bytes(it,MESSAGE_KEY_MAP_VECTOR);
+    dirty();
+}
+
+static void inbox_dropped(AppMessageResult r,void *ctx){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage dropped: %d",(int)r);}
+static void outbox_failed(DictionaryIterator *it,AppMessageResult r,void *ctx){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage control failed: %d",(int)r);}
+
+static void window_load(Window *w) {
+    Layer *root=window_get_root_layer(w);
+    GRect b=layer_get_bounds(root);
     s_icon_heart=gbitmap_create_with_resource(RESOURCE_ID_ICON_HEART);
     s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);
     s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);
-    s_icon_shell=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHELL);
-    s_font_megafont_12=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_12));
     s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));
     s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));
-    s_dashboard_layer=layer_create(b);layer_set_update_proc(s_dashboard_layer,dashboard_update_proc);layer_add_child(root,s_dashboard_layer);
-    window_set_background_color(w,GColorBlack);update_clock(NULL);update_heart_rate();
+    s_root_layer=layer_create(b);
+    layer_set_update_proc(s_root_layer,root_update_proc);
+    layer_add_child(root,s_root_layer);
+    window_set_background_color(w,GColorBlack);
+    window_set_click_config_provider(w,click_config_provider);
+    update_clock(NULL);
+    update_steps();
+    update_heart_rate();
 }
-static void window_unload(Window *w){
-    layer_destroy(s_dashboard_layer);s_dashboard_layer=NULL;
+
+static void window_appear(Window *w) {
+#if defined(PBL_TOUCH)
+    if(!s_touch_subscribed&&touch_service_is_enabled()) {
+        touch_service_subscribe(touch_handler,NULL);
+        s_touch_subscribed=true;
+    }
+#endif
+}
+
+static void window_disappear(Window *w) {
+#if defined(PBL_TOUCH)
+    if(s_touch_subscribed) {
+        touch_service_unsubscribe();
+        s_touch_subscribed=false;
+        s_touch_active=false;
+    }
+#endif
+}
+
+static void window_unload(Window *w) {
+    layer_destroy(s_root_layer);s_root_layer=NULL;
     gbitmap_destroy(s_icon_heart);s_icon_heart=NULL;
     gbitmap_destroy(s_icon_blood);s_icon_blood=NULL;
     gbitmap_destroy(s_icon_shoe);s_icon_shoe=NULL;
-    gbitmap_destroy(s_icon_shell);s_icon_shell=NULL;
-    if(s_font_megafont_12){fonts_unload_custom_font(s_font_megafont_12);s_font_megafont_12=NULL;}
     if(s_font_megafont_14){fonts_unload_custom_font(s_font_megafont_14);s_font_megafont_14=NULL;}
     if(s_font_megafont_18){fonts_unload_custom_font(s_font_megafont_18);s_font_megafont_18=NULL;}
 }
 
-static void init(void){
-    s_window=window_create();window_set_window_handlers(s_window,(WindowHandlers){.load=window_load,.unload=window_unload});window_stack_push(s_window,true);
+static void init(void) {
+    s_window=window_create();
+    window_set_window_handlers(s_window,(WindowHandlers){.load=window_load,.appear=window_appear,.disappear=window_disappear,.unload=window_unload});
+    window_stack_push(s_window,true);
     tick_timer_service_subscribe(MINUTE_UNIT,tick_handler);
 #if defined(PBL_HEALTH)
     s_health_subscribed=health_service_events_subscribe(health_handler,NULL);
-    /*
-     * Ask PebbleOS for the fastest HR sampling cadence while Camino Guard is
-     * active. This is a request, not a guarantee; sensor quality/system policy
-     * can still choose a different cadence.
-     */
-    health_service_set_heart_rate_sample_period(1);
-    s_heart_rate_timer=app_timer_register(1000,heart_rate_timer_handler,NULL);
+    update_heart_rate_sampling();
 #endif
-    app_message_register_inbox_received(inbox_received);app_message_register_inbox_dropped(inbox_dropped);
-    AppMessageResult r=app_message_open(256,64);if(r!=APP_MSG_OK)APP_LOG(APP_LOG_LEVEL_ERROR,"AppMessage open failed: %d",(int)r);
+    app_message_register_inbox_received(inbox_received);
+    app_message_register_inbox_dropped(inbox_dropped);
+    app_message_register_outbox_failed(outbox_failed);
+    AppMessageResult r=app_message_open(256,64);
+    if(r!=APP_MSG_OK) APP_LOG(APP_LOG_LEVEL_ERROR,"AppMessage open failed: %d",(int)r);
+    else send_control(MESSAGE_KEY_WATCH_PAGE,PAGE_DASHBOARD);
 }
-static void deinit(void){
+
+static void deinit(void) {
     tick_timer_service_unsubscribe();
+#if defined(PBL_TOUCH)
+    if(s_touch_subscribed){touch_service_unsubscribe();s_touch_subscribed=false;}
+#endif
 #if defined(PBL_HEALTH)
     if(s_heart_rate_timer){app_timer_cancel(s_heart_rate_timer);s_heart_rate_timer=NULL;}
     health_service_set_heart_rate_sample_period(0);
@@ -534,4 +720,5 @@ static void deinit(void){
 #endif
     window_destroy(s_window);
 }
+
 int main(void){init();app_event_loop();deinit();return 0;}
