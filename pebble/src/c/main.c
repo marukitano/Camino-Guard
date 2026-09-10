@@ -443,9 +443,10 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     /* Two-line names already center perfectly on the fixed dot. Use the font's
      * actual line height to identify a one-line layout, then move only that
      * text down by half a line. */
-    int line_h=fonts_get_font_height(f);
-    bool one_line=name_size.h<=line_h+2;
-    if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+line_h/2;
+    GRect single_line_box=GRect(0,0,1000,TIMETABLE_NAME_H);
+    GSize single_line_size=graphics_text_layout_get_content_size(name,f,single_line_box,GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft);
+    bool one_line=single_line_size.w<=name_box.size.w;
+    if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+14;
     graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);
 
     draw_timetable_value(ctx,b,v->distance,TIMETABLE_DISTANCE_Y+off,"KM");
