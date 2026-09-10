@@ -37,7 +37,11 @@
       "WATCH_PAGE": 21,
       "WATCH_STOP_DELTA": 22,
       "ROUTE_PROGRESS_PERCENT": 23,
-      "SHOW_MAP_ONCE": 24
+      "SHOW_MAP_ONCE": 24,
+      "MAP_ROADS_GENERATION": 25,
+      "MAP_ROADS_CHUNK_INDEX": 26,
+      "MAP_ROADS_CHUNK_COUNT": 27,
+      "MAP_ROADS_CHUNK_DATA": 28
     },
     "resources": {
       "media": [
