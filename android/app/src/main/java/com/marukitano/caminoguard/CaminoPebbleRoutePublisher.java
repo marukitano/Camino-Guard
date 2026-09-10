@@ -39,6 +39,10 @@ final class CaminoPebbleRoutePublisher
     private static final double MAP_HALF_HEIGHT_M =
             114.0;
 
+    /* -128 is reserved as the polyline break marker in the watch payload. */
+    private static final double MAP_VECTOR_LIMIT_M =
+            127.0;
+
     private static final int MAP_MAX_ROUTE_POINTS =
             48;
 
@@ -915,79 +919,161 @@ final class CaminoPebbleRoutePublisher
         if (path != null
                 && path.profilePoints != null) {
 
-            boolean previousIncluded =
+            ProfilePoint previous =
+                    null;
+
+            boolean runOpen =
                     false;
 
-            for (int index = 0;
-                    index < path.profilePoints.size()
-                            && routePairs < MAP_MAX_ROUTE_POINTS;
-                    index++) {
+            int lastEast =
+                    Integer.MIN_VALUE;
 
-                ProfilePoint point =
-                        path.profilePoints.get(
-                                index
-                        );
+            int lastNorth =
+                    Integer.MIN_VALUE;
 
+            routeLoop:
+            for (ProfilePoint point : path.profilePoints) {
                 if (point == null
                         || point.point == null) {
 
-                    previousIncluded =
+                    previous =
+                            null;
+
+                    runOpen =
                             false;
                     continue;
                 }
 
-                LocalPoint local =
-                        localPoint(
-                                center,
-                                point.point.getLatitude(),
-                                point.point.getLongitude()
-                        );
+                if (previous != null
+                        && !point.breakBefore) {
 
-                boolean included =
-                        Math.abs(local.eastM)
-                                <= MAP_HALF_WIDTH_M
-                                && Math.abs(local.northM)
-                                <= MAP_HALF_HEIGHT_M;
+                    LocalPoint from =
+                            localPoint(
+                                    center,
+                                    previous.point.getLatitude(),
+                                    previous.point.getLongitude()
+                            );
 
-                if (!included) {
-                    previousIncluded =
+                    LocalPoint to =
+                            localPoint(
+                                    center,
+                                    point.point.getLatitude(),
+                                    point.point.getLongitude()
+                            );
+
+                    LocalPoint[] clipped =
+                            clipSegmentToMap(
+                                    from,
+                                    to
+                            );
+
+                    if (clipped == null) {
+                        runOpen =
+                                false;
+
+                    } else {
+                        int firstEast =
+                                encodeMeters(
+                                        clipped[0].eastM
+                                );
+
+                        int firstNorth =
+                                encodeMeters(
+                                        clipped[0].northM
+                                );
+
+                        int secondEast =
+                                encodeMeters(
+                                        clipped[1].eastM
+                                );
+
+                        int secondNorth =
+                                encodeMeters(
+                                        clipped[1].northM
+                                );
+
+                        if (!runOpen) {
+                            if (routePairs > 0) {
+                                if (routePairs + 2
+                                        > MAP_MAX_ROUTE_POINTS) {
+
+                                    break routeLoop;
+                                }
+
+                                writeMapPair(
+                                        route,
+                                        -128,
+                                        -128
+                                );
+
+                                routePairs++;
+                            }
+
+                            if (routePairs
+                                    >= MAP_MAX_ROUTE_POINTS) {
+                                break routeLoop;
+                            }
+
+                            writeMapPair(
+                                    route,
+                                    firstEast,
+                                    firstNorth
+                            );
+
+                            routePairs++;
+                            lastEast =
+                                    firstEast;
+                            lastNorth =
+                                    firstNorth;
+                            runOpen =
+                                    true;
+
+                        } else if ((firstEast != lastEast
+                                || firstNorth != lastNorth)
+                                && routePairs
+                                < MAP_MAX_ROUTE_POINTS) {
+
+                            writeMapPair(
+                                    route,
+                                    firstEast,
+                                    firstNorth
+                            );
+
+                            routePairs++;
+                            lastEast =
+                                    firstEast;
+                            lastNorth =
+                                    firstNorth;
+                        }
+
+                        if ((secondEast != lastEast
+                                || secondNorth != lastNorth)) {
+
+                            if (routePairs
+                                    >= MAP_MAX_ROUTE_POINTS) {
+                                break routeLoop;
+                            }
+
+                            writeMapPair(
+                                    route,
+                                    secondEast,
+                                    secondNorth
+                            );
+
+                            routePairs++;
+                            lastEast =
+                                    secondEast;
+                            lastNorth =
+                                    secondNorth;
+                        }
+                    }
+                } else {
+                    runOpen =
                             false;
-                    continue;
                 }
 
-                if ((point.breakBefore
-                        || !previousIncluded)
-                        && routePairs > 0
-                        && routePairs
-                        < MAP_MAX_ROUTE_POINTS) {
-
-                    writeMapPair(
-                            route,
-                            -128,
-                            -128
-                    );
-
-                    routePairs++;
-                }
-
-                if (routePairs
-                        >= MAP_MAX_ROUTE_POINTS) {
-                    break;
-                }
-
-                writeMapPair(
-                        route,
-                        encodeMeters(
-                                local.eastM
-                        ),
-                        encodeMeters(
-                                local.northM
-                        )
-                );
-
-                routePairs++;
-                previousIncluded =
-                        true;
+                previous =
+                        point;
             }
         }
 
@@ -1104,6 +1190,81 @@ final class CaminoPebbleRoutePublisher
         );
 
         return payload.toByteArray();
+    }
+
+    /*
+     * Clip each real route segment to the signed-byte map square instead of
+     * testing only its endpoints. This keeps the Camino visible even when two
+     * sparse profile vertices both lie outside the 200 x 228 m screen while
+     * their segment passes straight through it.
+     */
+    private static LocalPoint[] clipSegmentToMap(
+            LocalPoint from,
+            LocalPoint to
+    ) {
+        if (from == null
+                || to == null) {
+            return null;
+        }
+
+        double x0 = from.eastM;
+        double y0 = from.northM;
+        double dx = to.eastM - x0;
+        double dy = to.northM - y0;
+        double t0 = 0.0;
+        double t1 = 1.0;
+
+        double[] p =
+                {-dx, dx, -dy, dy};
+
+        double[] q =
+                {
+                        x0 + MAP_VECTOR_LIMIT_M,
+                        MAP_VECTOR_LIMIT_M - x0,
+                        y0 + MAP_VECTOR_LIMIT_M,
+                        MAP_VECTOR_LIMIT_M - y0
+                };
+
+        for (int index = 0;
+                index < p.length;
+                index++) {
+
+            double pi = p[index];
+            double qi = q[index];
+
+            if (Math.abs(pi) < 1.0e-9) {
+                if (qi < 0.0) {
+                    return null;
+                }
+                continue;
+            }
+
+            double ratio = qi / pi;
+
+            if (pi < 0.0) {
+                if (ratio > t1) {
+                    return null;
+                }
+                t0 = Math.max(t0, ratio);
+
+            } else {
+                if (ratio < t0) {
+                    return null;
+                }
+                t1 = Math.min(t1, ratio);
+            }
+        }
+
+        return new LocalPoint[]{
+                new LocalPoint(
+                        x0 + dx * t0,
+                        y0 + dy * t0
+                ),
+                new LocalPoint(
+                        x0 + dx * t1,
+                        y0 + dy * t1
+                )
+        };
     }
 
     private void rememberTrailPoint(
