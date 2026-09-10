@@ -58,15 +58,15 @@ final class CaminoPebbleBridge
     private static final int KEY_MAP_ROADS_CHUNK_COUNT = 27;
     private static final int KEY_MAP_ROADS_CHUNK_DATA = 28;
 
-    private final Context appContext;
     private final JavaPebbleSender sender;
     private final CaminoPebbleWeatherClient weatherClient;
+    private final CaminoPebbleRoadSnapshotter roadSnapshotter;
     private final LibreLinkUpStore libreStore;
 
     CaminoPebbleBridge(
             Context context
     ) {
-        appContext =
+        Context appContext =
                 context.getApplicationContext();
 
         sender =
@@ -79,14 +79,15 @@ final class CaminoPebbleBridge
                         appContext
                 );
 
+        roadSnapshotter =
+                new CaminoPebbleRoadSnapshotter(
+                        appContext
+                );
+
         libreStore =
                 new LibreLinkUpStore(
                         appContext
                 );
-    }
-
-    Context appContext() {
-        return appContext;
     }
 
     void requestWeather(
@@ -94,6 +95,16 @@ final class CaminoPebbleBridge
             Consumer<CaminoPebbleWeatherClient.Snapshot> callback
     ) {
         weatherClient.request(
+                location,
+                callback
+        );
+    }
+
+    void requestRoadSnapshot(
+            Location location,
+            CaminoPebbleRoadSnapshotter.Callback callback
+    ) {
+        roadSnapshotter.request(
                 location,
                 callback
         );
@@ -640,6 +651,7 @@ final class CaminoPebbleBridge
 
     @Override
     public synchronized void close() {
+        roadSnapshotter.close();
         weatherClient.close();
 
         try {
