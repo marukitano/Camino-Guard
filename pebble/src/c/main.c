@@ -8,9 +8,55 @@
 #define PAGE_DASHBOARD 0
 #define PAGE_TIMETABLE 1
 #define PAGE_MAP 2
+#define PAGE_COUNT 3
 #define UNKNOWN_METRIC ((int32_t)0x80000000)
 #define MAP_PAYLOAD_MAX 192
-#define TOUCH_SWIPE_THRESHOLD 30
+
+/*
+ * The touch feel deliberately mirrors Nasu's scroll controller: 16 ms
+ * physics, a short breakaway distance, a very small quick-flick threshold,
+ * and the same spring/damping pair for automatic snapping.
+ */
+#define SCROLL_Q8 256
+#define SCROLL_FRAME_MS 16
+#define SCROLL_BREAKAWAY_PX 9
+#define SCROLL_QUICK_SWIPE_MIN_PX 5
+#define SCROLL_QUICK_SWIPE_MAX_MS 230
+#define SCROLL_FINGER_SPRING_NUM 18
+#define SCROLL_FINGER_SPRING_DEN 100
+#define SCROLL_FINGER_DAMPING_NUM 68
+#define SCROLL_FINGER_DAMPING_DEN 100
+#define SCROLL_SNAP_SPRING_NUM 24
+#define SCROLL_SNAP_SPRING_DEN 100
+#define SCROLL_SNAP_DAMPING_NUM 62
+#define SCROLL_SNAP_DAMPING_DEN 100
+#define SCROLL_MAX_VELOCITY_Q8 (32 * SCROLL_Q8)
+#define SCROLL_STOP_POSITION_Q8 (SCROLL_Q8 / 4)
+#define SCROLL_STOP_VELOCITY_Q8 (SCROLL_Q8 / 4)
+#define PAGE_SLOW_COMMIT_PERCENT 42
+#define TIMETABLE_SLOW_SWIPE_PX 30
+#define STOP_REQUEST_TIMEOUT_MS 1500
+
+#if defined(PBL_TOUCH)
+typedef enum {
+    TOUCH_AXIS_NONE = 0,
+    TOUCH_AXIS_HORIZONTAL,
+    TOUCH_AXIS_VERTICAL
+} TouchAxis;
+#endif
+
+typedef enum {
+    PAGE_SCROLL_IDLE = 0,
+    PAGE_SCROLL_TOUCH,
+    PAGE_SCROLL_SNAP
+} PageScrollMode;
+
+typedef struct {
+    char name[48];
+    char time[24];
+    char distance[24];
+    int32_t percent;
+} StopView;
 
 enum DashboardIcon {
     DASH_ICON_HEART = 0,
@@ -23,7 +69,7 @@ enum DashboardIcon {
 };
 
 static Window *s_window;
-static Layer *s_root_layer;
+static Layer *s_page_layers[PAGE_COUNT];
 
 static GBitmap *s_icon_heart;
 static GBitmap *s_icon_blood;
@@ -49,13 +95,29 @@ static int32_t s_elevation_current = UNKNOWN_METRIC;
 static int32_t s_elevation_min = UNKNOWN_METRIC;
 static int32_t s_elevation_max = UNKNOWN_METRIC;
 
-static char s_stop_name[48] = "--";
-static char s_stop_time[24] = "--";
-static char s_stop_distance[24] = "--";
-static int32_t s_stop_percent = -1;
+static StopView s_stop = {"--", "--", "--", -1};
+static StopView s_stop_previous = {"--", "--", "--", -1};
+static bool s_stop_request_pending;
+static int s_stop_request_delta;
+static int s_stop_queued_delta;
+static AppTimer *s_stop_request_timeout_timer;
+static bool s_stop_animating;
+static int s_stop_anim_direction;
+static int32_t s_stop_position_q8;
+static int32_t s_stop_target_q8;
+static int32_t s_stop_velocity_q8;
+static AppTimer *s_stop_animation_timer;
 
 static uint8_t s_map_payload[MAP_PAYLOAD_MAX];
 static size_t s_map_payload_len;
+
+static PageScrollMode s_page_scroll_mode = PAGE_SCROLL_IDLE;
+static int s_page_neighbor = -1;
+static int s_page_direction;
+static int32_t s_page_position_q8;
+static int32_t s_page_target_q8;
+static int32_t s_page_velocity_q8;
+static AppTimer *s_page_scroll_timer;
 
 #if defined(PBL_HEALTH)
 static bool s_health_subscribed;
@@ -67,15 +129,40 @@ static bool s_touch_subscribed;
 static bool s_touch_active;
 static int16_t s_touch_start_x;
 static int16_t s_touch_start_y;
+static int16_t s_touch_last_x;
+static int16_t s_touch_last_y;
+static int16_t s_touch_total_x;
+static int16_t s_touch_total_y;
+static uint32_t s_touch_start_time_ms;
+static TouchAxis s_touch_axis;
 #endif
 
 static int clamp_i(int value, int low, int high) {
     return value < low ? low : (value > high ? high : value);
 }
 
+static int32_t clamp_symmetric_i32(int32_t value, int32_t maximum) {
+    if (value > maximum) return maximum;
+    if (value < -maximum) return -maximum;
+    return value;
+}
+
+static int32_t abs_i32(int32_t value) {
+    return value < 0 ? -value : value;
+}
+
+static uint32_t current_time_ms(void) {
+    time_t seconds = 0;
+    uint16_t milliseconds = 0;
+    time_ms(&seconds, &milliseconds);
+    return (uint32_t)((uint32_t)seconds * 1000u + milliseconds);
+}
+
 static void dirty(void) {
-    if (s_root_layer) {
-        layer_mark_dirty(s_root_layer);
+    for (int i = 0; i < PAGE_COUNT; ++i) {
+        if (s_page_layers[i] && !layer_get_hidden(s_page_layers[i])) {
+            layer_mark_dirty(s_page_layers[i]);
+        }
     }
 }
 
@@ -456,7 +543,7 @@ static void draw_dashboard(GContext *ctx,GRect b) {
     GColor hc=s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed;
     GColor gc=hg?glucose_bar_color(gt):GColorGreen;
 
-    /* Same 21 px PPF values and 21 px bars as the original dashboard. */
+    /* Keep the original 21 px bars and original full-size PPF values. */
     live_row(ctx,4,  DASH_ICON_HEART,heart,hf,hc,b,NULL);
     live_row(ctx,35, DASH_ICON_GLUCOSE,glucose,gf,gc,b,glucose_age);
     live_row(ctx,66, DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL);
@@ -479,19 +566,30 @@ static void draw_centered_ppf(GContext *ctx,const char *value,int y,const char *
     }
 }
 
-static void draw_timetable(GContext *ctx,GRect b) {
+static void draw_timetable_view(GContext *ctx,GRect b,const StopView *view,int y_offset) {
     char name[48];
-    megafont_text(s_stop_name,name,sizeof(name));
+    megafont_text(view?view->name:"--",name,sizeof(name));
     graphics_context_set_text_color(ctx,GColorWhite);
     GFont font=s_font_megafont_18;
     GSize size=graphics_text_layout_get_content_size(name,font,GRect(0,0,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter);
     if(size.h>58) font=s_font_megafont_14;
-    graphics_draw_text(ctx,name,font,GRect(6,10,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter,NULL);
-    draw_centered_ppf(ctx,s_stop_time,82,NULL,b);
-    draw_centered_ppf(ctx,s_stop_distance,128,"KM",b);
+    graphics_draw_text(ctx,name,font,GRect(6,10+y_offset,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter,NULL);
+    draw_centered_ppf(ctx,view?view->time:"--",82+y_offset,NULL,b);
+    draw_centered_ppf(ctx,view?view->distance:"--",128+y_offset,"KM",b);
     char percent[16]="--";
-    if(s_stop_percent>=0) snprintf(percent,sizeof(percent),"%ld",(long)s_stop_percent);
-    draw_centered_ppf(ctx,percent,174,"%",b);
+    if(view&&view->percent>=0) snprintf(percent,sizeof(percent),"%ld",(long)view->percent);
+    draw_centered_ppf(ctx,percent,174+y_offset,"%",b);
+}
+
+static void draw_timetable(GContext *ctx,GRect b) {
+    if(!s_stop_animating) {
+        draw_timetable_view(ctx,b,&s_stop,0);
+        return;
+    }
+
+    int offset=(int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);
+    draw_timetable_view(ctx,b,&s_stop_previous,offset);
+    draw_timetable_view(ctx,b,&s_stop,offset+s_stop_anim_direction*b.size.h);
 }
 
 static GPoint map_point(GRect b,int east_m,int north_m) {
@@ -541,14 +639,22 @@ static void draw_map(GContext *ctx,GRect b) {
     graphics_fill_circle(ctx,center,4);
 }
 
-static void root_update_proc(Layer *layer,GContext *ctx) {
-    GRect b=layer_get_bounds(layer);
+static void page_background(GContext *ctx,GRect b) {
     graphics_context_set_fill_color(ctx,GColorBlack);
     graphics_fill_rect(ctx,b,0,GCornerNone);
     s_ink=GColorWhite;
-    if(s_page==PAGE_DASHBOARD) draw_dashboard(ctx,b);
-    else if(s_page==PAGE_TIMETABLE) draw_timetable(ctx,b);
-    else draw_map(ctx,b);
+}
+
+static void dashboard_update_proc(Layer *layer,GContext *ctx) {
+    GRect b=layer_get_bounds(layer); page_background(ctx,b); draw_dashboard(ctx,b);
+}
+
+static void timetable_update_proc(Layer *layer,GContext *ctx) {
+    GRect b=layer_get_bounds(layer); page_background(ctx,b); draw_timetable(ctx,b);
+}
+
+static void map_update_proc(Layer *layer,GContext *ctx) {
+    GRect b=layer_get_bounds(layer); page_background(ctx,b); draw_map(ctx,b);
 }
 
 static void send_control(uint32_t key,int32_t value) {
@@ -561,25 +667,267 @@ static void send_control(uint32_t key,int32_t value) {
     if(r!=APP_MSG_OK) APP_LOG(APP_LOG_LEVEL_WARNING,"Control send failed: %d",(int)r);
 }
 
-static void set_page(int page) {
-    page=clamp_i(page,PAGE_DASHBOARD,PAGE_MAP);
-    if(page==s_page) return;
-    s_page=page;
+static int page_width(void) {
+    if(s_page_layers[s_page]) return layer_get_bounds(s_page_layers[s_page]).size.w;
+    return 200;
+}
+
+static void set_page_layer_x(int page,int x) {
+    if(page<PAGE_DASHBOARD||page>PAGE_MAP||!s_page_layers[page]) return;
+    GRect frame=layer_get_frame(s_page_layers[page]);
+    frame.origin.x=x;
+    frame.origin.y=0;
+    layer_set_frame(s_page_layers[page],frame);
+}
+
+static void reset_page_layers(void) {
+    for(int i=0;i<PAGE_COUNT;i++) {
+        if(!s_page_layers[i]) continue;
+        set_page_layer_x(i,0);
+        layer_set_hidden(s_page_layers[i],i!=s_page);
+    }
+}
+
+static void update_page_layer_positions(void) {
+    if(!s_page_layers[s_page]) return;
+    int32_t rounded=s_page_position_q8>=0?s_page_position_q8+SCROLL_Q8/2:s_page_position_q8-SCROLL_Q8/2;
+    int current_x=(int)(rounded/SCROLL_Q8);
+    set_page_layer_x(s_page,current_x);
+
+    if(s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page) {
+        layer_set_hidden(s_page_layers[s_page_neighbor],false);
+        set_page_layer_x(s_page_neighbor,current_x+s_page_direction*page_width());
+    }
+}
+
+static void cancel_page_scroll_timer(void) {
+    if(s_page_scroll_timer) {
+        app_timer_cancel(s_page_scroll_timer);
+        s_page_scroll_timer=NULL;
+    }
+}
+
+static void schedule_page_scroll(void);
+
+static void finish_page_scroll(bool committed) {
+    cancel_page_scroll_timer();
+    if(committed&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page) {
+        s_page=s_page_neighbor;
 #if defined(PBL_HEALTH)
-    update_heart_rate_sampling();
+        update_heart_rate_sampling();
 #endif
+    }
+    s_page_neighbor=-1;
+    s_page_direction=0;
+    s_page_position_q8=0;
+    s_page_target_q8=0;
+    s_page_velocity_q8=0;
+    s_page_scroll_mode=PAGE_SCROLL_IDLE;
+    reset_page_layers();
     dirty();
-    send_control(MESSAGE_KEY_WATCH_PAGE,s_page);
+}
+
+static void page_scroll_tick(void *context) {
+    s_page_scroll_timer=NULL;
+    if(s_page_scroll_mode==PAGE_SCROLL_IDLE) return;
+
+    int32_t force_q8=(s_page_target_q8-s_page_position_q8)*
+        (s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_NUM:SCROLL_SNAP_SPRING_NUM)/
+        (s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_DEN:SCROLL_SNAP_SPRING_DEN);
+
+    s_page_velocity_q8+=force_q8;
+    s_page_velocity_q8=s_page_velocity_q8*
+        (s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_NUM:SCROLL_SNAP_DAMPING_NUM)/
+        (s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_DEN:SCROLL_SNAP_DAMPING_DEN);
+    s_page_velocity_q8=clamp_symmetric_i32(s_page_velocity_q8,SCROLL_MAX_VELOCITY_Q8);
+    s_page_position_q8+=s_page_velocity_q8;
+    update_page_layer_positions();
+
+    if(s_page_scroll_mode==PAGE_SCROLL_SNAP&&
+       abs_i32(s_page_target_q8-s_page_position_q8)<=SCROLL_STOP_POSITION_Q8&&
+       abs_i32(s_page_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8) {
+        bool committed=s_page_target_q8!=0&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page;
+        finish_page_scroll(committed);
+        return;
+    }
+
+    schedule_page_scroll();
+}
+
+static void schedule_page_scroll(void) {
+    if(s_page_scroll_timer||s_page_scroll_mode==PAGE_SCROLL_IDLE) return;
+    s_page_scroll_timer=app_timer_register(SCROLL_FRAME_MS,page_scroll_tick,NULL);
+}
+
+static bool prepare_page_neighbor(int direction) {
+    int neighbor=s_page+direction;
+    if(neighbor<PAGE_DASHBOARD||neighbor>PAGE_MAP) {
+        s_page_neighbor=-1;
+        s_page_direction=direction;
+        return false;
+    }
+    s_page_neighbor=neighbor;
+    s_page_direction=direction;
+    if(s_page_layers[neighbor]) {
+        layer_set_hidden(s_page_layers[neighbor],false);
+        set_page_layer_x(neighbor,direction*page_width());
+        layer_mark_dirty(s_page_layers[neighbor]);
+    }
+    return true;
+}
+
+static void start_page_touch(int direction) {
+    if(s_page_scroll_mode!=PAGE_SCROLL_IDLE) return;
+    prepare_page_neighbor(direction);
+    s_page_position_q8=0;
+    s_page_target_q8=0;
+    s_page_velocity_q8=0;
+    s_page_scroll_mode=PAGE_SCROLL_TOUCH;
+    schedule_page_scroll();
+}
+
+static void snap_page(bool commit) {
+    if(s_page_scroll_mode==PAGE_SCROLL_IDLE) return;
+    if(commit&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page) {
+        s_page_target_q8=-(int32_t)s_page_direction*page_width()*SCROLL_Q8;
+        send_control(MESSAGE_KEY_WATCH_PAGE,s_page_neighbor);
+    } else {
+        s_page_target_q8=0;
+    }
+    s_page_scroll_mode=PAGE_SCROLL_SNAP;
+    schedule_page_scroll();
+}
+
+static void animate_to_page(int target,int direction) {
+    target=clamp_i(target,PAGE_DASHBOARD,PAGE_MAP);
+    if(target==s_page||s_page_scroll_mode!=PAGE_SCROLL_IDLE) return;
+    if(direction==0) direction=target>s_page?1:-1;
+    s_page_neighbor=target;
+    s_page_direction=direction<0?-1:1;
+    s_page_position_q8=0;
+    s_page_target_q8=0;
+    s_page_velocity_q8=0;
+    if(s_page_layers[target]) {
+        layer_set_hidden(s_page_layers[target],false);
+        set_page_layer_x(target,s_page_direction*page_width());
+        layer_mark_dirty(s_page_layers[target]);
+    }
+    s_page_scroll_mode=PAGE_SCROLL_SNAP;
+    s_page_target_q8=-(int32_t)s_page_direction*page_width()*SCROLL_Q8;
+    send_control(MESSAGE_KEY_WATCH_PAGE,target);
+    schedule_page_scroll();
+}
+
+static void stop_request_timeout(void *context);
+static void change_stop(int delta);
+
+static void cancel_stop_request_timeout(void) {
+    if(s_stop_request_timeout_timer) {
+        app_timer_cancel(s_stop_request_timeout_timer);
+        s_stop_request_timeout_timer=NULL;
+    }
+}
+
+static void schedule_stop_animation(void);
+
+static void finish_stop_animation(void) {
+    if(s_stop_animation_timer) {
+        app_timer_cancel(s_stop_animation_timer);
+        s_stop_animation_timer=NULL;
+    }
+    s_stop_animating=false;
+    s_stop_anim_direction=0;
+    s_stop_position_q8=0;
+    s_stop_target_q8=0;
+    s_stop_velocity_q8=0;
+    if(s_page_layers[PAGE_TIMETABLE]) layer_mark_dirty(s_page_layers[PAGE_TIMETABLE]);
+
+    if(s_stop_queued_delta!=0) {
+        int delta=s_stop_queued_delta>0?1:-1;
+        s_stop_queued_delta-=delta;
+        change_stop(delta);
+    }
+}
+
+static void stop_animation_tick(void *context) {
+    s_stop_animation_timer=NULL;
+    if(!s_stop_animating) return;
+    int32_t force_q8=(s_stop_target_q8-s_stop_position_q8)*SCROLL_SNAP_SPRING_NUM/SCROLL_SNAP_SPRING_DEN;
+    s_stop_velocity_q8+=force_q8;
+    s_stop_velocity_q8=s_stop_velocity_q8*SCROLL_SNAP_DAMPING_NUM/SCROLL_SNAP_DAMPING_DEN;
+    s_stop_velocity_q8=clamp_symmetric_i32(s_stop_velocity_q8,SCROLL_MAX_VELOCITY_Q8);
+    s_stop_position_q8+=s_stop_velocity_q8;
+    if(s_page_layers[PAGE_TIMETABLE]) layer_mark_dirty(s_page_layers[PAGE_TIMETABLE]);
+
+    if(abs_i32(s_stop_target_q8-s_stop_position_q8)<=SCROLL_STOP_POSITION_Q8&&
+       abs_i32(s_stop_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8) {
+        finish_stop_animation();
+        return;
+    }
+    schedule_stop_animation();
+}
+
+static void schedule_stop_animation(void) {
+    if(s_stop_animation_timer||!s_stop_animating) return;
+    s_stop_animation_timer=app_timer_register(SCROLL_FRAME_MS,stop_animation_tick,NULL);
+}
+
+static void begin_stop_animation(int delta,const StopView *old_view) {
+    if(delta==0) return;
+    if(old_view) s_stop_previous=*old_view;
+    s_stop_anim_direction=delta<0?-1:1;
+    s_stop_position_q8=0;
+    s_stop_target_q8=-(int32_t)s_stop_anim_direction*228*SCROLL_Q8;
+    if(s_page_layers[PAGE_TIMETABLE]) {
+        s_stop_target_q8=-(int32_t)s_stop_anim_direction*layer_get_bounds(s_page_layers[PAGE_TIMETABLE]).size.h*SCROLL_Q8;
+    }
+    s_stop_velocity_q8=0;
+    s_stop_animating=true;
+    schedule_stop_animation();
+}
+
+static void stop_request_timeout(void *context) {
+    s_stop_request_timeout_timer=NULL;
+    if(!s_stop_request_pending) return;
+    s_stop_request_pending=false;
+    s_stop_request_delta=0;
+    if(s_stop_queued_delta!=0) {
+        int delta=s_stop_queued_delta>0?1:-1;
+        s_stop_queued_delta-=delta;
+        change_stop(delta);
+    }
 }
 
 static void change_stop(int delta) {
     if(s_page!=PAGE_TIMETABLE||delta==0) return;
-    send_control(MESSAGE_KEY_WATCH_STOP_DELTA,delta<0?-1:1);
+    delta=delta<0?-1:1;
+    if(s_stop_request_pending||s_stop_animating) {
+        s_stop_queued_delta=clamp_i(s_stop_queued_delta+delta,-3,3);
+        return;
+    }
+    s_stop_previous=s_stop;
+    s_stop_request_pending=true;
+    s_stop_request_delta=delta;
+    cancel_stop_request_timeout();
+    s_stop_request_timeout_timer=app_timer_register(STOP_REQUEST_TIMEOUT_MS,stop_request_timeout,NULL);
+    send_control(MESSAGE_KEY_WATCH_STOP_DELTA,delta);
 }
 
-static void select_click_handler(ClickRecognizerRef r,void *c){set_page((s_page+1)%3);}
-static void up_click_handler(ClickRecognizerRef r,void *c){if(s_page==PAGE_TIMETABLE)change_stop(-1);else set_page(s_page-1);}
-static void down_click_handler(ClickRecognizerRef r,void *c){if(s_page==PAGE_TIMETABLE)change_stop(1);else set_page(s_page+1);}
+static void select_click_handler(ClickRecognizerRef r,void *c) {
+    if(s_page_scroll_mode!=PAGE_SCROLL_IDLE) return;
+    int target=(s_page+1)%PAGE_COUNT;
+    animate_to_page(target,1);
+}
+
+static void up_click_handler(ClickRecognizerRef r,void *c) {
+    if(s_page==PAGE_TIMETABLE) change_stop(-1);
+    else animate_to_page(s_page-1,-1);
+}
+
+static void down_click_handler(ClickRecognizerRef r,void *c) {
+    if(s_page==PAGE_TIMETABLE) change_stop(1);
+    else animate_to_page(s_page+1,1);
+}
 
 static void click_config_provider(void *context) {
     window_single_click_subscribe(BUTTON_ID_SELECT,select_click_handler);
@@ -588,25 +936,97 @@ static void click_config_provider(void *context) {
 }
 
 #if defined(PBL_TOUCH)
+static void reset_touch_state(void) {
+    s_touch_active=false;
+    s_touch_axis=TOUCH_AXIS_NONE;
+    s_touch_total_x=0;
+    s_touch_total_y=0;
+}
+
+static void touch_begin(const TouchEvent *event) {
+    if(s_page_scroll_mode!=PAGE_SCROLL_IDLE) return;
+    s_touch_active=true;
+    s_touch_start_x=event->x;
+    s_touch_start_y=event->y;
+    s_touch_last_x=event->x;
+    s_touch_last_y=event->y;
+    s_touch_total_x=0;
+    s_touch_total_y=0;
+    s_touch_start_time_ms=current_time_ms();
+    s_touch_axis=TOUCH_AXIS_NONE;
+}
+
+static void touch_update(const TouchEvent *event) {
+    if(!s_touch_active) return;
+    int dx=event->x-s_touch_last_x;
+    int dy=event->y-s_touch_last_y;
+    s_touch_last_x=event->x;
+    s_touch_last_y=event->y;
+    s_touch_total_x=(int16_t)(event->x-s_touch_start_x);
+    s_touch_total_y=(int16_t)(event->y-s_touch_start_y);
+
+    int ax=s_touch_total_x<0?-s_touch_total_x:s_touch_total_x;
+    int ay=s_touch_total_y<0?-s_touch_total_y:s_touch_total_y;
+    if(s_touch_axis==TOUCH_AXIS_NONE&&ax>=SCROLL_BREAKAWAY_PX&&ax>ay) {
+        s_touch_axis=TOUCH_AXIS_HORIZONTAL;
+        start_page_touch(s_touch_total_x<0?1:-1);
+    } else if(s_touch_axis==TOUCH_AXIS_NONE&&s_page==PAGE_TIMETABLE&&ay>=SCROLL_BREAKAWAY_PX&&ay>ax) {
+        s_touch_axis=TOUCH_AXIS_VERTICAL;
+    }
+
+    if(s_touch_axis==TOUCH_AXIS_HORIZONTAL&&s_page_scroll_mode==PAGE_SCROLL_TOUCH) {
+        int32_t target=(int32_t)s_touch_total_x*SCROLL_Q8;
+        int32_t limit=(int32_t)page_width()*SCROLL_Q8;
+        target=clamp_symmetric_i32(target,limit);
+        if(s_page_neighbor<0) target/=3;
+        s_page_target_q8=target;
+        schedule_page_scroll();
+    }
+    (void)dx;
+    (void)dy;
+}
+
+static void touch_end(const TouchEvent *event) {
+    if(!s_touch_active) return;
+    s_touch_total_x=(int16_t)(event->x-s_touch_start_x);
+    s_touch_total_y=(int16_t)(event->y-s_touch_start_y);
+    uint32_t elapsed=current_time_ms()-s_touch_start_time_ms;
+    int ax=s_touch_total_x<0?-s_touch_total_x:s_touch_total_x;
+    int ay=s_touch_total_y<0?-s_touch_total_y:s_touch_total_y;
+    bool quick=elapsed<=SCROLL_QUICK_SWIPE_MAX_MS;
+
+    if(s_touch_axis==TOUCH_AXIS_HORIZONTAL||
+       (s_touch_axis==TOUCH_AXIS_NONE&&ax>ay&&quick&&ax>=SCROLL_QUICK_SWIPE_MIN_PX)) {
+        int direction=s_touch_total_x<0?1:-1;
+        if(s_page_scroll_mode==PAGE_SCROLL_IDLE) start_page_touch(direction);
+        bool valid=s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page;
+        bool quick_commit=quick&&ax>=SCROLL_QUICK_SWIPE_MIN_PX;
+        bool slow_commit=abs_i32(s_page_position_q8)>=
+            (int32_t)page_width()*SCROLL_Q8*PAGE_SLOW_COMMIT_PERCENT/100;
+        snap_page(valid&&(quick_commit||slow_commit));
+        reset_touch_state();
+        return;
+    }
+
+    if(s_page==PAGE_TIMETABLE&&
+       (s_touch_axis==TOUCH_AXIS_VERTICAL||
+        (s_touch_axis==TOUCH_AXIS_NONE&&ay>ax&&quick&&ay>=SCROLL_QUICK_SWIPE_MIN_PX))) {
+        bool quick_scroll=quick&&ay>=SCROLL_QUICK_SWIPE_MIN_PX;
+        if(quick_scroll||ay>=TIMETABLE_SLOW_SWIPE_PX) {
+            change_stop(s_touch_total_y<0?1:-1);
+        }
+    }
+
+    reset_touch_state();
+}
+
 static void touch_handler(const TouchEvent *event,void *context) {
     if(!event) return;
-    if(event->type==TouchEvent_Touchdown) {
-        s_touch_active=true;
-        s_touch_start_x=event->x;
-        s_touch_start_y=event->y;
-        return;
+    switch(event->type) {
+        case TouchEvent_Touchdown: touch_begin(event); break;
+        case TouchEvent_PositionUpdate: touch_update(event); break;
+        case TouchEvent_Liftoff: touch_end(event); break;
     }
-    if(event->type!=TouchEvent_Liftoff||!s_touch_active) return;
-    s_touch_active=false;
-    int dx=event->x-s_touch_start_x;
-    int dy=event->y-s_touch_start_y;
-    int adx=dx<0?-dx:dx;
-    int ady=dy<0?-dy:dy;
-    if(adx>=TOUCH_SWIPE_THRESHOLD&&adx>ady) {
-        if(dx<0) set_page(s_page+1); else set_page(s_page-1);
-        return;
-    }
-    if(s_page==PAGE_TIMETABLE&&ady>=TOUCH_SWIPE_THRESHOLD&&ady>adx) change_stop(dy<0?1:-1);
 }
 #endif
 
@@ -623,6 +1043,19 @@ static void copy_bytes(DictionaryIterator *it,uint32_t key) {
     s_map_payload_len=n;
 }
 
+static bool stop_fields_present(DictionaryIterator *it) {
+    return dict_find(it,MESSAGE_KEY_STOP_NAME)||dict_find(it,MESSAGE_KEY_STOP_TIME)||
+           dict_find(it,MESSAGE_KEY_STOP_DISTANCE)||dict_find(it,MESSAGE_KEY_STOP_PERCENT);
+}
+
+static void copy_stop_fields(DictionaryIterator *it,StopView *view) {
+    if(!view) return;
+    copy_text(it,MESSAGE_KEY_STOP_NAME,view->name,sizeof(view->name));
+    copy_text(it,MESSAGE_KEY_STOP_TIME,view->time,sizeof(view->time));
+    copy_text(it,MESSAGE_KEY_STOP_DISTANCE,view->distance,sizeof(view->distance));
+    copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&view->percent);
+}
+
 static void inbox_received(DictionaryIterator *it,void *ctx) {
     copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));
     copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));
@@ -634,10 +1067,21 @@ static void inbox_received(DictionaryIterator *it,void *ctx) {
     copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);
     copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);
     copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);
-    copy_text(it,MESSAGE_KEY_STOP_NAME,s_stop_name,sizeof(s_stop_name));
-    copy_text(it,MESSAGE_KEY_STOP_TIME,s_stop_time,sizeof(s_stop_time));
-    copy_text(it,MESSAGE_KEY_STOP_DISTANCE,s_stop_distance,sizeof(s_stop_distance));
-    copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&s_stop_percent);
+
+    if(stop_fields_present(it)) {
+        StopView old=s_stop;
+        StopView incoming=s_stop;
+        copy_stop_fields(it,&incoming);
+        s_stop=incoming;
+        if(s_stop_request_pending) {
+            int delta=s_stop_request_delta;
+            s_stop_request_pending=false;
+            s_stop_request_delta=0;
+            cancel_stop_request_timeout();
+            begin_stop_animation(delta,&old);
+        }
+    }
+
     copy_bytes(it,MESSAGE_KEY_MAP_VECTOR);
     dirty();
 }
@@ -653,9 +1097,16 @@ static void window_load(Window *w) {
     s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);
     s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));
     s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));
-    s_root_layer=layer_create(b);
-    layer_set_update_proc(s_root_layer,root_update_proc);
-    layer_add_child(root,s_root_layer);
+
+    s_page_layers[PAGE_DASHBOARD]=layer_create(b);
+    s_page_layers[PAGE_TIMETABLE]=layer_create(b);
+    s_page_layers[PAGE_MAP]=layer_create(b);
+    if(s_page_layers[PAGE_DASHBOARD]) layer_set_update_proc(s_page_layers[PAGE_DASHBOARD],dashboard_update_proc);
+    if(s_page_layers[PAGE_TIMETABLE]) layer_set_update_proc(s_page_layers[PAGE_TIMETABLE],timetable_update_proc);
+    if(s_page_layers[PAGE_MAP]) layer_set_update_proc(s_page_layers[PAGE_MAP],map_update_proc);
+    for(int i=0;i<PAGE_COUNT;i++) if(s_page_layers[i]) layer_add_child(root,s_page_layers[i]);
+    reset_page_layers();
+
     window_set_background_color(w,GColorBlack);
     window_set_click_config_provider(w,click_config_provider);
     update_clock(NULL);
@@ -673,17 +1124,24 @@ static void window_appear(Window *w) {
 }
 
 static void window_disappear(Window *w) {
+    cancel_page_scroll_timer();
+    if(s_stop_animation_timer){app_timer_cancel(s_stop_animation_timer);s_stop_animation_timer=NULL;}
+    cancel_stop_request_timeout();
+    s_stop_request_pending=false;
+    s_stop_animating=false;
 #if defined(PBL_TOUCH)
     if(s_touch_subscribed) {
         touch_service_unsubscribe();
         s_touch_subscribed=false;
-        s_touch_active=false;
+        reset_touch_state();
     }
 #endif
 }
 
 static void window_unload(Window *w) {
-    layer_destroy(s_root_layer);s_root_layer=NULL;
+    for(int i=0;i<PAGE_COUNT;i++) {
+        if(s_page_layers[i]) {layer_destroy(s_page_layers[i]);s_page_layers[i]=NULL;}
+    }
     gbitmap_destroy(s_icon_heart);s_icon_heart=NULL;
     gbitmap_destroy(s_icon_blood);s_icon_blood=NULL;
     gbitmap_destroy(s_icon_shoe);s_icon_shoe=NULL;
@@ -710,6 +1168,9 @@ static void init(void) {
 
 static void deinit(void) {
     tick_timer_service_unsubscribe();
+    cancel_page_scroll_timer();
+    if(s_stop_animation_timer){app_timer_cancel(s_stop_animation_timer);s_stop_animation_timer=NULL;}
+    cancel_stop_request_timeout();
 #if defined(PBL_TOUCH)
     if(s_touch_subscribed){touch_service_unsubscribe();s_touch_subscribed=false;}
 #endif
