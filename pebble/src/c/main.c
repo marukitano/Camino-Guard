@@ -5,6 +5,11 @@
 
 #include "ppf_digit_font.h"
 
+/* Keep old generated build headers usable after package.json message-key changes. */
+#ifndef MESSAGE_KEY_STOP_IS_GOAL
+#define MESSAGE_KEY_STOP_IS_GOAL 29
+#endif
+
 #define PAGE_DASHBOARD 0
 #define PAGE_TIMETABLE 1
 #define PAGE_MAP 2
@@ -43,14 +48,17 @@
 #define PAGE_SLOW_COMMIT_PERCENT 42
 #define TIMETABLE_SLOW_SWIPE_PX 30
 #define STOP_REQUEST_TIMEOUT_MS 1500
+#define TIMETABLE_BOUNCE_PX 16
 #define TIMETABLE_LINE_X 20
-#define TIMETABLE_STOP_Y 26
+#define TIMETABLE_STOP_Y 28
 #define TIMETABLE_STOP_RADIUS 6
 #define TIMETABLE_CONTENT_X 38
-#define TIMETABLE_DISTANCE_Y 58
-#define TIMETABLE_TIME_Y 96
-#define TIMETABLE_PROGRESS_Y 134
-#define TIMETABLE_TEMP_Y 172
+#define TIMETABLE_NAME_Y 0
+#define TIMETABLE_NAME_H 60
+#define TIMETABLE_DISTANCE_Y 70
+#define TIMETABLE_TIME_Y 108
+#define TIMETABLE_PROGRESS_Y 146
+#define TIMETABLE_TEMP_Y 184
 
 #if defined(PBL_TOUCH)
 typedef enum {
@@ -72,6 +80,7 @@ typedef struct {
     char distance[24];
     int32_t percent;
     bool is_goal;
+    bool is_start;
 } StopView;
 
 enum DashboardIcon {
@@ -110,13 +119,15 @@ static int32_t s_elevation_min = UNKNOWN_METRIC;
 static int32_t s_elevation_max = UNKNOWN_METRIC;
 static int32_t s_route_progress_percent = UNKNOWN_METRIC;
 
-static StopView s_stop = {"--", "--", "--", -1, false};
-static StopView s_stop_previous = {"--", "--", "--", -1, false};
+static StopView s_stop = {"--", "--", "--", -1, false, false};
+static StopView s_stop_previous = {"--", "--", "--", -1, false, false};
 static bool s_stop_request_pending;
 static int s_stop_request_delta;
 static int s_stop_queued_delta;
 static AppTimer *s_stop_request_timeout_timer;
 static bool s_stop_animating;
+static bool s_stop_bouncing;
+static bool s_stop_bounce_returning;
 static int s_stop_anim_direction;
 static int32_t s_stop_position_q8;
 static int32_t s_stop_target_q8;
@@ -347,16 +358,9 @@ static void compass_handler(CompassHeadingData data){
     bool valid=data.compass_status==CompassStatusCalibrating||data.compass_status==CompassStatusCalibrated;
     CompassHeading h=data.magnetic_heading;
     if(!valid||h<0||h>=TRIG_MAX_ANGLE)return;
-
-    /*
-     * Never throw compass samples away during a swipe. Keep the newest heading
-     * for the frame that will be built after the page settles, but do not ask
-     * the expensive map renderer to run while the finger/slide is active.
-     */
     s_heading=h;
     s_heading_valid=true;
     s_map_frame_dirty=true;
-
     bool can_redraw=s_page==PAGE_MAP&&s_page_scroll_mode==PAGE_SCROLL_IDLE;
 #if defined(PBL_TOUCH)
     can_redraw=can_redraw&&!s_touch_active;
@@ -397,7 +401,7 @@ static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,con
 }
 
 static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
-    StopView fallback={"--","--","--",-1,false};
+    StopView fallback={"--","--","--",-1,false,false};
     if(!v)v=&fallback;
 
     GColor timeline=GColorFromHEX(0xFFDD69);
@@ -411,13 +415,16 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     graphics_context_set_fill_color(ctx,timeline);
     graphics_context_set_stroke_width(ctx,2);
 
+    /* Start has no past below; goal has no future above. */
     if(!v->is_goal){
         graphics_draw_line(ctx,GPoint(line_x,top),GPoint(line_x,stop_y-TIMETABLE_STOP_RADIUS));
     }
-    graphics_draw_line(ctx,GPoint(line_x,stop_y+TIMETABLE_STOP_RADIUS),GPoint(line_x,bottom));
+    if(!v->is_start){
+        graphics_draw_line(ctx,GPoint(line_x,stop_y+TIMETABLE_STOP_RADIUS),GPoint(line_x,bottom));
+    }
 
     graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS);
-    if(!v->is_goal){
+    if(!v->is_goal&&!v->is_start){
         graphics_context_set_fill_color(ctx,GColorBlack);
         graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-2);
     }
@@ -426,10 +433,10 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     char name[48];
     megafont_text(v->name,name,sizeof(name));
     graphics_context_set_text_color(ctx,GColorWhite);
-    GRect name_box=GRect(TIMETABLE_CONTENT_X,5+off,b.size.w-TIMETABLE_CONTENT_X-5,44);
-    GFont f=s_font_megafont_18;
-    GSize s=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
-    if(s.h>40)f=s_font_megafont_14;
+    GRect name_box=GRect(TIMETABLE_CONTENT_X,TIMETABLE_NAME_Y+off,b.size.w-TIMETABLE_CONTENT_X-5,TIMETABLE_NAME_H);
+    GFont f=fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+    GSize name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
+    if(name_size.h>TIMETABLE_NAME_H)f=fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
     graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);
 
     draw_timetable_value(ctx,b,v->distance,TIMETABLE_DISTANCE_Y+off,"KM");
@@ -447,13 +454,15 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     draw_timetable_value(ctx,b,temp,TIMETABLE_TEMP_Y+off,"C");
 }
 
-static void draw_timetable(GContext*ctx,GRect b){if(!s_stop_animating){draw_timetable_view(ctx,b,&s_stop,0);return;}int off=(int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);draw_timetable_view(ctx,b,&s_stop_previous,off);draw_timetable_view(ctx,b,&s_stop,off+s_stop_anim_direction*b.size.h);}
+static int stop_offset_px(void){return (int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);}
+static void draw_timetable(GContext*ctx,GRect b){
+    if(!s_stop_animating){draw_timetable_view(ctx,b,&s_stop,0);return;}
+    int off=stop_offset_px();
+    if(s_stop_bouncing){draw_timetable_view(ctx,b,&s_stop,off);return;}
+    draw_timetable_view(ctx,b,&s_stop_previous,off);
+    draw_timetable_view(ctx,b,&s_stop,off+s_stop_anim_direction*b.size.h);
+}
 
-/*
- * Heading-up recovery map. Pebble compass headings grow counter-clockwise,
- * while the desired walking bearing grows clockwise. Convert once per settled
- * redraw; the current-position marker remains fixed at screen centre.
- */
 static void update_map_position_from_payload(void){
     s_map_position_east=0;
     s_map_position_north=0;
@@ -492,187 +501,91 @@ static bool road_mask_at(int x,int y){
     return (s_road_mask[bit>>3]&(1u<<(bit&7)))!=0;
 }
 
-static bool road_mask_thick_at(int x,int y){
-    return road_mask_at(x,y)||road_mask_at(x-1,y)||road_mask_at(x+1,y)||road_mask_at(x,y-1)||road_mask_at(x,y+1);
-}
+static bool road_mask_thick_at(int x,int y){return road_mask_at(x,y)||road_mask_at(x-1,y)||road_mask_at(x+1,y)||road_mask_at(x,y-1)||road_mask_at(x,y+1);}
 
-/*
- * Destination-driven rotation: every visible screen pixel is inverse-mapped
- * into Android's larger 360x360 m road mask. Unlike rotating a 200x228 source
- * bitmap, this cannot expose empty corners when the compass turns.
- */
 static void draw_road_bitmap(GContext*ctx,GRect b){
     if(!s_road_mask_valid||!s_page_layers[PAGE_MAP])return;
     GBitmap*framebuffer=graphics_capture_frame_buffer_format(ctx,GBitmapFormat8Bit);
     if(!framebuffer)return;
-
     uint8_t*data=gbitmap_get_data(framebuffer);
     int stride=gbitmap_get_bytes_per_row(framebuffer);
     GRect fbounds=gbitmap_get_bounds(framebuffer);
     GRect frame=layer_get_frame(s_page_layers[PAGE_MAP]);
     int left=frame.origin.x+b.origin.x-fbounds.origin.x;
     int top=frame.origin.y+b.origin.y-fbounds.origin.y;
-
-    if(!data||left<0||top<0||left+b.size.w>fbounds.size.w||top+b.size.h>fbounds.size.h){
-        graphics_release_frame_buffer(ctx,framebuffer);
-        return;
-    }
-
-    const int64_t ratio=TRIG_MAX_RATIO;
-    const int64_t q16=65536;
-    const int64_t road_x_denom=2LL*MAP_ROAD_HALF_WIDTH_M*ratio;
-    const int64_t road_y_denom=2LL*MAP_ROAD_HALF_HEIGHT_M*ratio;
+    if(!data||left<0||top<0||left+b.size.w>fbounds.size.w||top+b.size.h>fbounds.size.h){graphics_release_frame_buffer(ctx,framebuffer);return;}
+    const int64_t ratio=TRIG_MAX_RATIO,q16=65536;
+    const int64_t road_x_denom=2LL*MAP_ROAD_HALF_WIDTH_M*ratio,road_y_denom=2LL*MAP_ROAD_HALF_HEIGHT_M*ratio;
     const int64_t sx_step=((int64_t)s_map_cosine*(MAP_ROAD_WIDTH-1)*q16)/road_x_denom;
     const int64_t sy_step=((int64_t)s_map_sine*(MAP_ROAD_HEIGHT-1)*q16)/road_y_denom;
-    const int cx=b.size.w/2;
-    const int cy=b.size.h/2;
-    const uint8_t road_color=GColorDarkGray.argb;
-
+    const int cx=b.size.w/2,cy=b.size.h/2;const uint8_t road_color=GColorDarkGray.argb;
     for(int y=0;y<b.size.h;y++){
-        int right=-cx;
-        int forward=cy-y;
+        int right=-cx,forward=cy-y;
         int64_t east_num=(int64_t)right*s_map_cosine+(int64_t)forward*s_map_sine+(int64_t)s_map_position_east*ratio;
         int64_t north_num=-(int64_t)right*s_map_sine+(int64_t)forward*s_map_cosine+(int64_t)s_map_position_north*ratio;
         int64_t sx_q16=((east_num+(int64_t)MAP_ROAD_HALF_WIDTH_M*ratio)*(MAP_ROAD_WIDTH-1)*q16)/road_x_denom;
         int64_t sy_q16=(((int64_t)MAP_ROAD_HALF_HEIGHT_M*ratio-north_num)*(MAP_ROAD_HEIGHT-1)*q16)/road_y_denom;
         uint8_t*row=data+(top+y)*stride+left;
-
         for(int x=0;x<b.size.w;x++){
-            int sx=(int)((sx_q16+q16/2)/q16);
-            int sy=(int)((sy_q16+q16/2)/q16);
+            int sx=(int)((sx_q16+q16/2)/q16),sy=(int)((sy_q16+q16/2)/q16);
             if(road_mask_thick_at(sx,sy))row[x]=road_color;
-            sx_q16+=sx_step;
-            sy_q16+=sy_step;
+            sx_q16+=sx_step;sy_q16+=sy_step;
         }
     }
-
     graphics_release_frame_buffer(ctx,framebuffer);
 }
 
 static void draw_distance_grid(GContext*ctx,GRect b){
     int cx=b.origin.x+b.size.w/2,cy=b.origin.y+b.size.h/2;
-    graphics_context_set_stroke_color(ctx,GColorDarkGray);
-    graphics_context_set_stroke_width(ctx,1);
-    for(int m=-100;m<=100;m+=25){
-        int x=cx+m;
-        if(x>=b.origin.x&&x<b.origin.x+b.size.w)graphics_draw_line(ctx,GPoint(x,b.origin.y),GPoint(x,b.origin.y+b.size.h-1));
-    }
-    for(int m=-100;m<=100;m+=25){
-        int y=cy-m;
-        if(y>=b.origin.y&&y<b.origin.y+b.size.h)graphics_draw_line(ctx,GPoint(b.origin.x,y),GPoint(b.origin.x+b.size.w-1,y));
-    }
+    graphics_context_set_stroke_color(ctx,GColorDarkGray);graphics_context_set_stroke_width(ctx,1);
+    for(int m=-100;m<=100;m+=25){int x=cx+m;if(x>=b.origin.x&&x<b.origin.x+b.size.w)graphics_draw_line(ctx,GPoint(x,b.origin.y),GPoint(x,b.origin.y+b.size.h-1));}
+    for(int m=-100;m<=100;m+=25){int y=cy-m;if(y>=b.origin.y&&y<b.origin.y+b.size.h)graphics_draw_line(ctx,GPoint(b.origin.x,y),GPoint(b.origin.x+b.size.w-1,y));}
 }
 
-/* Round caps at every vector vertex remove square/stair-stepped joins. */
 static void draw_map_polyline(GContext*ctx,GRect b,size_t offset,int pairs,bool breaks,GColor color,int width){
-    bool have=false;
-    GPoint prev=GPoint(0,0);
-    int radius=width>1?(width+1)/2:0;
-    graphics_context_set_antialiased(ctx,true);
-    graphics_context_set_stroke_color(ctx,color);
-    graphics_context_set_fill_color(ctx,color);
-    graphics_context_set_stroke_width(ctx,width);
+    bool have=false;GPoint prev=GPoint(0,0);int radius=width>1?(width+1)/2:0;
+    graphics_context_set_antialiased(ctx,true);graphics_context_set_stroke_color(ctx,color);graphics_context_set_fill_color(ctx,color);graphics_context_set_stroke_width(ctx,width);
     for(int i=0;i<pairs;i++){
         if(offset+1>=s_map_payload_len)break;
         int east=(int8_t)s_map_payload[offset++],north=(int8_t)s_map_payload[offset++];
         if(breaks&&east==-128&&north==-128){have=false;continue;}
-        GPoint p=map_point(b,east,north);
-        if(have)graphics_draw_line(ctx,prev,p);
-        if(radius>0)graphics_fill_circle(ctx,p,radius);
-        prev=p;
-        have=true;
+        GPoint p=map_point(b,east,north);if(have)graphics_draw_line(ctx,prev,p);if(radius>0)graphics_fill_circle(ctx,p,radius);prev=p;have=true;
     }
     graphics_context_set_stroke_width(ctx,1);
 }
 
-static void draw_position_marker(GContext*ctx,GPoint p){
-    graphics_context_set_fill_color(ctx,GColorWhite);
-    graphics_fill_circle(ctx,p,7);
-    graphics_context_set_fill_color(ctx,GColorRed);
-    graphics_fill_circle(ctx,p,4);
-}
+static void draw_position_marker(GContext*ctx,GPoint p){graphics_context_set_fill_color(ctx,GColorWhite);graphics_fill_circle(ctx,p,7);graphics_context_set_fill_color(ctx,GColorRed);graphics_fill_circle(ctx,p,4);}
 
 static void draw_map(GContext*ctx,GRect b){
-    graphics_context_set_antialiased(ctx,true);
-    update_map_position_from_payload();
-    prepare_map_transform();
-    draw_road_bitmap(ctx,b);
-
-    GColor camino_outline=GColorFromHEX(0x000055);
-    GColor camino_core=GColorFromHEX(0x55AAFF);
-
+    graphics_context_set_antialiased(ctx,true);update_map_position_from_payload();prepare_map_transform();draw_road_bitmap(ctx,b);
+    GColor camino_outline=GColorFromHEX(0x000055),camino_core=GColorFromHEX(0x55AAFF);
     if(s_map_payload_len>=5&&s_map_payload[0]==2){
-        int rp=s_map_payload[1],tp=s_map_payload[2];
-        size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
-        if(need<=s_map_payload_len){
-            /* 5 px light-blue Camino with a 3 px dark-blue casing on each side. */
-            draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);
-            draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);
-            draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
-        }
+        int rp=s_map_payload[1],tp=s_map_payload[2];size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
+        if(need<=s_map_payload_len){draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);}
     }else if(s_map_payload_len>=3&&s_map_payload[0]==1){
-        int rp=s_map_payload[1],tp=s_map_payload[2];
-        size_t ro=3,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
-        if(need<=s_map_payload_len){
-            draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);
-            draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);
-            draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
-        }
+        int rp=s_map_payload[1],tp=s_map_payload[2];size_t ro=3,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
+        if(need<=s_map_payload_len){draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);}
     }
-
-    draw_distance_grid(ctx,b);
-    draw_position_marker(ctx,GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2));
+    draw_distance_grid(ctx,b);draw_position_marker(ctx,GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2));
 }
 
 static bool capture_map_frame(GContext*ctx,GRect b){
-    if(!s_map_frame_bitmap||!s_page_layers[PAGE_MAP])return false;
-    GBitmap*framebuffer=graphics_capture_frame_buffer_format(ctx,GBitmapFormat8Bit);
-    if(!framebuffer)return false;
-    uint8_t*src=gbitmap_get_data(framebuffer);
-    uint8_t*dst=gbitmap_get_data(s_map_frame_bitmap);
-    int src_stride=gbitmap_get_bytes_per_row(framebuffer);
-    int dst_stride=gbitmap_get_bytes_per_row(s_map_frame_bitmap);
-    GRect fbounds=gbitmap_get_bounds(framebuffer);
-    GRect frame=layer_get_frame(s_page_layers[PAGE_MAP]);
-    int sx=frame.origin.x+b.origin.x-fbounds.origin.x;
-    int sy=frame.origin.y+b.origin.y-fbounds.origin.y;
-    bool ok=src&&dst&&sx>=0&&sy>=0&&sx+b.size.w<=fbounds.size.w&&sy+b.size.h<=fbounds.size.h&&b.size.w<=MAP_FRAME_WIDTH&&b.size.h<=MAP_FRAME_HEIGHT;
-    if(ok){
-        for(int y=0;y<b.size.h;y++)memcpy(dst+y*dst_stride,src+(sy+y)*src_stride+sx,b.size.w);
-    }
-    graphics_release_frame_buffer(ctx,framebuffer);
-    if(ok){s_map_frame_valid=true;s_map_frame_dirty=false;}
-    return ok;
+    if(!s_map_frame_bitmap||!s_page_layers[PAGE_MAP])return false;GBitmap*framebuffer=graphics_capture_frame_buffer_format(ctx,GBitmapFormat8Bit);if(!framebuffer)return false;
+    uint8_t*src=gbitmap_get_data(framebuffer),*dst=gbitmap_get_data(s_map_frame_bitmap);int src_stride=gbitmap_get_bytes_per_row(framebuffer),dst_stride=gbitmap_get_bytes_per_row(s_map_frame_bitmap);GRect fbounds=gbitmap_get_bounds(framebuffer),frame=layer_get_frame(s_page_layers[PAGE_MAP]);int sx=frame.origin.x+b.origin.x-fbounds.origin.x,sy=frame.origin.y+b.origin.y-fbounds.origin.y;bool ok=src&&dst&&sx>=0&&sy>=0&&sx+b.size.w<=fbounds.size.w&&sy+b.size.h<=fbounds.size.h&&b.size.w<=MAP_FRAME_WIDTH&&b.size.h<=MAP_FRAME_HEIGHT;
+    if(ok)for(int y=0;y<b.size.h;y++)memcpy(dst+y*dst_stride,src+(sy+y)*src_stride+sx,b.size.w);graphics_release_frame_buffer(ctx,framebuffer);if(ok){s_map_frame_valid=true;s_map_frame_dirty=false;}return ok;
 }
 
-static bool draw_cached_map_frame(GContext*ctx,GRect b){
-    if(!s_map_frame_bitmap||!s_map_frame_valid)return false;
-    graphics_context_set_compositing_mode(ctx,GCompOpAssign);
-    graphics_draw_bitmap_in_rect(ctx,s_map_frame_bitmap,b);
-    return true;
-}
-
+static bool draw_cached_map_frame(GContext*ctx,GRect b){if(!s_map_frame_bitmap||!s_map_frame_valid)return false;graphics_context_set_compositing_mode(ctx,GCompOpAssign);graphics_draw_bitmap_in_rect(ctx,s_map_frame_bitmap,b);return true;}
 static void page_background(GContext*ctx,GRect b){graphics_context_set_fill_color(ctx,GColorBlack);graphics_fill_rect(ctx,b,0,GCornerNone);s_ink=GColorWhite;}
 static void dashboard_update_proc(Layer*l,GContext*c){GRect b=layer_get_bounds(l);page_background(c,b);draw_dashboard(c,b);}
 static void timetable_update_proc(Layer*l,GContext*c){GRect b=layer_get_bounds(l);page_background(c,b);draw_timetable(c,b);}
 static void map_update_proc(Layer*l,GContext*c){
-    GRect b=layer_get_bounds(l);
-    bool settled=s_page==PAGE_MAP&&s_page_scroll_mode==PAGE_SCROLL_IDLE&&layer_get_frame(l).origin.x==0;
+    GRect b=layer_get_bounds(l);bool settled=s_page==PAGE_MAP&&s_page_scroll_mode==PAGE_SCROLL_IDLE&&layer_get_frame(l).origin.x==0;
 #if defined(PBL_TOUCH)
-    /* From touch-down onward, behave like Nasu: only move the retained frame. */
     settled=settled&&!s_touch_active;
 #endif
-    if(!settled){
-        if(draw_cached_map_frame(c,b))return;
-        page_background(c,b);
-        draw_distance_grid(c,b);
-        draw_position_marker(c,GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2));
-        return;
-    }
-    if(!s_map_frame_dirty&&draw_cached_map_frame(c,b))return;
-    page_background(c,b);
-    draw_map(c,b);
-    capture_map_frame(c,b);
+    if(!settled){if(draw_cached_map_frame(c,b))return;page_background(c,b);draw_distance_grid(c,b);draw_position_marker(c,GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2));return;}
+    if(!s_map_frame_dirty&&draw_cached_map_frame(c,b))return;page_background(c,b);draw_map(c,b);capture_map_frame(c,b);
 }
 
 static void send_control(uint32_t key,int32_t value){DictionaryIterator*it=NULL;AppMessageResult r=app_message_outbox_begin(&it);if(r!=APP_MSG_OK||!it){APP_LOG(APP_LOG_LEVEL_WARNING,"Control outbox begin failed: %d",(int)r);return;}DictionaryResult d=dict_write_int32(it,key,value);if(d!=DICT_OK){APP_LOG(APP_LOG_LEVEL_WARNING,"Control dict write failed: %d",(int)d);return;}r=app_message_outbox_send();if(r!=APP_MSG_OK)APP_LOG(APP_LOG_LEVEL_WARNING,"Control send failed: %d",(int)r);}
@@ -698,10 +611,19 @@ static void show_map_once(void){vibes_double_pulse();if(s_page_scroll_mode!=PAGE
 
 static void stop_request_timeout(void*c);static void change_stop(int delta);static void schedule_stop_animation(void);
 static void cancel_stop_request_timeout(void){if(s_stop_request_timeout_timer){app_timer_cancel(s_stop_request_timeout_timer);s_stop_request_timeout_timer=NULL;}}
-static void finish_stop_animation(void){if(s_stop_animation_timer){app_timer_cancel(s_stop_animation_timer);s_stop_animation_timer=NULL;}s_stop_animating=false;s_stop_anim_direction=0;s_stop_position_q8=s_stop_target_q8=s_stop_velocity_q8=0;if(s_page_layers[PAGE_TIMETABLE])layer_mark_dirty(s_page_layers[PAGE_TIMETABLE]);if(s_stop_queued_delta){int d=s_stop_queued_delta>0?1:-1;s_stop_queued_delta-=d;change_stop(d);}}
-static void stop_animation_tick(void*c){s_stop_animation_timer=NULL;if(!s_stop_animating)return;int32_t force=(s_stop_target_q8-s_stop_position_q8)*SCROLL_SNAP_SPRING_NUM/SCROLL_SNAP_SPRING_DEN;s_stop_velocity_q8+=force;s_stop_velocity_q8=s_stop_velocity_q8*SCROLL_SNAP_DAMPING_NUM/SCROLL_SNAP_DAMPING_DEN;s_stop_velocity_q8=clamp_symmetric_i32(s_stop_velocity_q8,SCROLL_MAX_VELOCITY_Q8);s_stop_position_q8+=s_stop_velocity_q8;if(s_page_layers[PAGE_TIMETABLE])layer_mark_dirty(s_page_layers[PAGE_TIMETABLE]);if(abs_i32(s_stop_target_q8-s_stop_position_q8)<=SCROLL_STOP_POSITION_Q8&&abs_i32(s_stop_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8){finish_stop_animation();return;}schedule_stop_animation();}
+static void finish_stop_animation(void){if(s_stop_animation_timer){app_timer_cancel(s_stop_animation_timer);s_stop_animation_timer=NULL;}s_stop_animating=false;s_stop_bouncing=false;s_stop_bounce_returning=false;s_stop_anim_direction=0;s_stop_position_q8=s_stop_target_q8=s_stop_velocity_q8=0;if(s_page_layers[PAGE_TIMETABLE])layer_mark_dirty(s_page_layers[PAGE_TIMETABLE]);if(s_stop_queued_delta){int d=s_stop_queued_delta>0?1:-1;s_stop_queued_delta-=d;change_stop(d);}}
+static void stop_animation_tick(void*c){
+    s_stop_animation_timer=NULL;if(!s_stop_animating)return;
+    int32_t force=(s_stop_target_q8-s_stop_position_q8)*SCROLL_SNAP_SPRING_NUM/SCROLL_SNAP_SPRING_DEN;s_stop_velocity_q8+=force;s_stop_velocity_q8=s_stop_velocity_q8*SCROLL_SNAP_DAMPING_NUM/SCROLL_SNAP_DAMPING_DEN;s_stop_velocity_q8=clamp_symmetric_i32(s_stop_velocity_q8,SCROLL_MAX_VELOCITY_Q8);s_stop_position_q8+=s_stop_velocity_q8;if(s_page_layers[PAGE_TIMETABLE])layer_mark_dirty(s_page_layers[PAGE_TIMETABLE]);
+    if(abs_i32(s_stop_target_q8-s_stop_position_q8)<=SCROLL_STOP_POSITION_Q8&&abs_i32(s_stop_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8){
+        if(s_stop_bouncing&&!s_stop_bounce_returning){s_stop_bounce_returning=true;s_stop_target_q8=0;s_stop_velocity_q8=0;schedule_stop_animation();return;}
+        finish_stop_animation();return;
+    }
+    schedule_stop_animation();
+}
 static void schedule_stop_animation(void){if(!s_stop_animation_timer&&s_stop_animating)s_stop_animation_timer=app_timer_register(SCROLL_FRAME_MS,stop_animation_tick,NULL);}
-static void begin_stop_animation(int d,const StopView*old){if(!d)return;if(old)s_stop_previous=*old;s_stop_anim_direction=d<0?-1:1;s_stop_position_q8=0;int h=s_page_layers[PAGE_TIMETABLE]?layer_get_bounds(s_page_layers[PAGE_TIMETABLE]).size.h:228;s_stop_target_q8=-(int32_t)s_stop_anim_direction*h*SCROLL_Q8;s_stop_velocity_q8=0;s_stop_animating=true;schedule_stop_animation();}
+static void begin_stop_animation(int d,const StopView*old){if(!d)return;if(old)s_stop_previous=*old;s_stop_bouncing=false;s_stop_bounce_returning=false;s_stop_anim_direction=d<0?-1:1;s_stop_position_q8=0;int h=s_page_layers[PAGE_TIMETABLE]?layer_get_bounds(s_page_layers[PAGE_TIMETABLE]).size.h:228;s_stop_target_q8=-(int32_t)s_stop_anim_direction*h*SCROLL_Q8;s_stop_velocity_q8=0;s_stop_animating=true;schedule_stop_animation();}
+static void begin_stop_bounce(int d){if(!d)return;s_stop_bouncing=true;s_stop_bounce_returning=false;s_stop_anim_direction=d<0?-1:1;s_stop_position_q8=0;s_stop_target_q8=-(int32_t)s_stop_anim_direction*TIMETABLE_BOUNCE_PX*SCROLL_Q8;s_stop_velocity_q8=0;s_stop_animating=true;schedule_stop_animation();}
 static void stop_request_timeout(void*c){s_stop_request_timeout_timer=NULL;if(!s_stop_request_pending)return;s_stop_request_pending=false;s_stop_request_delta=0;if(s_stop_queued_delta){int d=s_stop_queued_delta>0?1:-1;s_stop_queued_delta-=d;change_stop(d);}}
 static void change_stop(int d){if(s_page!=PAGE_TIMETABLE||!d)return;d=d<0?-1:1;if(s_stop_request_pending||s_stop_animating){s_stop_queued_delta=clamp_i(s_stop_queued_delta+d,-3,3);return;}s_stop_previous=s_stop;s_stop_request_pending=true;s_stop_request_delta=d;cancel_stop_request_timeout();s_stop_request_timeout_timer=app_timer_register(STOP_REQUEST_TIMEOUT_MS,stop_request_timeout,NULL);send_control(MESSAGE_KEY_WATCH_STOP_DELTA,d);}
 
@@ -723,31 +645,34 @@ static void copy_text(DictionaryIterator*it,uint32_t key,char*dst,size_t n){Tupl
 static void copy_int32(DictionaryIterator*it,uint32_t key,int32_t*dst){Tuple*t=dict_find(it,key);if(t&&dst)*dst=t->value->int32;}
 static void copy_map_vector(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_VECTOR);if(!t)return;size_t n=t->length;if(n>sizeof(s_map_payload))n=sizeof(s_map_payload);memcpy(s_map_payload,t->value->data,n);s_map_payload_len=n;s_map_frame_dirty=true;}
 
-static bool decompress_road_mask(size_t compressed_len){
-    size_t in=0,out=0;
-    memset(s_road_mask,0,sizeof(s_road_mask));
-    while(in<compressed_len&&out<sizeof(s_road_mask)){
-        uint8_t control=s_road_compressed[in++];
-        size_t count=(size_t)(control&0x7f)+1u;
-        if(control&0x80){
-            if(out+count>sizeof(s_road_mask))return false;
-            memset(s_road_mask+out,0,count);
-            out+=count;
-        }else{
-            if(in+count>compressed_len||out+count>sizeof(s_road_mask))return false;
-            memcpy(s_road_mask+out,s_road_compressed+in,count);
-            in+=count;
-            out+=count;
-        }
-    }
-    return in==compressed_len&&out==sizeof(s_road_mask);
-}
-
+static bool decompress_road_mask(size_t compressed_len){size_t in=0,out=0;memset(s_road_mask,0,sizeof(s_road_mask));while(in<compressed_len&&out<sizeof(s_road_mask)){uint8_t control=s_road_compressed[in++];size_t count=(size_t)(control&0x7f)+1u;if(control&0x80){if(out+count>sizeof(s_road_mask))return false;memset(s_road_mask+out,0,count);out+=count;}else{if(in+count>compressed_len||out+count>sizeof(s_road_mask))return false;memcpy(s_road_mask+out,s_road_compressed+in,count);in+=count;out+=count;}}return in==compressed_len&&out==sizeof(s_road_mask);}
 static void note_road_generation(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION);if(!t)return;int32_t g=t->value->int32;if(g<=0){s_road_generation=s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;s_road_mask_valid=false;s_map_frame_dirty=true;return;}if(g!=s_road_generation&&g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;}}
 static void copy_road_chunk(DictionaryIterator*it){Tuple*data=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_DATA),*gt=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION),*itx=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_INDEX),*ct=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_COUNT);if(!data||!gt||!itx||!ct)return;int32_t g=gt->value->int32;int idx=itx->value->int32,count=ct->value->int32;if(g<=0||idx<0||count<=0||count>MAP_ROAD_MAX_CHUNKS||idx>=count)return;if(idx==0||g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=count;s_road_received_chunks=0;s_road_compressed_len=0;}if(g!=s_road_receiving_generation||count!=s_road_expected_chunks||idx!=s_road_received_chunks)return;size_t off=(size_t)idx*MAP_ROAD_CHUNK_BYTES,n=data->length;if(off+n>sizeof(s_road_compressed))return;memcpy(s_road_compressed+off,data->value->data,n);s_road_received_chunks++;if(s_road_received_chunks==s_road_expected_chunks){s_road_compressed_len=off+n;s_road_mask_valid=decompress_road_mask(s_road_compressed_len);if(s_road_mask_valid){s_road_generation=g;s_map_frame_dirty=true;}s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;}}
 static bool stop_fields_present(DictionaryIterator*it){return dict_find(it,MESSAGE_KEY_STOP_NAME)||dict_find(it,MESSAGE_KEY_STOP_TIME)||dict_find(it,MESSAGE_KEY_STOP_DISTANCE)||dict_find(it,MESSAGE_KEY_STOP_PERCENT)||dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);}
-static void copy_stop_fields(DictionaryIterator*it,StopView*v){if(!v)return;copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);Tuple*goal=dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);if(goal)v->is_goal=goal->value->int32!=0;}
-static void inbox_received(DictionaryIterator*it,void*c){copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));copy_int32(it,MESSAGE_KEY_TEMP_CURRENT_TENTHS,&s_temp_current);copy_int32(it,MESSAGE_KEY_TEMP_MIN_TENTHS,&s_temp_min);copy_int32(it,MESSAGE_KEY_TEMP_MAX_TENTHS,&s_temp_max);copy_int32(it,MESSAGE_KEY_SUNRISE_MINUTES,&s_sunrise_minutes);copy_int32(it,MESSAGE_KEY_SUNSET_MINUTES,&s_sunset_minutes);copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);copy_int32(it,MESSAGE_KEY_ROUTE_PROGRESS_PERCENT,&s_route_progress_percent);if(stop_fields_present(it)){StopView old=s_stop,incoming=s_stop;copy_stop_fields(it,&incoming);s_stop=incoming;if(s_stop_request_pending){int d=s_stop_request_delta;s_stop_request_pending=false;s_stop_request_delta=0;cancel_stop_request_timeout();begin_stop_animation(d,&old);}}copy_map_vector(it);note_road_generation(it);copy_road_chunk(it);Tuple*show=dict_find(it,MESSAGE_KEY_SHOW_MAP_ONCE);if(show&&show->value->int32)show_map_once();dirty();}
+static void copy_stop_fields(DictionaryIterator*it,StopView*v){
+    if(!v)return;
+    copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);
+    Tuple*endpoint=dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);
+    if(endpoint){
+        bool marked=endpoint->value->int32!=0;
+        if(!marked){v->is_goal=false;v->is_start=false;}
+        else if(s_stop_request_pending&&s_stop_request_delta>0){v->is_start=true;v->is_goal=false;}
+        else if(s_stop_request_pending&&s_stop_request_delta<0){v->is_goal=true;v->is_start=false;}
+        else if(!v->is_start&&!v->is_goal){v->is_goal=true;}
+    }
+}
+static void inbox_received(DictionaryIterator*it,void*c){
+    copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));copy_int32(it,MESSAGE_KEY_TEMP_CURRENT_TENTHS,&s_temp_current);copy_int32(it,MESSAGE_KEY_TEMP_MIN_TENTHS,&s_temp_min);copy_int32(it,MESSAGE_KEY_TEMP_MAX_TENTHS,&s_temp_max);copy_int32(it,MESSAGE_KEY_SUNRISE_MINUTES,&s_sunrise_minutes);copy_int32(it,MESSAGE_KEY_SUNSET_MINUTES,&s_sunset_minutes);copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);copy_int32(it,MESSAGE_KEY_ROUTE_PROGRESS_PERCENT,&s_route_progress_percent);
+    if(stop_fields_present(it)){
+        StopView old=s_stop,incoming=s_stop;copy_stop_fields(it,&incoming);s_stop=incoming;
+        if(s_stop_request_pending){
+            int d=s_stop_request_delta;bool boundary=(d>0&&old.is_start&&incoming.is_start)||(d<0&&old.is_goal&&incoming.is_goal);
+            s_stop_request_pending=false;s_stop_request_delta=0;cancel_stop_request_timeout();
+            if(boundary)begin_stop_bounce(d);else begin_stop_animation(d,&old);
+        }
+    }
+    copy_map_vector(it);note_road_generation(it);copy_road_chunk(it);Tuple*show=dict_find(it,MESSAGE_KEY_SHOW_MAP_ONCE);if(show&&show->value->int32)show_map_once();dirty();
+}
 static void inbox_dropped(AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage dropped: %d",(int)r);}
 static void outbox_failed(DictionaryIterator*it,AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage control failed: %d",(int)r);}
 
@@ -758,7 +683,7 @@ static void window_appear(Window*w){
 #endif
     update_compass_sampling();
 }
-static void window_disappear(Window*w){cancel_page_scroll_timer();if(s_stop_animation_timer){app_timer_cancel(s_stop_animation_timer);s_stop_animation_timer=NULL;}cancel_stop_request_timeout();s_stop_request_pending=false;s_stop_animating=false;stop_compass_sampling();
+static void window_disappear(Window*w){cancel_page_scroll_timer();if(s_stop_animation_timer){app_timer_cancel(s_stop_animation_timer);s_stop_animation_timer=NULL;}cancel_stop_request_timeout();s_stop_request_pending=false;s_stop_animating=false;s_stop_bouncing=false;s_stop_bounce_returning=false;stop_compass_sampling();
 #if defined(PBL_TOUCH)
     if(s_touch_subscribed){touch_service_unsubscribe();s_touch_subscribed=false;reset_touch_state();}
 #endif
