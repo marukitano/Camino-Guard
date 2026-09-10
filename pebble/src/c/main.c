@@ -125,6 +125,16 @@ static int32_t s_road_receiving_generation;
 static int s_road_expected_chunks;
 static int s_road_received_chunks;
 
+/*
+ * Nasu-style retained image for Screen 3. While a page is sliding we draw one
+ * opaque 200x228 bitmap only; the expensive map construction happens only
+ * while the map is settled. The same bitmap is reused as north-up road scratch
+ * before a fresh settled frame is captured into it.
+ */
+static GBitmap *s_map_frame_bitmap;
+static bool s_map_frame_valid;
+static bool s_map_frame_dirty = true;
+
 static GPath *s_marker_outline_path;
 static GPath *s_marker_fill_path;
 static GPoint s_marker_outline_points[] = {{0,-13},{-8,9},{0,5},{8,9}};
@@ -321,21 +331,23 @@ static void health_handler(HealthEventType e,void*c){if(e==HealthEventHeartRateU
 
 #if defined(PBL_COMPASS)
 static void compass_handler(CompassHeadingData data){
-    /* Freeze heading during the Nasu-style page slide; only the layer moves. */
+    /* Freeze the visual heading during a page slide, but keep the last good value. */
     if(s_page==PAGE_MAP&&s_page_scroll_mode!=PAGE_SCROLL_IDLE)return;
     bool valid=data.compass_status==CompassStatusCalibrating||data.compass_status==CompassStatusCalibrated;
-    CompassHeading h=data.true_heading;if(h<0||h>=TRIG_MAX_ANGLE)h=data.magnetic_heading;
-    s_heading_valid=valid&&h>=0&&h<TRIG_MAX_ANGLE;if(s_heading_valid)s_heading=h;
+    CompassHeading h=data.magnetic_heading;
+    if(!valid||h<0||h>=TRIG_MAX_ANGLE)return;
+    s_heading=h;
+    s_heading_valid=true;
+    s_map_frame_dirty=true;
     if(s_page==PAGE_MAP&&s_page_layers[PAGE_MAP])layer_mark_dirty(s_page_layers[PAGE_MAP]);
 }
 static void start_compass_sampling(void){
     if(s_compass_subscribed)return;
-    compass_service_set_heading_filter(DEG_TO_TRIGANGLE(3));
+    compass_service_set_heading_filter(DEG_TO_TRIGANGLE(5));
     compass_service_subscribe(compass_handler);
     s_compass_subscribed=true;
-    CompassHeadingData data;if(compass_service_peek(&data)==0)compass_handler(data);
 }
-static void stop_compass_sampling(void){if(s_compass_subscribed){compass_service_unsubscribe();s_compass_subscribed=false;}s_heading_valid=false;}
+static void stop_compass_sampling(void){if(s_compass_subscribed){compass_service_unsubscribe();s_compass_subscribed=false;}}
 #else
 static void start_compass_sampling(void){}
 static void stop_compass_sampling(void){}
@@ -356,11 +368,9 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){c
 static void draw_timetable(GContext*ctx,GRect b){if(!s_stop_animating){draw_timetable_view(ctx,b,&s_stop,0);return;}int off=(int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);draw_timetable_view(ctx,b,&s_stop_previous,off);draw_timetable_view(ctx,b,&s_stop,off+s_stop_anim_direction*b.size.h);}
 
 /*
- * Heading-up recovery map. Keep the compact Android payload, but follow the
- * same rendering rule as Nasu's large OK image: touch the physical 200x228
- * framebuffer directly instead of rebuilding thousands of Pebble primitives
- * while a page is moving. The expensive trigonometry is prepared once per
- * frame, not once for every road pixel.
+ * Heading-up recovery map. Pebble compass headings grow counter-clockwise,
+ * while the desired walking bearing grows clockwise. Convert once per settled
+ * redraw; the current-position marker remains fixed at screen centre.
  */
 static void update_map_position_from_payload(void){
     s_map_position_east=0;
@@ -376,8 +386,10 @@ static void prepare_map_transform(void){
     s_map_cosine=TRIG_MAX_RATIO;
 #if defined(PBL_COMPASS)
     if(s_heading_valid){
-        s_map_sine=sin_lookup(s_heading);
-        s_map_cosine=cos_lookup(s_heading);
+        int32_t clockwise=TRIG_MAX_ANGLE-s_heading;
+        if(clockwise>=TRIG_MAX_ANGLE)clockwise-=TRIG_MAX_ANGLE;
+        s_map_sine=sin_lookup(clockwise);
+        s_map_cosine=cos_lookup(clockwise);
     }
 #endif
 }
@@ -392,39 +404,17 @@ static GPoint map_point(GRect b,int east,int north){
     return GPoint(cx+right,cy-forward);
 }
 
-static void framebuffer_plot(uint8_t*data,int stride,GRect fbounds,int x,int y,int left,int top,int right,int bottom,uint8_t color){
-    if(!data||x<left||x>right||y<top||y>bottom||x<fbounds.origin.x||y<fbounds.origin.y||x>=fbounds.origin.x+fbounds.size.w||y>=fbounds.origin.y+fbounds.size.h)return;
-    data[(y-fbounds.origin.y)*stride+(x-fbounds.origin.x)]=color;
-}
+static bool build_north_up_road_bitmap(void){
+    if(!s_map_frame_bitmap)return false;
+    uint8_t*data=gbitmap_get_data(s_map_frame_bitmap);
+    if(!data)return false;
+    int stride=gbitmap_get_bytes_per_row(s_map_frame_bitmap);
+    GRect bounds=gbitmap_get_bounds(s_map_frame_bitmap);
+    if(bounds.size.w<MAP_ROAD_WIDTH||bounds.size.h<MAP_ROAD_HEIGHT)return false;
 
-static void framebuffer_road_dot(uint8_t*data,int stride,GRect fbounds,int x,int y,int left,int top,int right,int bottom,uint8_t color){
-    framebuffer_plot(data,stride,fbounds,x,y,left,top,right,bottom,color);
-    framebuffer_plot(data,stride,fbounds,x-1,y,left,top,right,bottom,color);
-    framebuffer_plot(data,stride,fbounds,x+1,y,left,top,right,bottom,color);
-    framebuffer_plot(data,stride,fbounds,x,y-1,left,top,right,bottom,color);
-    framebuffer_plot(data,stride,fbounds,x,y+1,left,top,right,bottom,color);
-}
+    for(int y=0;y<MAP_ROAD_HEIGHT;y++)memset(data+y*stride,GColorBlack.argb,MAP_ROAD_WIDTH);
+    if(!s_road_mask_valid)return true;
 
-static void draw_road_mask(GContext*ctx,GRect b){
-    if(!s_road_mask_valid||!s_page_layers[PAGE_MAP])return;
-
-    GBitmap*framebuffer=graphics_capture_frame_buffer_format(ctx,GBitmapFormat8Bit);
-    if(!framebuffer)return;
-
-    uint8_t*data=gbitmap_get_data(framebuffer);
-    int stride=gbitmap_get_bytes_per_row(framebuffer);
-    GRect fbounds=gbitmap_get_bounds(framebuffer);
-    GRect frame=layer_get_frame(s_page_layers[PAGE_MAP]);
-    int left=frame.origin.x+b.origin.x;
-    int top=frame.origin.y+b.origin.y;
-    int right=left+b.size.w-1;
-    int bottom=top+b.size.h-1;
-    if(left<fbounds.origin.x)left=fbounds.origin.x;
-    if(top<fbounds.origin.y)top=fbounds.origin.y;
-    if(right>=fbounds.origin.x+fbounds.size.w)right=fbounds.origin.x+fbounds.size.w-1;
-    if(bottom>=fbounds.origin.y+fbounds.size.h)bottom=fbounds.origin.y+fbounds.size.h-1;
-
-    GColor road=GColorDarkGray;
     const size_t total_bits=(size_t)MAP_ROAD_WIDTH*MAP_ROAD_HEIGHT;
     for(size_t byte_index=0;byte_index<sizeof(s_road_mask);byte_index++){
         uint8_t bits=s_road_mask[byte_index];
@@ -436,16 +426,30 @@ static void draw_road_mask(GContext*ctx,GRect b){
             if(index>=total_bits)break;
             int y=(int)(index/MAP_ROAD_WIDTH);
             int x=(int)(index-(size_t)y*MAP_ROAD_WIDTH);
-            int east=x-MAP_ROAD_WIDTH/2;
-            int north=MAP_ROAD_HEIGHT/2-y;
-            GPoint p=map_point(b,east,north);
-            int screen_x=frame.origin.x+p.x;
-            int screen_y=frame.origin.y+p.y;
-            framebuffer_road_dot(data,stride,fbounds,screen_x,screen_y,left,top,right,bottom,road.argb);
+            for(int dy=-1;dy<=1;dy++){
+                int py=y+dy;if(py<0||py>=MAP_ROAD_HEIGHT)continue;
+                for(int dx=-1;dx<=1;dx++){
+                    if(dx*dx+dy*dy>2)continue;
+                    int px=x+dx;if(px<0||px>=MAP_ROAD_WIDTH)continue;
+                    data[py*stride+px]=GColorDarkGray.argb;
+                }
+            }
         }
     }
+    return true;
+}
 
-    graphics_release_frame_buffer(ctx,framebuffer);
+static void draw_road_bitmap(GContext*ctx,GRect b){
+    if(!build_north_up_road_bitmap())return;
+    GPoint src_ic=GPoint(MAP_ROAD_WIDTH/2+s_map_position_east,MAP_ROAD_HEIGHT/2-s_map_position_north);
+    GPoint dest_ic=GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2);
+    int32_t rotation=0;
+#if defined(PBL_COMPASS)
+    /* Native bitmap rotation is clockwise; raw Pebble heading is CCW. */
+    if(s_heading_valid)rotation=s_heading;
+#endif
+    graphics_context_set_compositing_mode(ctx,GCompOpAssign);
+    graphics_draw_rotated_bitmap(ctx,s_map_frame_bitmap,src_ic,rotation,dest_ic);
 }
 
 static void draw_distance_grid(GContext*ctx,GRect b){
@@ -508,13 +512,14 @@ static void draw_map(GContext*ctx,GRect b){
     graphics_context_set_antialiased(ctx,true);
     update_map_position_from_payload();
     prepare_map_transform();
-    draw_road_mask(ctx,b);
+    draw_road_bitmap(ctx,b);
 
     if(s_map_payload_len>=5&&s_map_payload[0]==2){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,7);
+            /* 5 px blue Camino plus roughly 3 px yellow casing on each side. */
+            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,11);
             draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
         }
@@ -522,7 +527,7 @@ static void draw_map(GContext*ctx,GRect b){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=3,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,7);
+            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,11);
             draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
         }
@@ -532,10 +537,53 @@ static void draw_map(GContext*ctx,GRect b){
     draw_position_marker(ctx,GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2));
 }
 
+static bool capture_map_frame(GContext*ctx,GRect b){
+    if(!s_map_frame_bitmap||!s_page_layers[PAGE_MAP])return false;
+    GBitmap*framebuffer=graphics_capture_frame_buffer_format(ctx,GBitmapFormat8Bit);
+    if(!framebuffer)return false;
+    uint8_t*src=gbitmap_get_data(framebuffer);
+    uint8_t*dst=gbitmap_get_data(s_map_frame_bitmap);
+    int src_stride=gbitmap_get_bytes_per_row(framebuffer);
+    int dst_stride=gbitmap_get_bytes_per_row(s_map_frame_bitmap);
+    GRect fbounds=gbitmap_get_bounds(framebuffer);
+    GRect frame=layer_get_frame(s_page_layers[PAGE_MAP]);
+    int sx=frame.origin.x+b.origin.x-fbounds.origin.x;
+    int sy=frame.origin.y+b.origin.y-fbounds.origin.y;
+    bool ok=src&&dst&&sx>=0&&sy>=0&&sx+b.size.w<=fbounds.size.w&&sy+b.size.h<=fbounds.size.h&&b.size.w<=MAP_ROAD_WIDTH&&b.size.h<=MAP_ROAD_HEIGHT;
+    if(ok){
+        for(int y=0;y<b.size.h;y++)memcpy(dst+y*dst_stride,src+(sy+y)*src_stride+sx,b.size.w);
+    }
+    graphics_release_frame_buffer(ctx,framebuffer);
+    if(ok){s_map_frame_valid=true;s_map_frame_dirty=false;}
+    return ok;
+}
+
+static bool draw_cached_map_frame(GContext*ctx,GRect b){
+    if(!s_map_frame_bitmap||!s_map_frame_valid)return false;
+    graphics_context_set_compositing_mode(ctx,GCompOpAssign);
+    graphics_draw_bitmap_in_rect(ctx,s_map_frame_bitmap,b);
+    return true;
+}
+
 static void page_background(GContext*ctx,GRect b){graphics_context_set_fill_color(ctx,GColorBlack);graphics_fill_rect(ctx,b,0,GCornerNone);s_ink=GColorWhite;}
 static void dashboard_update_proc(Layer*l,GContext*c){GRect b=layer_get_bounds(l);page_background(c,b);draw_dashboard(c,b);}
 static void timetable_update_proc(Layer*l,GContext*c){GRect b=layer_get_bounds(l);page_background(c,b);draw_timetable(c,b);}
-static void map_update_proc(Layer*l,GContext*c){GRect b=layer_get_bounds(l);page_background(c,b);draw_map(c,b);}
+static void map_update_proc(Layer*l,GContext*c){
+    GRect b=layer_get_bounds(l);
+    bool settled=s_page==PAGE_MAP&&s_page_scroll_mode==PAGE_SCROLL_IDLE&&layer_get_frame(l).origin.x==0;
+    if(!settled){
+        /* Exactly the Nasu rule: while flying, move one already-built image. */
+        if(draw_cached_map_frame(c,b))return;
+        page_background(c,b);
+        draw_distance_grid(c,b);
+        draw_position_marker(c,GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2));
+        return;
+    }
+    if(!s_map_frame_dirty&&draw_cached_map_frame(c,b))return;
+    page_background(c,b);
+    draw_map(c,b);
+    capture_map_frame(c,b);
+}
 
 static void send_control(uint32_t key,int32_t value){DictionaryIterator*it=NULL;AppMessageResult r=app_message_outbox_begin(&it);if(r!=APP_MSG_OK||!it){APP_LOG(APP_LOG_LEVEL_WARNING,"Control outbox begin failed: %d",(int)r);return;}DictionaryResult d=dict_write_int32(it,key,value);if(d!=DICT_OK){APP_LOG(APP_LOG_LEVEL_WARNING,"Control dict write failed: %d",(int)d);return;}r=app_message_outbox_send();if(r!=APP_MSG_OK)APP_LOG(APP_LOG_LEVEL_WARNING,"Control send failed: %d",(int)r);}
 static int page_width(void){return s_page_layers[s_page]?layer_get_bounds(s_page_layers[s_page]).size.w:200;}
@@ -551,11 +599,11 @@ static void finish_page_scroll(bool committed){cancel_page_scroll_timer();if(com
 } s_page_neighbor=-1;s_page_direction=0;s_page_position_q8=0;s_page_target_q8=0;s_page_velocity_q8=0;s_page_scroll_mode=PAGE_SCROLL_IDLE;reset_page_layers();update_compass_sampling();dirty();}
 static void page_scroll_tick(void*c){s_page_scroll_timer=NULL;if(s_page_scroll_mode==PAGE_SCROLL_IDLE)return;int32_t force=(s_page_target_q8-s_page_position_q8)*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_NUM:SCROLL_SNAP_SPRING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_DEN:SCROLL_SNAP_SPRING_DEN);s_page_velocity_q8+=force;s_page_velocity_q8=s_page_velocity_q8*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_NUM:SCROLL_SNAP_DAMPING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_DEN:SCROLL_SNAP_DAMPING_DEN);s_page_velocity_q8=clamp_symmetric_i32(s_page_velocity_q8,SCROLL_MAX_VELOCITY_Q8);s_page_position_q8+=s_page_velocity_q8;update_page_layer_positions();if(s_page_scroll_mode==PAGE_SCROLL_SNAP&&abs_i32(s_page_target_q8-s_page_position_q8)<=SCROLL_STOP_POSITION_Q8&&abs_i32(s_page_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8){bool committed=s_page_target_q8!=0&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page;finish_page_scroll(committed);return;}schedule_page_scroll();}
 static void schedule_page_scroll(void){if(!s_page_scroll_timer&&s_page_scroll_mode!=PAGE_SCROLL_IDLE)s_page_scroll_timer=app_timer_register(SCROLL_FRAME_MS,page_scroll_tick,NULL);}
-static bool prepare_page_neighbor(int dir){int n=s_page+dir;if(n<PAGE_DASHBOARD||n>PAGE_MAP){s_page_neighbor=-1;s_page_direction=dir;return false;}s_page_neighbor=n;s_page_direction=dir;if(s_page_layers[n]){layer_set_hidden(s_page_layers[n],false);set_page_layer_x(n,dir*page_width());layer_mark_dirty(s_page_layers[n]);}return true;}
+static bool prepare_page_neighbor(int dir){int n=s_page+dir;if(n<PAGE_DASHBOARD||n>PAGE_MAP){s_page_neighbor=-1;s_page_direction=dir;return false;}s_page_neighbor=n;s_page_direction=dir;if(n==PAGE_MAP)start_compass_sampling();if(s_page_layers[n]){layer_set_hidden(s_page_layers[n],false);set_page_layer_x(n,dir*page_width());layer_mark_dirty(s_page_layers[n]);}return true;}
 static void start_page_touch(int dir){if(s_page_scroll_mode!=PAGE_SCROLL_IDLE)return;prepare_page_neighbor(dir);s_page_position_q8=s_page_target_q8=s_page_velocity_q8=0;s_page_scroll_mode=PAGE_SCROLL_TOUCH;schedule_page_scroll();}
 static void snap_page(bool commit){if(s_page_scroll_mode==PAGE_SCROLL_IDLE)return;if(commit&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page){s_page_target_q8=-(int32_t)s_page_direction*page_width()*SCROLL_Q8;send_control(MESSAGE_KEY_WATCH_PAGE,s_page_neighbor);}else s_page_target_q8=0;s_page_scroll_mode=PAGE_SCROLL_SNAP;schedule_page_scroll();}
-static void animate_to_page(int target,int dir){target=clamp_i(target,PAGE_DASHBOARD,PAGE_MAP);if(target==s_page||s_page_scroll_mode!=PAGE_SCROLL_IDLE)return;if(!dir)dir=target>s_page?1:-1;s_page_neighbor=target;s_page_direction=dir<0?-1:1;s_page_position_q8=s_page_target_q8=s_page_velocity_q8=0;if(s_page_layers[target]){layer_set_hidden(s_page_layers[target],false);set_page_layer_x(target,s_page_direction*page_width());layer_mark_dirty(s_page_layers[target]);}s_page_scroll_mode=PAGE_SCROLL_SNAP;s_page_target_q8=-(int32_t)s_page_direction*page_width()*SCROLL_Q8;send_control(MESSAGE_KEY_WATCH_PAGE,target);schedule_page_scroll();}
-static void cancel_page_animation_to_current(void){cancel_page_scroll_timer();s_page_neighbor=-1;s_page_direction=0;s_page_position_q8=s_page_target_q8=s_page_velocity_q8=0;s_page_scroll_mode=PAGE_SCROLL_IDLE;reset_page_layers();}
+static void animate_to_page(int target,int dir){target=clamp_i(target,PAGE_DASHBOARD,PAGE_MAP);if(target==s_page||s_page_scroll_mode!=PAGE_SCROLL_IDLE)return;if(!dir)dir=target>s_page?1:-1;s_page_neighbor=target;s_page_direction=dir<0?-1:1;s_page_position_q8=s_page_target_q8=s_page_velocity_q8=0;if(target==PAGE_MAP)start_compass_sampling();if(s_page_layers[target]){layer_set_hidden(s_page_layers[target],false);set_page_layer_x(target,s_page_direction*page_width());layer_mark_dirty(s_page_layers[target]);}s_page_scroll_mode=PAGE_SCROLL_SNAP;s_page_target_q8=-(int32_t)s_page_direction*page_width()*SCROLL_Q8;send_control(MESSAGE_KEY_WATCH_PAGE,target);schedule_page_scroll();}
+static void cancel_page_animation_to_current(void){cancel_page_scroll_timer();s_page_neighbor=-1;s_page_direction=0;s_page_position_q8=s_page_target_q8=s_page_velocity_q8=0;s_page_scroll_mode=PAGE_SCROLL_IDLE;reset_page_layers();update_compass_sampling();}
 static void show_map_once(void){vibes_double_pulse();if(s_page_scroll_mode!=PAGE_SCROLL_IDLE)cancel_page_animation_to_current();if(s_page==PAGE_MAP){send_control(MESSAGE_KEY_WATCH_PAGE,PAGE_MAP);update_compass_sampling();dirty();return;}animate_to_page(PAGE_MAP,1);}
 
 static void stop_request_timeout(void*c);static void change_stop(int delta);static void schedule_stop_animation(void);
@@ -583,7 +631,7 @@ static void touch_handler(const TouchEvent*e,void*c){if(!e)return;switch(e->type
 static void tick_handler(struct tm*t,TimeUnits u){update_clock(t);update_steps();dirty();}
 static void copy_text(DictionaryIterator*it,uint32_t key,char*dst,size_t n){Tuple*t=dict_find(it,key);if(t&&dst&&n)snprintf(dst,n,"%s",t->value->cstring);}
 static void copy_int32(DictionaryIterator*it,uint32_t key,int32_t*dst){Tuple*t=dict_find(it,key);if(t&&dst)*dst=t->value->int32;}
-static void copy_map_vector(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_VECTOR);if(!t)return;size_t n=t->length;if(n>sizeof(s_map_payload))n=sizeof(s_map_payload);memcpy(s_map_payload,t->value->data,n);s_map_payload_len=n;}
+static void copy_map_vector(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_VECTOR);if(!t)return;size_t n=t->length;if(n>sizeof(s_map_payload))n=sizeof(s_map_payload);memcpy(s_map_payload,t->value->data,n);s_map_payload_len=n;s_map_frame_dirty=true;}
 
 static bool decompress_road_mask(size_t compressed_len){
     size_t in=0,out=0;
@@ -605,15 +653,15 @@ static bool decompress_road_mask(size_t compressed_len){
     return in==compressed_len&&out==sizeof(s_road_mask);
 }
 
-static void note_road_generation(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION);if(!t)return;int32_t g=t->value->int32;if(g<=0){s_road_generation=s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;s_road_mask_valid=false;return;}if(g!=s_road_generation&&g!=s_road_receiving_generation){s_road_mask_valid=false;s_road_receiving_generation=g;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;}}
-static void copy_road_chunk(DictionaryIterator*it){Tuple*data=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_DATA),*gt=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION),*itx=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_INDEX),*ct=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_COUNT);if(!data||!gt||!itx||!ct)return;int32_t g=gt->value->int32;int idx=itx->value->int32,count=ct->value->int32;if(g<=0||idx<0||count<=0||count>MAP_ROAD_MAX_CHUNKS||idx>=count)return;if(idx==0||g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=count;s_road_received_chunks=0;s_road_compressed_len=0;s_road_mask_valid=false;}if(g!=s_road_receiving_generation||count!=s_road_expected_chunks||idx!=s_road_received_chunks)return;size_t off=(size_t)idx*MAP_ROAD_CHUNK_BYTES,n=data->length;if(off+n>sizeof(s_road_compressed))return;memcpy(s_road_compressed+off,data->value->data,n);s_road_received_chunks++;if(s_road_received_chunks==s_road_expected_chunks){s_road_compressed_len=off+n;s_road_mask_valid=decompress_road_mask(s_road_compressed_len);if(s_road_mask_valid)s_road_generation=g;s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;}}
+static void note_road_generation(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION);if(!t)return;int32_t g=t->value->int32;if(g<=0){s_road_generation=s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;s_road_mask_valid=false;s_map_frame_dirty=true;return;}if(g!=s_road_generation&&g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;}}
+static void copy_road_chunk(DictionaryIterator*it){Tuple*data=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_DATA),*gt=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION),*itx=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_INDEX),*ct=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_COUNT);if(!data||!gt||!itx||!ct)return;int32_t g=gt->value->int32;int idx=itx->value->int32,count=ct->value->int32;if(g<=0||idx<0||count<=0||count>MAP_ROAD_MAX_CHUNKS||idx>=count)return;if(idx==0||g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=count;s_road_received_chunks=0;s_road_compressed_len=0;}if(g!=s_road_receiving_generation||count!=s_road_expected_chunks||idx!=s_road_received_chunks)return;size_t off=(size_t)idx*MAP_ROAD_CHUNK_BYTES,n=data->length;if(off+n>sizeof(s_road_compressed))return;memcpy(s_road_compressed+off,data->value->data,n);s_road_received_chunks++;if(s_road_received_chunks==s_road_expected_chunks){s_road_compressed_len=off+n;s_road_mask_valid=decompress_road_mask(s_road_compressed_len);if(s_road_mask_valid){s_road_generation=g;s_map_frame_dirty=true;}s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;}}
 static bool stop_fields_present(DictionaryIterator*it){return dict_find(it,MESSAGE_KEY_STOP_NAME)||dict_find(it,MESSAGE_KEY_STOP_TIME)||dict_find(it,MESSAGE_KEY_STOP_DISTANCE)||dict_find(it,MESSAGE_KEY_STOP_PERCENT);}
 static void copy_stop_fields(DictionaryIterator*it,StopView*v){if(!v)return;copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);}
 static void inbox_received(DictionaryIterator*it,void*c){copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));copy_int32(it,MESSAGE_KEY_TEMP_CURRENT_TENTHS,&s_temp_current);copy_int32(it,MESSAGE_KEY_TEMP_MIN_TENTHS,&s_temp_min);copy_int32(it,MESSAGE_KEY_TEMP_MAX_TENTHS,&s_temp_max);copy_int32(it,MESSAGE_KEY_SUNRISE_MINUTES,&s_sunrise_minutes);copy_int32(it,MESSAGE_KEY_SUNSET_MINUTES,&s_sunset_minutes);copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);copy_int32(it,MESSAGE_KEY_ROUTE_PROGRESS_PERCENT,&s_route_progress_percent);if(stop_fields_present(it)){StopView old=s_stop,incoming=s_stop;copy_stop_fields(it,&incoming);s_stop=incoming;if(s_stop_request_pending){int d=s_stop_request_delta;s_stop_request_pending=false;s_stop_request_delta=0;cancel_stop_request_timeout();begin_stop_animation(d,&old);}}copy_map_vector(it);note_road_generation(it);copy_road_chunk(it);Tuple*show=dict_find(it,MESSAGE_KEY_SHOW_MAP_ONCE);if(show&&show->value->int32)show_map_once();dirty();}
 static void inbox_dropped(AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage dropped: %d",(int)r);}
 static void outbox_failed(DictionaryIterator*it,AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage control failed: %d",(int)r);}
 
-static void window_load(Window*w){Layer*root=window_get_root_layer(w);GRect b=layer_get_bounds(root);s_icon_heart=gbitmap_create_with_resource(RESOURCE_ID_ICON_HEART);s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));s_marker_outline_path=gpath_create(&s_marker_outline_info);s_marker_fill_path=gpath_create(&s_marker_fill_info);s_page_layers[0]=layer_create(b);s_page_layers[1]=layer_create(b);s_page_layers[2]=layer_create(b);if(s_page_layers[0])layer_set_update_proc(s_page_layers[0],dashboard_update_proc);if(s_page_layers[1])layer_set_update_proc(s_page_layers[1],timetable_update_proc);if(s_page_layers[2])layer_set_update_proc(s_page_layers[2],map_update_proc);for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i])layer_add_child(root,s_page_layers[i]);reset_page_layers();window_set_background_color(w,GColorBlack);window_set_click_config_provider(w,click_config_provider);update_clock(NULL);update_steps();update_heart_rate();}
+static void window_load(Window*w){Layer*root=window_get_root_layer(w);GRect b=layer_get_bounds(root);s_icon_heart=gbitmap_create_with_resource(RESOURCE_ID_ICON_HEART);s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));s_marker_outline_path=gpath_create(&s_marker_outline_info);s_marker_fill_path=gpath_create(&s_marker_fill_info);s_map_frame_bitmap=gbitmap_create_blank(GSize(MAP_ROAD_WIDTH,MAP_ROAD_HEIGHT),GBitmapFormat8Bit);s_map_frame_valid=false;s_map_frame_dirty=true;s_page_layers[0]=layer_create(b);s_page_layers[1]=layer_create(b);s_page_layers[2]=layer_create(b);if(s_page_layers[0])layer_set_update_proc(s_page_layers[0],dashboard_update_proc);if(s_page_layers[1])layer_set_update_proc(s_page_layers[1],timetable_update_proc);if(s_page_layers[2])layer_set_update_proc(s_page_layers[2],map_update_proc);for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i])layer_add_child(root,s_page_layers[i]);reset_page_layers();window_set_background_color(w,GColorBlack);window_set_click_config_provider(w,click_config_provider);update_clock(NULL);update_steps();update_heart_rate();}
 static void window_appear(Window*w){
 #if defined(PBL_TOUCH)
     if(!s_touch_subscribed&&touch_service_is_enabled()){touch_service_subscribe(touch_handler,NULL);s_touch_subscribed=true;}
@@ -625,7 +673,7 @@ static void window_disappear(Window*w){cancel_page_scroll_timer();if(s_stop_anim
     if(s_touch_subscribed){touch_service_unsubscribe();s_touch_subscribed=false;reset_touch_state();}
 #endif
 }
-static void window_unload(Window*w){for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i]){layer_destroy(s_page_layers[i]);s_page_layers[i]=NULL;}if(s_marker_outline_path){gpath_destroy(s_marker_outline_path);s_marker_outline_path=NULL;}if(s_marker_fill_path){gpath_destroy(s_marker_fill_path);s_marker_fill_path=NULL;}gbitmap_destroy(s_icon_heart);s_icon_heart=NULL;gbitmap_destroy(s_icon_blood);s_icon_blood=NULL;gbitmap_destroy(s_icon_shoe);s_icon_shoe=NULL;if(s_font_megafont_14){fonts_unload_custom_font(s_font_megafont_14);s_font_megafont_14=NULL;}if(s_font_megafont_18){fonts_unload_custom_font(s_font_megafont_18);s_font_megafont_18=NULL;}}
+static void window_unload(Window*w){for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i]){layer_destroy(s_page_layers[i]);s_page_layers[i]=NULL;}if(s_map_frame_bitmap){gbitmap_destroy(s_map_frame_bitmap);s_map_frame_bitmap=NULL;}if(s_marker_outline_path){gpath_destroy(s_marker_outline_path);s_marker_outline_path=NULL;}if(s_marker_fill_path){gpath_destroy(s_marker_fill_path);s_marker_fill_path=NULL;}gbitmap_destroy(s_icon_heart);s_icon_heart=NULL;gbitmap_destroy(s_icon_blood);s_icon_blood=NULL;gbitmap_destroy(s_icon_shoe);s_icon_shoe=NULL;if(s_font_megafont_14){fonts_unload_custom_font(s_font_megafont_14);s_font_megafont_14=NULL;}if(s_font_megafont_18){fonts_unload_custom_font(s_font_megafont_18);s_font_megafont_18=NULL;}}
 
 static void init(void){s_window=window_create();window_set_window_handlers(s_window,(WindowHandlers){.load=window_load,.appear=window_appear,.disappear=window_disappear,.unload=window_unload});window_stack_push(s_window,true);tick_timer_service_subscribe(MINUTE_UNIT,tick_handler);
 #if defined(PBL_HEALTH)
