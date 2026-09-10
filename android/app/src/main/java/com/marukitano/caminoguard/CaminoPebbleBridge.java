@@ -51,6 +51,7 @@ final class CaminoPebbleBridge
 
     private final JavaPebbleSender sender;
     private final CaminoPebbleWeatherClient weatherClient;
+    private final LibreLinkUpStore libreStore;
 
     CaminoPebbleBridge(
             Context context
@@ -67,6 +68,11 @@ final class CaminoPebbleBridge
                 new CaminoPebbleWeatherClient(
                         appContext
                 );
+
+        libreStore =
+                new LibreLinkUpStore(
+                        appContext
+                );
     }
 
     void requestWeather(
@@ -77,6 +83,39 @@ final class CaminoPebbleBridge
                 location,
                 callback
         );
+    }
+
+    synchronized void sendCachedGlucose() {
+        Integer mgdl =
+                libreStore.lastGlucoseMgdl();
+
+        long readingTimeMs =
+                libreStore.lastReadingTimeMs();
+
+        if (mgdl != null
+                && readingTimeMs > 0L) {
+
+            sendGlucose(
+                    LibreLinkUpClient.formatGlucoseDisplay(
+                            mgdl,
+                            readingTimeMs,
+                            System.currentTimeMillis()
+                    )
+            );
+
+            return;
+        }
+
+        String cachedText =
+                libreStore.lastGlucoseText();
+
+        if (cachedText != null
+                && !cachedText.trim().isEmpty()) {
+
+            sendGlucose(
+                    cachedText
+            );
+        }
     }
 
     synchronized void sendGlucose(
