@@ -3,63 +3,99 @@ package com.marukitano.caminoguard;
 import android.location.Location;
 import android.os.SystemClock;
 
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
 import java.util.Locale;
-
 
 /**
  * Pebble presentation adapter for the explicitly locked MeasurementPath.
  *
- * Route geometry, progress and timetable remain Android-owned.
- * No global nearest-Camino lookup and no orientation sensor is used here.
+ * Android remains the single authority for route geometry, progress and ETA.
+ * The Pebble watchapp only requests one of three presentation pages:
+ * dashboard, timetable stop browser, or a tiny local route map.
  */
-final class CaminoPebbleRoutePublisher {
+final class CaminoPebbleRoutePublisher
+        implements CaminoPebbleSession.Listener {
 
     private static final long SEND_INTERVAL_MS =
             5_000L;
 
-    /*
-     * Presentation only.
-     *
-     * CaminoTrackingService supplies the already-built authoritative
-     * CaminoTimetableState. Pebble never runs timetable/ETA route math here.
-     */
+    private static final long TRACE_MAX_AGE_MS =
+            5L * 60L * 1000L;
+
+    private static final float TRACE_SPACING_M =
+            4.0f;
+
+    private static final int TRACE_MAX_POINTS =
+            64;
+
+    private static final double MAP_CAPTURE_M =
+            120.0;
+
+    private static final int MAP_MAX_ROUTE_POINTS =
+            48;
+
+    private static final int MAP_MAX_TRAIL_POINTS =
+            30;
+
+    /* Integer sentinel used to explicitly clear a metric on the watch. */
+    private static final int UNKNOWN_METRIC =
+            Integer.MIN_VALUE;
+
     private final CaminoPebbleBridge bridge;
 
     private int pathVersion =
             Integer.MIN_VALUE;
 
-    private double lastGoodChainageM =
-            Double.NaN;
-
-    private boolean sentAnyState;
-    private boolean lastAlarmActive;
-    private boolean lastRouteValid;
-
-    /*
-     * AppMessage delivery is asynchronous. A timeout/NACK must invalidate the
-     * delta stream; otherwise Android can believe a transition reached the
-     * watch and suppress it forever. The next normal evaluation then sends one
-     * complete self-contained snapshot without resetting the navigation lock.
-     */
-    private boolean forceFullSend;
-
-    /*
-     * Motion transitions bypass the ordinary five-second telemetry throttle.
-     * This guarantees immediate 0.0 km/h / ETA presentation on pause and an
-     * immediate refresh when walking resumes.
-     */
-    private boolean hasMotionState;
-    private boolean lastStationary;
-
     private long lastEvaluationElapsedMs =
             Long.MIN_VALUE;
 
-    private String lastSentNextName;
-    private String lastSentNextDistance;
-    private String lastSentNextTime;
-    private String lastSentSpeed;
-    private String lastSentFlatSpeed;
+    private boolean hasMotionState;
+    private boolean lastStationary;
 
+    private Location latestLocation;
+    private LockedMeasurementPathStore.Snapshot latestLocked;
+    private CaminoTimetableState latestTimetableState;
+    private double latestFlatSpeedKmh =
+            Double.NaN;
+    private boolean latestStationary;
+
+    private int visiblePage;
+    private int selectedStopIndex =
+            -1;
+
+    private boolean sentAnyDashboard;
+    private boolean forceDashboardFull =
+            true;
+
+    private String lastSentSpeed;
+    private Integer lastSentTemperatureCurrent;
+    private Integer lastSentTemperatureMin;
+    private Integer lastSentTemperatureMax;
+    private Integer lastSentSunrise;
+    private Integer lastSentSunset;
+    private Integer lastSentElevationCurrent;
+    private Integer lastSentElevationMin;
+    private Integer lastSentElevationMax;
+
+    private CaminoPebbleWeatherClient.Snapshot weather;
+
+    private int elevationScalePathVersion =
+            Integer.MIN_VALUE;
+    private Integer routeElevationMinM;
+    private Integer routeElevationMaxM;
+
+    private boolean forceStopSend =
+            true;
+
+    private boolean forceMapSend =
+            true;
+
+    private final Deque<Location> recentTrail =
+            new ArrayDeque<>();
 
     CaminoPebbleRoutePublisher(
             CaminoPebbleBridge bridge
@@ -72,8 +108,14 @@ final class CaminoPebbleRoutePublisher {
 
         this.bridge =
                 bridge;
-    }
 
+        visiblePage =
+                CaminoPebbleSession.page();
+
+        CaminoPebbleSession.setListener(
+                this
+        );
+    }
 
     synchronized void onGpsFix(
             Location location,
@@ -83,81 +125,90 @@ final class CaminoPebbleRoutePublisher {
             double flatSpeedKmh,
             boolean stationary
     ) {
-        if (locked == null
-                || locked.path == null) {
+        latestLocation =
+                location == null
+                        ? null
+                        : new Location(
+                                location
+                        );
 
-            pathVersion =
-                    Integer.MIN_VALUE;
+        latestLocked =
+                locked;
 
-            /*
-             * Speed is independent of Camino navigation.
-             * If GPS is available, keep publishing it even with no locked
-             * route. Route-specific values remain empty.
-             */
-            sendIfChanged(
-                    "--",
-                    "--",
-                    "--",
-                    formatSpeed(
-                            location,
-                            stationary
-                    ),
-                    "--",
-                    false,
-                    false
+        latestTimetableState =
+                timetableState;
+
+        latestFlatSpeedKmh =
+                flatSpeedKmh;
+
+        latestStationary =
+                stationary;
+
+        if (location != null
+                && !stationary) {
+
+            rememberTrailPoint(
+                    location
             );
-
-            hasMotionState =
-                    true;
-
-            lastStationary =
-                    stationary;
-
-            return;
         }
 
-        /*
-         * NO_ROUTE is independent of GPS availability. A locked route still
-         * needs a physical position before ON_ROUTE/OFF_ROUTE can be shown.
-         */
-        if (location == null) {
-            return;
-        }
+        int newPathVersion =
+                locked == null
+                        || locked.path == null
+                        ? Integer.MIN_VALUE
+                        : locked.version;
 
         boolean pathChanged =
                 pathVersion
-                        != locked.version;
+                        != newPathVersion;
 
         if (pathChanged) {
             pathVersion =
-                    locked.version;
+                    newPathVersion;
+
+            selectedStopIndex =
+                    -1;
+
+            forceDashboardFull =
+                    true;
+
+            forceStopSend =
+                    true;
+
+            forceMapSend =
+                    true;
+
+            refreshElevationScale(
+                    locked
+            );
         }
-
-        /*
-         * OFF ROUTE is no longer a Pebble presentation state.
-         * The Android notification system owns that warning.
-         */
-        boolean alarmActive =
-                false;
-
-        boolean routeStateChanged =
-                !sentAnyState
-                        || pathChanged
-                        || !lastRouteValid;
 
         boolean motionChanged =
                 !hasMotionState
                         || stationary
                         != lastStationary;
 
+        hasMotionState =
+                true;
+
+        lastStationary =
+                stationary;
+
+        if (!CaminoPebbleSession.isWatchOpen()) {
+            return;
+        }
+
         long nowElapsed =
                 SystemClock.elapsedRealtime();
 
-        boolean immediateEvaluation =
-                routeStateChanged
-                        || motionChanged;
+        boolean immediate =
+                pathChanged
+                        || motionChanged
+                        || forceDashboardFull
+                        || forceStopSend
+                        || forceMapSend;
 
-        if (!immediateEvaluation
+        if (!immediate
                 && lastEvaluationElapsedMs
                 != Long.MIN_VALUE
                 && nowElapsed
@@ -170,152 +221,250 @@ final class CaminoPebbleRoutePublisher {
         lastEvaluationElapsedMs =
                 nowElapsed;
 
-        String nextName =
-                "--";
-
-        String nextDistance =
-                "--";
-
-        String nextTime =
-                "--";
-
-        Values values =
-                valuesFromState(
-                        timetableState
-                );
-
-        if (values != null) {
-            nextName =
-                    values.name;
-
-            nextDistance =
-                    values.distance;
-
-            nextTime =
-                    values.time;
-        }
-
-        sendIfChanged(
-                nextName,
-                nextDistance,
-                nextTime,
-                formatSpeed(
-                        location,
-                        stationary
-                ),
-                formatFlatSpeed(
-                        flatSpeedKmh
-                ),
-                false,
-                true
+        sendCurrentPage(
+                false
         );
+    }
 
-        hasMotionState =
+    @Override
+    public synchronized void onPebbleOpened() {
+        forceDashboardFull =
                 true;
 
-        lastStationary =
-                stationary;
-    }
+        forceStopSend =
+                true;
 
+        forceMapSend =
+                true;
 
-    private Values valuesFromState(
-            CaminoTimetableState state
-    ) {
-        if (state == null
-                || !state.hasNextStop()) {
+        lastEvaluationElapsedMs =
+                Long.MIN_VALUE;
 
-            return null;
-        }
+        bridge.sendCachedGlucose();
 
-        CaminoTimetableStop next =
-                state.nextStop;
-
-        double remainingDistanceM =
-                Math.max(
-                        0.0,
-                        next.chainageM
-                                - state.currentChainageM
-                );
-
-        return new Values(
-                next.name,
-                formatDistance(
-                        remainingDistanceM
-                ),
-                formatArrivalTime(
-                        next.arrivalMinutesOfDay
-                )
+        sendCurrentPage(
+                true
         );
     }
 
+    @Override
+    public synchronized void onPebbleClosed() {
+        /* No Android service lifecycle change belongs to the watchapp. */
+    }
 
-    private void sendIfChanged(
-            String nextName,
-            String nextDistance,
-            String nextTime,
-            String speed,
-            String flatSpeed,
-            boolean alarmActive,
-            boolean routeValid
+    @Override
+    public synchronized void onPebblePageChanged(
+            int page
     ) {
-        if (!forceFullSend
-                && sentAnyState
-                && alarmActive == lastAlarmActive
-                && routeValid == lastRouteValid
-                && sameText(
-                        nextName,
-                        lastSentNextName
-                )
-                && sameText(
-                        nextDistance,
-                        lastSentNextDistance
-                )
-                && sameText(
-                        nextTime,
-                        lastSentNextTime
-                )
+        visiblePage =
+                Math.max(
+                        0,
+                        Math.min(
+                                2,
+                                page
+                        )
+                );
+
+        lastEvaluationElapsedMs =
+                Long.MIN_VALUE;
+
+        if (visiblePage == 0) {
+            forceDashboardFull =
+                    true;
+
+        } else if (visiblePage == 1) {
+            selectedStopIndex =
+                    findNextStopIndex(
+                            latestTimetableState
+                    );
+
+            forceStopSend =
+                    true;
+
+        } else {
+            forceMapSend =
+                    true;
+        }
+
+        if (CaminoPebbleSession.isWatchOpen()) {
+            sendCurrentPage(
+                    true
+            );
+        }
+    }
+
+    @Override
+    public synchronized void onPebbleStopDelta(
+            int delta
+    ) {
+        if (visiblePage != 1) {
+            return;
+        }
+
+        List<CaminoTimetableStop> stops =
+                allStops(
+                        latestTimetableState
+                );
+
+        if (stops.isEmpty()) {
+            selectedStopIndex =
+                    -1;
+
+        } else {
+            if (selectedStopIndex < 0
+                    || selectedStopIndex
+                    >= stops.size()) {
+
+                selectedStopIndex =
+                        findNextStopIndex(
+                                latestTimetableState
+                        );
+            }
+
+            selectedStopIndex =
+                    Math.max(
+                            0,
+                            Math.min(
+                                    stops.size() - 1,
+                                    selectedStopIndex
+                                            + (delta < 0 ? -1 : 1)
+                            )
+                    );
+        }
+
+        forceStopSend =
+                true;
+
+        sendTimetableStop();
+    }
+
+    private void sendCurrentPage(
+            boolean force
+    ) {
+        if (!CaminoPebbleSession.isWatchOpen()) {
+            return;
+        }
+
+        if (visiblePage == 0) {
+            sendDashboard(
+                    force
+            );
+
+        } else if (visiblePage == 1) {
+            sendTimetableStop();
+
+        } else {
+            sendMiniMap();
+        }
+    }
+
+    private void sendDashboard(
+            boolean force
+    ) {
+        Location location =
+                latestLocation;
+
+        if (location != null) {
+            bridge.requestWeather(
+                    location,
+                    this::onWeatherSnapshot
+            );
+        }
+
+        ElevationValues elevation =
+                elevationValues();
+
+        int temperatureCurrent =
+                weather == null
+                        ? UNKNOWN_METRIC
+                        : weather.currentTenthsC;
+
+        int temperatureMin =
+                weather == null
+                        ? UNKNOWN_METRIC
+                        : weather.minTenthsC;
+
+        int temperatureMax =
+                weather == null
+                        ? UNKNOWN_METRIC
+                        : weather.maxTenthsC;
+
+        int sunrise =
+                weather == null
+                        ? UNKNOWN_METRIC
+                        : weather.sunriseMinutes;
+
+        int sunset =
+                weather == null
+                        ? UNKNOWN_METRIC
+                        : weather.sunsetMinutes;
+
+        int elevationCurrent =
+                elevation == null
+                        ? UNKNOWN_METRIC
+                        : elevation.currentM;
+
+        int elevationMin =
+                elevation == null
+                        ? UNKNOWN_METRIC
+                        : elevation.minM;
+
+        int elevationMax =
+                elevation == null
+                        ? UNKNOWN_METRIC
+                        : elevation.maxM;
+
+        String speed =
+                formatSpeed(
+                        location,
+                        latestStationary
+                );
+
+        boolean fullSend =
+                force
+                        || forceDashboardFull
+                        || !sentAnyDashboard;
+
+        if (!fullSend
                 && sameText(
                         speed,
                         lastSentSpeed
                 )
-                && sameText(
-                        flatSpeed,
-                        lastSentFlatSpeed
+                && sameInt(
+                        temperatureCurrent,
+                        lastSentTemperatureCurrent
+                )
+                && sameInt(
+                        temperatureMin,
+                        lastSentTemperatureMin
+                )
+                && sameInt(
+                        temperatureMax,
+                        lastSentTemperatureMax
+                )
+                && sameInt(
+                        sunrise,
+                        lastSentSunrise
+                )
+                && sameInt(
+                        sunset,
+                        lastSentSunset
+                )
+                && sameInt(
+                        elevationCurrent,
+                        lastSentElevationCurrent
+                )
+                && sameInt(
+                        elevationMin,
+                        lastSentElevationMin
+                )
+                && sameInt(
+                        elevationMax,
+                        lastSentElevationMax
                 )) {
 
             return;
         }
-
-        boolean fullSend =
-                !sentAnyState
-                        || forceFullSend;
-
-        String nextNameDelta =
-                fullSend
-                        || !sameText(
-                                nextName,
-                                lastSentNextName
-                        )
-                        ? nextName
-                        : null;
-
-        String nextDistanceDelta =
-                fullSend
-                        || !sameText(
-                                nextDistance,
-                                lastSentNextDistance
-                        )
-                        ? nextDistance
-                        : null;
-
-        String nextTimeDelta =
-                fullSend
-                        || !sameText(
-                                nextTime,
-                                lastSentNextTime
-                        )
-                        ? nextTime
-                        : null;
 
         String speedDelta =
                 fullSend
@@ -326,86 +475,822 @@ final class CaminoPebbleRoutePublisher {
                         ? speed
                         : null;
 
-        String flatSpeedDelta =
-                fullSend
-                        || !sameText(
-                                flatSpeed,
-                                lastSentFlatSpeed
-                        )
-                        ? flatSpeed
-                        : null;
+        Integer temperatureCurrentDelta =
+                intDelta(
+                        fullSend,
+                        temperatureCurrent,
+                        lastSentTemperatureCurrent
+                );
 
-        Boolean alarmDelta =
-                fullSend
-                        || alarmActive
-                        != lastAlarmActive
-                        ? Boolean.valueOf(
-                                alarmActive
-                        )
-                        : null;
+        Integer temperatureMinDelta =
+                intDelta(
+                        fullSend,
+                        temperatureMin,
+                        lastSentTemperatureMin
+                );
 
-        Boolean routeValidDelta =
-                fullSend
-                        || routeValid
-                        != lastRouteValid
-                        ? Boolean.valueOf(
-                                routeValid
-                        )
-                        : null;
+        Integer temperatureMaxDelta =
+                intDelta(
+                        fullSend,
+                        temperatureMax,
+                        lastSentTemperatureMax
+                );
 
-        /*
-         * Optimistically keep the normal delta stream small. If PebbleKit later
-         * reports that this packet did not reach the watch, the callback flips
-         * forceFullSend and the next evaluation resynchronizes every field.
-         */
-        forceFullSend =
+        Integer sunriseDelta =
+                intDelta(
+                        fullSend,
+                        sunrise,
+                        lastSentSunrise
+                );
+
+        Integer sunsetDelta =
+                intDelta(
+                        fullSend,
+                        sunset,
+                        lastSentSunset
+                );
+
+        Integer elevationCurrentDelta =
+                intDelta(
+                        fullSend,
+                        elevationCurrent,
+                        lastSentElevationCurrent
+                );
+
+        Integer elevationMinDelta =
+                intDelta(
+                        fullSend,
+                        elevationMin,
+                        lastSentElevationMin
+                );
+
+        Integer elevationMaxDelta =
+                intDelta(
+                        fullSend,
+                        elevationMax,
+                        lastSentElevationMax
+                );
+
+        forceDashboardFull =
                 false;
 
-        bridge.sendRouteState(
-                nextNameDelta,
-                nextDistanceDelta,
-                nextTimeDelta,
+        bridge.sendDashboardState(
                 speedDelta,
-                flatSpeedDelta,
-                alarmDelta,
-                routeValidDelta,
+                temperatureCurrentDelta,
+                temperatureMinDelta,
+                temperatureMaxDelta,
+                sunriseDelta,
+                sunsetDelta,
+                elevationCurrentDelta,
+                elevationMinDelta,
+                elevationMaxDelta,
                 delivered -> {
                     if (delivered) {
                         return;
                     }
 
                     synchronized (CaminoPebbleRoutePublisher.this) {
-                        forceFullSend =
+                        forceDashboardFull =
                                 true;
                     }
                 }
         );
 
-        sentAnyState =
+        sentAnyDashboard =
                 true;
-
-        lastAlarmActive =
-                alarmActive;
-
-        lastRouteValid =
-                routeValid;
-
-        lastSentNextName =
-                nextName;
-
-        lastSentNextDistance =
-                nextDistance;
-
-        lastSentNextTime =
-                nextTime;
 
         lastSentSpeed =
                 speed;
 
-        lastSentFlatSpeed =
-                flatSpeed;
+        lastSentTemperatureCurrent =
+                temperatureCurrent;
+
+        lastSentTemperatureMin =
+                temperatureMin;
+
+        lastSentTemperatureMax =
+                temperatureMax;
+
+        lastSentSunrise =
+                sunrise;
+
+        lastSentSunset =
+                sunset;
+
+        lastSentElevationCurrent =
+                elevationCurrent;
+
+        lastSentElevationMin =
+                elevationMin;
+
+        lastSentElevationMax =
+                elevationMax;
     }
 
+    private synchronized void onWeatherSnapshot(
+            CaminoPebbleWeatherClient.Snapshot snapshot
+    ) {
+        if (snapshot == null
+                || sameWeather(
+                        weather,
+                        snapshot
+                )) {
+
+            return;
+        }
+
+        weather =
+                snapshot;
+
+        forceDashboardFull =
+                true;
+
+        if (CaminoPebbleSession.isWatchOpen()
+                && visiblePage == 0) {
+
+            sendDashboard(
+                    true
+            );
+        }
+    }
+
+    private void sendTimetableStop() {
+        List<CaminoTimetableStop> stops =
+                allStops(
+                        latestTimetableState
+                );
+
+        if (stops.isEmpty()) {
+            selectedStopIndex =
+                    -1;
+
+            bridge.sendTimetableStop(
+                    "--",
+                    "--",
+                    "--",
+                    -1,
+                    delivered -> {
+                        synchronized (CaminoPebbleRoutePublisher.this) {
+                            forceStopSend =
+                                    !delivered;
+                        }
+                    }
+            );
+
+            return;
+        }
+
+        if (selectedStopIndex < 0
+                || selectedStopIndex
+                >= stops.size()) {
+
+            selectedStopIndex =
+                    findNextStopIndex(
+                            latestTimetableState
+                    );
+        }
+
+        selectedStopIndex =
+                Math.max(
+                        0,
+                        Math.min(
+                                stops.size() - 1,
+                                selectedStopIndex
+                        )
+                );
+
+        CaminoTimetableStop stop =
+                stops.get(
+                        selectedStopIndex
+                );
+
+        double currentChainageM =
+                latestTimetableState == null
+                        || !Double.isFinite(
+                                latestTimetableState.currentChainageM
+                        )
+                        ? 0.0
+                        : latestTimetableState.currentChainageM;
+
+        double routeDistanceM =
+                latestLocked == null
+                        || latestLocked.path == null
+                        ? Double.NaN
+                        : latestLocked.path.distanceM;
+
+        int percent =
+                !Double.isFinite(routeDistanceM)
+                        || routeDistanceM <= 0.0
+                        ? -1
+                        : (int)
+                        Math.round(
+                                100.0
+                                        * stop.chainageM
+                                        / routeDistanceM
+                        );
+
+        percent =
+                percent < 0
+                        ? percent
+                        : Math.max(
+                                0,
+                                Math.min(
+                                        100,
+                                        percent
+                                )
+                        );
+
+        forceStopSend =
+                false;
+
+        bridge.sendTimetableStop(
+                stop.name,
+                formatArrivalTime(
+                        stop.arrivalMinutesOfDay
+                ),
+                formatDistance(
+                        Math.abs(
+                                stop.chainageM
+                                        - currentChainageM
+                        )
+                ),
+                percent,
+                delivered -> {
+                    if (delivered) {
+                        return;
+                    }
+
+                    synchronized (CaminoPebbleRoutePublisher.this) {
+                        forceStopSend =
+                                true;
+                    }
+                }
+        );
+    }
+
+    private void sendMiniMap() {
+        byte[] payload =
+                buildMiniMapPayload();
+
+        forceMapSend =
+                false;
+
+        bridge.sendMiniMap(
+                payload,
+                delivered -> {
+                    if (delivered) {
+                        return;
+                    }
+
+                    synchronized (CaminoPebbleRoutePublisher.this) {
+                        forceMapSend =
+                                true;
+                    }
+                }
+        );
+    }
+
+    private byte[] buildMiniMapPayload() {
+        Location center =
+                latestLocation;
+
+        if (center == null) {
+            return new byte[]{1, 0, 0};
+        }
+
+        ByteArrayOutputStream route =
+                new ByteArrayOutputStream();
+
+        int routePairs =
+                0;
+
+        MeasurementPath path =
+                latestLocked == null
+                        ? null
+                        : latestLocked.path;
+
+        if (path != null
+                && path.profilePoints != null) {
+
+            boolean previousIncluded =
+                    false;
+
+            for (int index = 0;
+                    index < path.profilePoints.size()
+                            && routePairs < MAP_MAX_ROUTE_POINTS;
+                    index++) {
+
+                ProfilePoint point =
+                        path.profilePoints.get(
+                                index
+                        );
+
+                if (point == null
+                        || point.point == null) {
+
+                    previousIncluded =
+                            false;
+                    continue;
+                }
+
+                LocalPoint local =
+                        localPoint(
+                                center,
+                                point.point.getLatitude(),
+                                point.point.getLongitude()
+                        );
+
+                boolean included =
+                        Math.abs(
+                                local.eastM
+                        ) <= MAP_CAPTURE_M
+                                && Math.abs(
+                                local.northM
+                        ) <= MAP_CAPTURE_M;
+
+                if (!included) {
+                    previousIncluded =
+                            false;
+                    continue;
+                }
+
+                if ((point.breakBefore
+                        || !previousIncluded)
+                        && routePairs > 0
+                        && routePairs
+                        < MAP_MAX_ROUTE_POINTS) {
+
+                    writeMapPair(
+                            route,
+                            -128,
+                            -128
+                    );
+
+                    routePairs++;
+                }
+
+                if (routePairs
+                        >= MAP_MAX_ROUTE_POINTS) {
+                    break;
+                }
+
+                writeMapPair(
+                        route,
+                        encodeMeters(
+                                local.eastM
+                        ),
+                        encodeMeters(
+                                local.northM
+                        )
+                );
+
+                routePairs++;
+                previousIncluded =
+                        true;
+            }
+        }
+
+        ByteArrayOutputStream trail =
+                new ByteArrayOutputStream();
+
+        List<Location> trailPoints =
+                new ArrayList<>(
+                        recentTrail
+                );
+
+        int start =
+                Math.max(
+                        0,
+                        trailPoints.size()
+                                - MAP_MAX_TRAIL_POINTS
+                );
+
+        int trailPairs =
+                0;
+
+        for (int index = start;
+                index < trailPoints.size()
+                        && trailPairs < MAP_MAX_TRAIL_POINTS;
+                index++) {
+
+            Location point =
+                    trailPoints.get(
+                            index
+                    );
+
+            LocalPoint local =
+                    localPoint(
+                            center,
+                            point.getLatitude(),
+                            point.getLongitude()
+                    );
+
+            if (Math.abs(
+                    local.eastM
+            ) > MAP_CAPTURE_M
+                    || Math.abs(
+                    local.northM
+            ) > MAP_CAPTURE_M) {
+
+                continue;
+            }
+
+            writeMapPair(
+                    trail,
+                    encodeMeters(
+                            local.eastM
+                    ),
+                    encodeMeters(
+                            local.northM
+                    )
+            );
+
+            trailPairs++;
+        }
+
+        ByteArrayOutputStream payload =
+                new ByteArrayOutputStream(
+                        3
+                                + route.size()
+                                + trail.size()
+                );
+
+        payload.write(
+                1
+        );
+
+        payload.write(
+                routePairs
+        );
+
+        payload.write(
+                trailPairs
+        );
+
+        byte[] routeBytes =
+                route.toByteArray();
+
+        payload.write(
+                routeBytes,
+                0,
+                routeBytes.length
+        );
+
+        byte[] trailBytes =
+                trail.toByteArray();
+
+        payload.write(
+                trailBytes,
+                0,
+                trailBytes.length
+        );
+
+        return payload.toByteArray();
+    }
+
+    private void rememberTrailPoint(
+            Location location
+    ) {
+        long nowElapsed =
+                SystemClock.elapsedRealtime();
+
+        while (!recentTrail.isEmpty()) {
+            Location oldest =
+                    recentTrail.peekFirst();
+
+            if (oldest == null
+                    || nowElapsed
+                    - locationElapsedMs(
+                            oldest
+                    ) <= TRACE_MAX_AGE_MS) {
+
+                break;
+            }
+
+            recentTrail.removeFirst();
+        }
+
+        Location newest =
+                recentTrail.peekLast();
+
+        if (newest != null
+                && newest.distanceTo(
+                        location
+                ) < TRACE_SPACING_M) {
+
+            return;
+        }
+
+        recentTrail.addLast(
+                new Location(
+                        location
+                )
+        );
+
+        while (recentTrail.size()
+                > TRACE_MAX_POINTS) {
+
+            recentTrail.removeFirst();
+        }
+    }
+
+    private ElevationValues elevationValues() {
+        if (latestLocked == null
+                || latestLocked.path == null
+                || routeElevationMinM == null
+                || routeElevationMaxM == null
+                || latestTimetableState == null
+                || !Double.isFinite(
+                        latestTimetableState.currentChainageM
+                )) {
+
+            return null;
+        }
+
+        ProfilePoint nearest =
+                null;
+
+        double nearestDistance =
+                Double.POSITIVE_INFINITY;
+
+        for (ProfilePoint point :
+                latestLocked.path.profilePoints) {
+
+            if (point == null
+                    || !Double.isFinite(
+                            point.distanceM
+                    )
+                    || !Double.isFinite(
+                            point.elevationM
+                    )) {
+
+                continue;
+            }
+
+            double distance =
+                    Math.abs(
+                            point.distanceM
+                                    - latestTimetableState.currentChainageM
+                    );
+
+            if (distance < nearestDistance) {
+                nearestDistance =
+                        distance;
+
+                nearest =
+                        point;
+            }
+        }
+
+        if (nearest == null) {
+            return null;
+        }
+
+        return new ElevationValues(
+                (int)
+                        Math.round(
+                                nearest.elevationM
+                        ),
+                routeElevationMinM,
+                routeElevationMaxM
+        );
+    }
+
+    private void refreshElevationScale(
+            LockedMeasurementPathStore.Snapshot locked
+    ) {
+        elevationScalePathVersion =
+                locked == null
+                        ? Integer.MIN_VALUE
+                        : locked.version;
+
+        routeElevationMinM =
+                null;
+
+        routeElevationMaxM =
+                null;
+
+        if (locked == null
+                || locked.path == null
+                || locked.path.profilePoints == null) {
+
+            return;
+        }
+
+        double min =
+                Double.POSITIVE_INFINITY;
+
+        double max =
+                Double.NEGATIVE_INFINITY;
+
+        for (ProfilePoint point :
+                locked.path.profilePoints) {
+
+            if (point == null
+                    || !Double.isFinite(
+                            point.elevationM
+                    )) {
+
+                continue;
+            }
+
+            min =
+                    Math.min(
+                            min,
+                            point.elevationM
+                    );
+
+            max =
+                    Math.max(
+                            max,
+                            point.elevationM
+                    );
+        }
+
+        if (!Double.isFinite(min)
+                || !Double.isFinite(max)) {
+
+            return;
+        }
+
+        routeElevationMinM =
+                (int)
+                        Math.round(
+                                min
+                        );
+
+        routeElevationMaxM =
+                (int)
+                        Math.round(
+                                max
+                        );
+    }
+
+    private static List<CaminoTimetableStop> allStops(
+            CaminoTimetableState state
+    ) {
+        if (state == null
+                || state.allStops == null) {
+
+            return java.util.Collections.emptyList();
+        }
+
+        return state.allStops;
+    }
+
+    private static int findNextStopIndex(
+            CaminoTimetableState state
+    ) {
+        List<CaminoTimetableStop> stops =
+                allStops(
+                        state
+                );
+
+        if (stops.isEmpty()) {
+            return -1;
+        }
+
+        double current =
+                state == null
+                        || !Double.isFinite(
+                                state.currentChainageM
+                        )
+                        ? 0.0
+                        : state.currentChainageM;
+
+        for (int index = 0;
+                index < stops.size();
+                index++) {
+
+            if (stops.get(
+                    index
+            ).chainageM
+                    > current + 0.5) {
+
+                return index;
+            }
+        }
+
+        return stops.size()
+                - 1;
+    }
+
+    private static LocalPoint localPoint(
+            Location center,
+            double latitude,
+            double longitude
+    ) {
+        double latitudeRadians =
+                Math.toRadians(
+                        center.getLatitude()
+                );
+
+        double eastM =
+                (longitude
+                        - center.getLongitude())
+                        * 111_320.0
+                        * Math.cos(
+                                latitudeRadians
+                        );
+
+        double northM =
+                (latitude
+                        - center.getLatitude())
+                        * 110_540.0;
+
+        return new LocalPoint(
+                eastM,
+                northM
+        );
+    }
+
+    private static int encodeMeters(
+            double meters
+    ) {
+        return (int)
+                Math.round(
+                        Math.max(
+                                -120.0,
+                                Math.min(
+                                        120.0,
+                                        meters
+                                )
+                        )
+                );
+    }
+
+    private static void writeMapPair(
+            ByteArrayOutputStream output,
+            int eastM,
+            int northM
+    ) {
+        output.write(
+                eastM & 0xff
+        );
+
+        output.write(
+                northM & 0xff
+        );
+    }
+
+    private static long locationElapsedMs(
+            Location location
+    ) {
+        if (location != null
+                && location.getElapsedRealtimeNanos()
+                > 0L) {
+
+            return location.getElapsedRealtimeNanos()
+                    / 1_000_000L;
+        }
+
+        return SystemClock.elapsedRealtime();
+    }
+
+    private static boolean sameWeather(
+            CaminoPebbleWeatherClient.Snapshot first,
+            CaminoPebbleWeatherClient.Snapshot second
+    ) {
+        if (first == null
+                || second == null) {
+
+            return first == second;
+        }
+
+        return first.currentTenthsC
+                == second.currentTenthsC
+                && first.minTenthsC
+                == second.minTenthsC
+                && first.maxTenthsC
+                == second.maxTenthsC
+                && first.sunriseMinutes
+                == second.sunriseMinutes
+                && first.sunsetMinutes
+                == second.sunsetMinutes;
+    }
+
+    private static Integer intDelta(
+            boolean fullSend,
+            int value,
+            Integer previous
+    ) {
+        return fullSend
+                || !sameInt(
+                        value,
+                        previous
+                )
+                ? value
+                : null;
+    }
+
+    private static boolean sameInt(
+            int value,
+            Integer previous
+    ) {
+        return previous != null
+                && previous
+                == value;
+    }
 
     private static boolean sameText(
             String first,
@@ -418,10 +1303,13 @@ final class CaminoPebbleRoutePublisher {
                 );
     }
 
-
     private static String formatDistance(
             double distanceM
     ) {
+        if (!Double.isFinite(distanceM)) {
+            return "--";
+        }
+
         if (distanceM < 1000.0) {
             return String.format(
                     Locale.US,
@@ -436,7 +1324,6 @@ final class CaminoPebbleRoutePublisher {
                 distanceM / 1000.0
         );
     }
-
 
     private static String formatArrivalTime(
             int minutesOfDay
@@ -458,26 +1345,6 @@ final class CaminoPebbleRoutePublisher {
         );
     }
 
-
-    private static String formatFlatSpeed(
-            double speedKmh
-    ) {
-        if (!Double.isFinite(
-                speedKmh
-        )
-                || speedKmh <= 0.0) {
-
-            return "--";
-        }
-
-        return String.format(
-                Locale.US,
-                "%.1f km/h",
-                speedKmh
-        );
-    }
-
-
     private static String formatSpeed(
             Location location,
             boolean stationary
@@ -489,8 +1356,8 @@ final class CaminoPebbleRoutePublisher {
         if (location == null
                 || !location.hasSpeed()
                 || !Float.isFinite(
-                location.getSpeed()
-        )
+                        location.getSpeed()
+                )
                 || location.getSpeed() < 0.0f) {
 
             return "--";
@@ -503,27 +1370,32 @@ final class CaminoPebbleRoutePublisher {
         );
     }
 
+    private static final class ElevationValues {
+        final int currentM;
+        final int minM;
+        final int maxM;
 
-    private static final class Values {
-
-        final String name;
-        final String distance;
-        final String time;
-
-
-        Values(
-                String name,
-                String distance,
-                String time
+        ElevationValues(
+                int currentM,
+                int minM,
+                int maxM
         ) {
-            this.name =
-                    name;
+            this.currentM = currentM;
+            this.minM = minM;
+            this.maxM = maxM;
+        }
+    }
 
-            this.distance =
-                    distance;
+    private static final class LocalPoint {
+        final double eastM;
+        final double northM;
 
-            this.time =
-                    time;
+        LocalPoint(
+                double eastM,
+                double northM
+        ) {
+            this.eastM = eastM;
+            this.northM = northM;
         }
     }
 }
