@@ -18,25 +18,42 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Produces a tiny roads-only snapshot from the same offline PMTiles repository
- * used by Camino Guard's Android map.
+ * Produces a roads-only snapshot from the same offline PMTiles repository used
+ * by Camino Guard's Android map.
  *
- * The Pebble does not need terrain, labels or land-use. It only needs enough
- * nearby street/path geometry to answer "which way gets me back?". Rendering
- * at 100x114 gives a compact one-bit mask that the watch can scale exactly 2x
- * to its 200x228 screen while keeping a simple one-pixel-per-metre overlay.
+ * The watch finally needs one road bit per physical display pixel. Rendering
+ * those bits directly at Pebble resolution made diagonals visibly stair-step,
+ * especially after compass rotation. This class therefore acts as the map
+ * preprocessor: MapLibre renders the 200 x 228 m window at 4x resolution,
+ * then a conservative supersample/downsample pass turns that into a smooth
+ * 200 x 228 one-bit road mask. A tiny gap-bridging pass removes single-pixel
+ * holes without moving junctions or changing the underlying road geometry.
  */
 final class CaminoPebbleRoadSnapshotter
         implements AutoCloseable {
 
-    static final int MASK_WIDTH = 100;
-    static final int MASK_HEIGHT = 114;
+    static final int MASK_WIDTH = 200;
+    static final int MASK_HEIGHT = 228;
+
+    private static final int SUPERSAMPLE = 4;
+    private static final int RENDER_WIDTH =
+            MASK_WIDTH * SUPERSAMPLE;
+    private static final int RENDER_HEIGHT =
+            MASK_HEIGHT * SUPERSAMPLE;
 
     private static final double HALF_WIDTH_M = 100.0;
     private static final double HALF_HEIGHT_M = 114.0;
     private static final float CACHE_REUSE_DISTANCE_M = 20.0f;
     private static final int MASK_BYTES =
             (MASK_WIDTH * MASK_HEIGHT + 7) / 8;
+
+    /*
+     * A high-res road pixel is considered covered well before full white so
+     * MapLibre's antialiased edge contributes to the final shape. Two covered
+     * samples in a 4x4 block are enough to preserve a soft diagonal edge.
+     */
+    private static final int HIGH_RES_LUMINANCE_MIN = 72;
+    private static final int MIN_COVERED_SUBPIXELS = 2;
 
     interface Callback {
         void onReady(Result result);
@@ -133,8 +150,7 @@ final class CaminoPebbleRoadSnapshotter
 
             /*
              * Only the newest requested centre matters. A fast walker can
-             * easily move again while MapLibre is rendering the previous
-             * 200x228 m neighbourhood.
+             * move again while MapLibre is rendering the previous window.
              */
             pendingRequest =
                     new Request(
@@ -211,8 +227,8 @@ final class CaminoPebbleRoadSnapshotter
 
         } catch (Exception ignored) {
             /*
-             * Route and breadcrumb remain useful even if the tiny road
-             * background cannot be prepared. A later request may retry.
+             * Route and breadcrumb remain useful even if the road background
+             * cannot be prepared. A later request may retry.
              */
         }
 
@@ -277,8 +293,8 @@ final class CaminoPebbleRoadSnapshotter
 
             MapSnapshotter.Options options =
                     new MapSnapshotter.Options(
-                            MASK_WIDTH,
-                            MASK_HEIGHT
+                            RENDER_WIDTH,
+                            RENDER_HEIGHT
                     )
                             .withPixelRatio(1.0f)
                             .withAttribution(false)
@@ -407,49 +423,139 @@ final class CaminoPebbleRoadSnapshotter
             Bitmap bitmap
     ) {
         if (bitmap == null
-                || bitmap.getWidth() != MASK_WIDTH
-                || bitmap.getHeight() != MASK_HEIGHT) {
+                || bitmap.getWidth() != RENDER_WIDTH
+                || bitmap.getHeight() != RENDER_HEIGHT) {
 
             return null;
         }
 
-        byte[] mask =
-                new byte[MASK_BYTES];
-
-        int bitIndex =
-                0;
+        boolean[] occupied =
+                new boolean[MASK_WIDTH * MASK_HEIGHT];
 
         for (int y = 0;
                 y < MASK_HEIGHT;
                 y++) {
 
+            int sourceY =
+                    y * SUPERSAMPLE;
+
             for (int x = 0;
                     x < MASK_WIDTH;
                     x++) {
 
-                int pixel =
-                        bitmap.getPixel(
-                                x,
-                                y
-                        );
+                int sourceX =
+                        x * SUPERSAMPLE;
 
-                int luminance =
-                        Color.red(pixel)
-                                + Color.green(pixel)
-                                + Color.blue(pixel);
+                int covered = 0;
 
-                if (Color.alpha(pixel) > 0
-                        && luminance >= 72) {
+                for (int subY = 0;
+                        subY < SUPERSAMPLE;
+                        subY++) {
 
-                    mask[bitIndex >> 3] |=
-                            (byte) (1 << (bitIndex & 7));
+                    for (int subX = 0;
+                            subX < SUPERSAMPLE;
+                            subX++) {
+
+                        int pixel =
+                                bitmap.getPixel(
+                                        sourceX + subX,
+                                        sourceY + subY
+                                );
+
+                        if (Color.alpha(pixel) <= 0) {
+                            continue;
+                        }
+
+                        int luminance =
+                                Color.red(pixel)
+                                        + Color.green(pixel)
+                                        + Color.blue(pixel);
+
+                        if (luminance >= HIGH_RES_LUMINANCE_MIN) {
+                            covered++;
+                        }
+                    }
                 }
 
-                bitIndex++;
+                occupied[y * MASK_WIDTH + x] =
+                        covered >= MIN_COVERED_SUBPIXELS;
+            }
+        }
+
+        bridgeSinglePixelGaps(
+                occupied
+        );
+
+        byte[] mask =
+                new byte[MASK_BYTES];
+
+        for (int bitIndex = 0;
+                bitIndex < occupied.length;
+                bitIndex++) {
+
+            if (occupied[bitIndex]) {
+                mask[bitIndex >> 3] |=
+                        (byte) (1 << (bitIndex & 7));
             }
         }
 
         return mask;
+    }
+
+    private static void bridgeSinglePixelGaps(
+            boolean[] occupied
+    ) {
+        if (occupied == null
+                || occupied.length
+                != MASK_WIDTH * MASK_HEIGHT) {
+
+            return;
+        }
+
+        boolean[] source =
+                occupied.clone();
+
+        for (int y = 1;
+                y < MASK_HEIGHT - 1;
+                y++) {
+
+            for (int x = 1;
+                    x < MASK_WIDTH - 1;
+                    x++) {
+
+                int index =
+                        y * MASK_WIDTH + x;
+
+                if (source[index]) {
+                    continue;
+                }
+
+                boolean horizontal =
+                        source[index - 1]
+                                && source[index + 1];
+
+                boolean vertical =
+                        source[index - MASK_WIDTH]
+                                && source[index + MASK_WIDTH];
+
+                boolean diagonalDown =
+                        source[index - MASK_WIDTH - 1]
+                                && source[index + MASK_WIDTH + 1];
+
+                boolean diagonalUp =
+                        source[index - MASK_WIDTH + 1]
+                                && source[index + MASK_WIDTH - 1];
+
+                if (horizontal
+                        || vertical
+                        || diagonalDown
+                        || diagonalUp) {
+
+                    occupied[index] =
+                            true;
+                }
+            }
+        }
     }
 
     private static LatLngBounds boundsAround(
@@ -541,7 +647,8 @@ final class CaminoPebbleRoadSnapshotter
                 + "\"path\",\"other\",\"minor_road\","
                 + "\"medium_road\",\"major_road\",\"highway\"],"
                 + "\"paint\":{\"line-color\":\"#FFFFFF\","
-                + "\"line-width\":1.15,\"line-opacity\":1.0},"
+                /* 8 high-res pixels become roughly a 2 px road before watch-side rounding. */
+                + "\"line-width\":8.0,\"line-opacity\":1.0},"
                 + "\"layout\":{\"line-cap\":\"round\","
                 + "\"line-join\":\"round\"}}";
     }
