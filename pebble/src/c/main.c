@@ -12,11 +12,15 @@
 #define UNKNOWN_METRIC ((int32_t)0x80000000)
 
 #define MAP_PAYLOAD_MAX 192
-#define MAP_ROAD_WIDTH 200
-#define MAP_ROAD_HEIGHT 228
+#define MAP_FRAME_WIDTH 200
+#define MAP_FRAME_HEIGHT 228
+#define MAP_ROAD_WIDTH 256
+#define MAP_ROAD_HEIGHT 256
+#define MAP_ROAD_HALF_WIDTH_M 180
+#define MAP_ROAD_HALF_HEIGHT_M 180
 #define MAP_ROAD_BYTES ((MAP_ROAD_WIDTH * MAP_ROAD_HEIGHT + 7) / 8)
 #define MAP_ROAD_CHUNK_BYTES 160
-#define MAP_ROAD_MAX_CHUNKS 40
+#define MAP_ROAD_MAX_CHUNKS 64
 #define MAP_ROAD_COMPRESSED_MAX (MAP_ROAD_BYTES + ((MAP_ROAD_BYTES + 127) / 128) + 8)
 
 /* Keep the Nasu-style touch physics that already feels good on PT2. */
@@ -128,8 +132,8 @@ static int s_road_received_chunks;
 /*
  * Nasu-style retained image for Screen 3. While a page is sliding we draw one
  * opaque 200x228 bitmap only; the expensive map construction happens only
- * while the map is settled. The same bitmap is reused as north-up road scratch
- * before a fresh settled frame is captured into it.
+ * while the map is settled. Android supplies a larger 360x360 m road mask;
+ * the watch samples that overscan into this fixed visible frame.
  */
 static GBitmap *s_map_frame_bitmap;
 static bool s_map_frame_valid;
@@ -404,52 +408,67 @@ static GPoint map_point(GRect b,int east,int north){
     return GPoint(cx+right,cy-forward);
 }
 
-static bool build_north_up_road_bitmap(void){
-    if(!s_map_frame_bitmap)return false;
-    uint8_t*data=gbitmap_get_data(s_map_frame_bitmap);
-    if(!data)return false;
-    int stride=gbitmap_get_bytes_per_row(s_map_frame_bitmap);
-    GRect bounds=gbitmap_get_bounds(s_map_frame_bitmap);
-    if(bounds.size.w<MAP_ROAD_WIDTH||bounds.size.h<MAP_ROAD_HEIGHT)return false;
-
-    for(int y=0;y<MAP_ROAD_HEIGHT;y++)memset(data+y*stride,GColorBlack.argb,MAP_ROAD_WIDTH);
-    if(!s_road_mask_valid)return true;
-
-    const size_t total_bits=(size_t)MAP_ROAD_WIDTH*MAP_ROAD_HEIGHT;
-    for(size_t byte_index=0;byte_index<sizeof(s_road_mask);byte_index++){
-        uint8_t bits=s_road_mask[byte_index];
-        if(!bits)continue;
-        size_t base=byte_index*8u;
-        for(int bit=0;bit<8;bit++){
-            if(!(bits&(1u<<bit)))continue;
-            size_t index=base+(size_t)bit;
-            if(index>=total_bits)break;
-            int y=(int)(index/MAP_ROAD_WIDTH);
-            int x=(int)(index-(size_t)y*MAP_ROAD_WIDTH);
-            for(int dy=-1;dy<=1;dy++){
-                int py=y+dy;if(py<0||py>=MAP_ROAD_HEIGHT)continue;
-                for(int dx=-1;dx<=1;dx++){
-                    if(dx*dx+dy*dy>2)continue;
-                    int px=x+dx;if(px<0||px>=MAP_ROAD_WIDTH)continue;
-                    data[py*stride+px]=GColorDarkGray.argb;
-                }
-            }
-        }
-    }
-    return true;
+static bool road_mask_at(int x,int y){
+    if(x<0||y<0||x>=MAP_ROAD_WIDTH||y>=MAP_ROAD_HEIGHT)return false;
+    size_t bit=(size_t)y*MAP_ROAD_WIDTH+(size_t)x;
+    return (s_road_mask[bit>>3]&(1u<<(bit&7)))!=0;
 }
 
+static bool road_mask_thick_at(int x,int y){
+    return road_mask_at(x,y)||road_mask_at(x-1,y)||road_mask_at(x+1,y)||road_mask_at(x,y-1)||road_mask_at(x,y+1);
+}
+
+/*
+ * Destination-driven rotation: every visible screen pixel is inverse-mapped
+ * into Android's larger 360x360 m road mask. Unlike rotating a 200x228 source
+ * bitmap, this cannot expose empty corners when the compass turns.
+ */
 static void draw_road_bitmap(GContext*ctx,GRect b){
-    if(!build_north_up_road_bitmap())return;
-    GPoint src_ic=GPoint(MAP_ROAD_WIDTH/2+s_map_position_east,MAP_ROAD_HEIGHT/2-s_map_position_north);
-    GPoint dest_ic=GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2);
-    int32_t rotation=0;
-#if defined(PBL_COMPASS)
-    /* Native bitmap rotation is clockwise; raw Pebble heading is CCW. */
-    if(s_heading_valid)rotation=s_heading;
-#endif
-    graphics_context_set_compositing_mode(ctx,GCompOpAssign);
-    graphics_draw_rotated_bitmap(ctx,s_map_frame_bitmap,src_ic,rotation,dest_ic);
+    if(!s_road_mask_valid||!s_page_layers[PAGE_MAP])return;
+    GBitmap*framebuffer=graphics_capture_frame_buffer_format(ctx,GBitmapFormat8Bit);
+    if(!framebuffer)return;
+
+    uint8_t*data=gbitmap_get_data(framebuffer);
+    int stride=gbitmap_get_bytes_per_row(framebuffer);
+    GRect fbounds=gbitmap_get_bounds(framebuffer);
+    GRect frame=layer_get_frame(s_page_layers[PAGE_MAP]);
+    int left=frame.origin.x+b.origin.x-fbounds.origin.x;
+    int top=frame.origin.y+b.origin.y-fbounds.origin.y;
+
+    if(!data||left<0||top<0||left+b.size.w>fbounds.size.w||top+b.size.h>fbounds.size.h){
+        graphics_release_frame_buffer(ctx,framebuffer);
+        return;
+    }
+
+    const int64_t ratio=TRIG_MAX_RATIO;
+    const int64_t q16=65536;
+    const int64_t road_x_denom=2LL*MAP_ROAD_HALF_WIDTH_M*ratio;
+    const int64_t road_y_denom=2LL*MAP_ROAD_HALF_HEIGHT_M*ratio;
+    const int64_t sx_step=((int64_t)s_map_cosine*(MAP_ROAD_WIDTH-1)*q16)/road_x_denom;
+    const int64_t sy_step=((int64_t)s_map_sine*(MAP_ROAD_HEIGHT-1)*q16)/road_y_denom;
+    const int cx=b.size.w/2;
+    const int cy=b.size.h/2;
+    const uint8_t road_color=GColorDarkGray.argb;
+
+    for(int y=0;y<b.size.h;y++){
+        int right=-cx;
+        int forward=cy-y;
+        int64_t east_num=(int64_t)right*s_map_cosine+(int64_t)forward*s_map_sine+(int64_t)s_map_position_east*ratio;
+        int64_t north_num=-(int64_t)right*s_map_sine+(int64_t)forward*s_map_cosine+(int64_t)s_map_position_north*ratio;
+        int64_t sx_q16=((east_num+(int64_t)MAP_ROAD_HALF_WIDTH_M*ratio)*(MAP_ROAD_WIDTH-1)*q16)/road_x_denom;
+        int64_t sy_q16=(((int64_t)MAP_ROAD_HALF_HEIGHT_M*ratio-north_num)*(MAP_ROAD_HEIGHT-1)*q16)/road_y_denom;
+        uint8_t*row=data+(top+y)*stride+left;
+
+        for(int x=0;x<b.size.w;x++){
+            int sx=(int)((sx_q16+q16/2)/q16);
+            int sy=(int)((sy_q16+q16/2)/q16);
+            if(road_mask_thick_at(sx,sy))row[x]=road_color;
+            sx_q16+=sx_step;
+            sy_q16+=sy_step;
+        }
+    }
+
+    graphics_release_frame_buffer(ctx,framebuffer);
 }
 
 static void draw_distance_grid(GContext*ctx,GRect b){
@@ -489,19 +508,6 @@ static void draw_map_polyline(GContext*ctx,GRect b,size_t offset,int pairs,bool 
 }
 
 static void draw_position_marker(GContext*ctx,GPoint p){
-#if defined(PBL_COMPASS)
-    if(s_heading_valid&&s_marker_outline_path&&s_marker_fill_path){
-        gpath_rotate_to(s_marker_outline_path,0);
-        gpath_move_to(s_marker_outline_path,p);
-        graphics_context_set_fill_color(ctx,GColorWhite);
-        gpath_draw_filled(ctx,s_marker_outline_path);
-        gpath_rotate_to(s_marker_fill_path,0);
-        gpath_move_to(s_marker_fill_path,p);
-        graphics_context_set_fill_color(ctx,GColorRed);
-        gpath_draw_filled(ctx,s_marker_fill_path);
-        return;
-    }
-#endif
     graphics_context_set_fill_color(ctx,GColorWhite);
     graphics_fill_circle(ctx,p,7);
     graphics_context_set_fill_color(ctx,GColorRed);
@@ -514,21 +520,24 @@ static void draw_map(GContext*ctx,GRect b){
     prepare_map_transform();
     draw_road_bitmap(ctx,b);
 
+    GColor camino_outline=GColorFromHEX(0x000055);
+    GColor camino_core=GColorFromHEX(0x55AAFF);
+
     if(s_map_payload_len>=5&&s_map_payload[0]==2){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            /* 5 px blue Camino plus roughly 3 px yellow casing on each side. */
-            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,11);
-            draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
+            /* 5 px light-blue Camino plus roughly 3 px dark-blue casing. */
+            draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);
+            draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
         }
     }else if(s_map_payload_len>=3&&s_map_payload[0]==1){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=3,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,11);
-            draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
+            draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);
+            draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
         }
     }
@@ -549,7 +558,7 @@ static bool capture_map_frame(GContext*ctx,GRect b){
     GRect frame=layer_get_frame(s_page_layers[PAGE_MAP]);
     int sx=frame.origin.x+b.origin.x-fbounds.origin.x;
     int sy=frame.origin.y+b.origin.y-fbounds.origin.y;
-    bool ok=src&&dst&&sx>=0&&sy>=0&&sx+b.size.w<=fbounds.size.w&&sy+b.size.h<=fbounds.size.h&&b.size.w<=MAP_ROAD_WIDTH&&b.size.h<=MAP_ROAD_HEIGHT;
+    bool ok=src&&dst&&sx>=0&&sy>=0&&sx+b.size.w<=fbounds.size.w&&sy+b.size.h<=fbounds.size.h&&b.size.w<=MAP_FRAME_WIDTH&&b.size.h<=MAP_FRAME_HEIGHT;
     if(ok){
         for(int y=0;y<b.size.h;y++)memcpy(dst+y*dst_stride,src+(sy+y)*src_stride+sx,b.size.w);
     }
@@ -661,7 +670,7 @@ static void inbox_received(DictionaryIterator*it,void*c){copy_text(it,MESSAGE_KE
 static void inbox_dropped(AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage dropped: %d",(int)r);}
 static void outbox_failed(DictionaryIterator*it,AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage control failed: %d",(int)r);}
 
-static void window_load(Window*w){Layer*root=window_get_root_layer(w);GRect b=layer_get_bounds(root);s_icon_heart=gbitmap_create_with_resource(RESOURCE_ID_ICON_HEART);s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));s_marker_outline_path=gpath_create(&s_marker_outline_info);s_marker_fill_path=gpath_create(&s_marker_fill_info);s_map_frame_bitmap=gbitmap_create_blank(GSize(MAP_ROAD_WIDTH,MAP_ROAD_HEIGHT),GBitmapFormat8Bit);s_map_frame_valid=false;s_map_frame_dirty=true;s_page_layers[0]=layer_create(b);s_page_layers[1]=layer_create(b);s_page_layers[2]=layer_create(b);if(s_page_layers[0])layer_set_update_proc(s_page_layers[0],dashboard_update_proc);if(s_page_layers[1])layer_set_update_proc(s_page_layers[1],timetable_update_proc);if(s_page_layers[2])layer_set_update_proc(s_page_layers[2],map_update_proc);for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i])layer_add_child(root,s_page_layers[i]);reset_page_layers();window_set_background_color(w,GColorBlack);window_set_click_config_provider(w,click_config_provider);update_clock(NULL);update_steps();update_heart_rate();}
+static void window_load(Window*w){Layer*root=window_get_root_layer(w);GRect b=layer_get_bounds(root);s_icon_heart=gbitmap_create_with_resource(RESOURCE_ID_ICON_HEART);s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));s_marker_outline_path=gpath_create(&s_marker_outline_info);s_marker_fill_path=gpath_create(&s_marker_fill_info);s_map_frame_bitmap=gbitmap_create_blank(GSize(MAP_FRAME_WIDTH,MAP_FRAME_HEIGHT),GBitmapFormat8Bit);s_map_frame_valid=false;s_map_frame_dirty=true;s_page_layers[0]=layer_create(b);s_page_layers[1]=layer_create(b);s_page_layers[2]=layer_create(b);if(s_page_layers[0])layer_set_update_proc(s_page_layers[0],dashboard_update_proc);if(s_page_layers[1])layer_set_update_proc(s_page_layers[1],timetable_update_proc);if(s_page_layers[2])layer_set_update_proc(s_page_layers[2],map_update_proc);for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i])layer_add_child(root,s_page_layers[i]);reset_page_layers();window_set_background_color(w,GColorBlack);window_set_click_config_provider(w,click_config_provider);update_clock(NULL);update_steps();update_heart_rate();}
 static void window_appear(Window*w){
 #if defined(PBL_TOUCH)
     if(!s_touch_subscribed&&touch_service_is_enabled()){touch_service_subscribe(touch_handler,NULL);s_touch_subscribed=true;}
