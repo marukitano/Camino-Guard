@@ -35,7 +35,8 @@
       "STOP_PERCENT": 19,
       "MAP_VECTOR": 20,
       "WATCH_PAGE": 21,
-      "WATCH_STOP_DELTA": 22
+      "WATCH_STOP_DELTA": 22,
+      "ROUTE_PROGRESS_PERCENT": 23
     },
     "resources": {
       "media": [
