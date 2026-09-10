@@ -65,7 +65,8 @@ enum DashboardIcon {
     DASH_ICON_TEMP = 3,
     DASH_ICON_STEPS = 4,
     DASH_ICON_TIME = 5,
-    DASH_ICON_ELEVATION = 6
+    DASH_ICON_ELEVATION = 6,
+    DASH_ICON_PROGRESS = 7
 };
 
 static Window *s_window;
@@ -94,6 +95,7 @@ static int32_t s_sunset_minutes = UNKNOWN_METRIC;
 static int32_t s_elevation_current = UNKNOWN_METRIC;
 static int32_t s_elevation_min = UNKNOWN_METRIC;
 static int32_t s_elevation_max = UNKNOWN_METRIC;
+static int32_t s_route_progress_percent = UNKNOWN_METRIC;
 
 static StopView s_stop = {"--", "--", "--", -1};
 static StopView s_stop_previous = {"--", "--", "--", -1};
@@ -239,7 +241,7 @@ static const uint8_t *glyph(char c) {
         case 'E': {static const uint8_t r[7]={31,16,16,30,16,16,31};return r;}
         case 'F': {static const uint8_t r[7]={31,16,16,30,16,16,16};return r;}
         case 'G': {static const uint8_t r[7]={14,17,16,23,17,17,15};return r;}
-        case 'H': {static const uint8_t r[7]={17,17,17,31,17,17,17};return r;}
+        case 'H': {static const uint8_t r[7]={17,25,21,19,17,17,17};return r;}
         case 'I': {static const uint8_t r[7]={14,4,4,4,4,4,14};return r;}
         case 'J': {static const uint8_t r[7]={7,2,2,2,18,18,12};return r;}
         case 'K': {static const uint8_t r[7]={17,18,20,24,20,18,17};return r;}
@@ -386,8 +388,18 @@ static void draw_elevation_icon(GContext *ctx,GRect r) {
     graphics_context_set_stroke_width(ctx,1);
 }
 
+static void draw_progress_icon(GContext *ctx,GRect r) {
+    graphics_context_set_stroke_color(ctx,GColorBlack);
+    graphics_context_set_fill_color(ctx,GColorBlack);
+    graphics_context_set_stroke_width(ctx,2);
+    graphics_draw_line(ctx,GPoint(r.origin.x+5,r.origin.y+16),GPoint(r.origin.x+15,r.origin.y+4));
+    graphics_fill_circle(ctx,GPoint(r.origin.x+6,r.origin.y+5),2);
+    graphics_fill_circle(ctx,GPoint(r.origin.x+14,r.origin.y+15),2);
+    graphics_context_set_stroke_width(ctx,1);
+}
+
 static void draw_dashboard_icon(GContext *ctx,int kind,int row_y) {
-    GRect r=GRect(8,row_y,20,20);
+    GRect r=GRect(4,row_y,20,20);
     if(kind==DASH_ICON_HEART) draw_bitmap_icon(ctx,s_icon_heart,r);
     else if(kind==DASH_ICON_GLUCOSE) draw_bitmap_icon(ctx,s_icon_blood,r);
     else if(kind==DASH_ICON_SPEED) draw_bitmap_icon(ctx,s_icon_shoe,r);
@@ -395,6 +407,7 @@ static void draw_dashboard_icon(GContext *ctx,int kind,int row_y) {
     else if(kind==DASH_ICON_STEPS) draw_steps_icon(ctx,r);
     else if(kind==DASH_ICON_TIME) draw_clock_icon(ctx,r);
     else if(kind==DASH_ICON_ELEVATION) draw_elevation_icon(ctx,r);
+    else if(kind==DASH_ICON_PROGRESS) draw_progress_icon(ctx,r);
 }
 
 static GColor glucose_bar_color(int value_tenths) {
@@ -518,7 +531,7 @@ static void health_handler(HealthEventType e,void *c) {
 #endif
 
 static void draw_dashboard(GContext *ctx,GRect b) {
-    char heart[16]="--",glucose[16]="--",glucose_age[8]="",speed[16]="--",temp[16]="--",steps[16]="--",elevation[16]="--";
+    char heart[16]="--",glucose[16]="--",glucose_age[8]="",speed[16]="--",temp[16]="--",steps[16]="--",elevation[16]="--",progress[16]="--";
     if(s_heart_rate>0) snprintf(heart,sizeof(heart),"%d",s_heart_rate);
     int gt=0,st=0;
     bool hg=parse_tenths(s_glucose_text,&gt),hs=parse_tenths(s_speed_text,&st);
@@ -531,6 +544,9 @@ static void draw_dashboard(GContext *ctx,GRect b) {
     }
     if(s_steps>=0) snprintf(steps,sizeof(steps),"%d",s_steps);
     format_int_value(s_elevation_current,elevation,sizeof(elevation));
+    if(metric_known(s_route_progress_percent)) {
+        snprintf(progress,sizeof(progress),"%ld",(long)clamp_i((int)s_route_progress_percent,0,100));
+    }
 
     int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0;
     int gf=hg?(clamp_i(gt,20,140)-20)*1000/120:0;
@@ -539,18 +555,20 @@ static void draw_dashboard(GContext *ctx,GRect b) {
     int stepf=s_steps<0?0:clamp_i(s_steps,0,10000)*1000/10000;
     int timef=fraction_between(current_minutes_of_day(),s_sunrise_minutes,s_sunset_minutes);
     int elevf=fraction_between(s_elevation_current,s_elevation_min,s_elevation_max);
+    int progressf=metric_known(s_route_progress_percent)?clamp_i((int)s_route_progress_percent,0,100)*10:0;
 
     GColor hc=s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed;
     GColor gc=hg?glucose_bar_color(gt):GColorGreen;
 
-    /* Keep the original 21 px bars and original full-size PPF values. */
-    live_row(ctx,4,  DASH_ICON_HEART,heart,hf,hc,b,NULL);
-    live_row(ctx,35, DASH_ICON_GLUCOSE,glucose,gf,gc,b,glucose_age);
-    live_row(ctx,66, DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL);
-    live_row(ctx,97, DASH_ICON_TEMP,temp,tf,GColorOrange,b,NULL);
-    live_row(ctx,128,DASH_ICON_STEPS,steps,stepf,GColorGreen,b,NULL);
-    live_row(ctx,159,DASH_ICON_TIME,s_time_text,timef,GColorYellow,b,NULL);
-    live_row(ctx,190,DASH_ICON_ELEVATION,elevation,elevf,GColorCyan,b,NULL);
+    /* Eight unchanged 21 px bars, with 7 px gaps between their visible bodies. */
+    live_row(ctx,1,  DASH_ICON_HEART,heart,hf,hc,b,NULL);
+    live_row(ctx,29, DASH_ICON_GLUCOSE,glucose,gf,gc,b,glucose_age);
+    live_row(ctx,57, DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL);
+    live_row(ctx,85, DASH_ICON_TEMP,temp,tf,GColorOrange,b,NULL);
+    live_row(ctx,113,DASH_ICON_STEPS,steps,stepf,GColorGreen,b,NULL);
+    live_row(ctx,141,DASH_ICON_TIME,s_time_text,timef,GColorYellow,b,NULL);
+    live_row(ctx,169,DASH_ICON_ELEVATION,elevation,elevf,GColorCyan,b,NULL);
+    live_row(ctx,197,DASH_ICON_PROGRESS,progress,progressf,GColorBlue,b,"%");
 }
 
 static void draw_centered_ppf(GContext *ctx,const char *value,int y,const char *suffix,GRect b) {
@@ -1067,6 +1085,7 @@ static void inbox_received(DictionaryIterator *it,void *ctx) {
     copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);
     copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);
     copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);
+    copy_int32(it,MESSAGE_KEY_ROUTE_PROGRESS_PERCENT,&s_route_progress_percent);
 
     if(stop_fields_present(it)) {
         StopView old=s_stop;
