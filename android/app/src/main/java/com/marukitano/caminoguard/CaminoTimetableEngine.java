@@ -162,7 +162,6 @@ final class CaminoTimetableEngine {
                 )
                         : null;
 
-
         boolean hasHiddenStopsBeforeGoal =
                 hasHiddenStopsBeforeGoal(
                         visibleIndices,
@@ -172,6 +171,7 @@ final class CaminoTimetableEngine {
 
         return new CaminoTimetableState(
                 visibleStops,
+                allStops,
                 nextStop,
                 progressM,
                 showDistanceToNext,
