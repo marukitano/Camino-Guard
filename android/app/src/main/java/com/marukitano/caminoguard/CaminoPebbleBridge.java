@@ -412,14 +412,15 @@ final class CaminoPebbleBridge
     }
 
     /**
-     * Zero-run/literal codec for the sparse one-bit road bitmap.
+     * Sparse-mask codec with bounded overhead.
      *
      * control 0x00..0x7f: copy control+1 following literal bytes
      * control 0x80..0xff: emit control&0x7f + 1 zero bytes
      *
-     * It has a tiny worst-case overhead but substantially reduces the normal
-     * roads-only payload, so the new full-resolution mask does not require a
-     * large Bluetooth transfer every time the cached map centre moves.
+     * Zero runs shorter than three bytes stay inside literal blocks. That is
+     * important for diagonal roads: it keeps the absolute worst case to one
+     * control byte per 128 raw bytes instead of exploding on alternating
+     * zero/non-zero bytes.
      */
     private static byte[] encodeRoadMask(
             byte[] raw
@@ -438,51 +439,90 @@ final class CaminoPebbleBridge
         int index = 0;
 
         while (index < raw.length) {
-            if (raw[index] == 0) {
-                int run = 1;
+            int zeroRun =
+                    zeroRunLength(
+                            raw,
+                            index
+                    );
 
-                while (index + run < raw.length
-                        && raw[index + run] == 0
-                        && run < 128) {
-
-                    run++;
-                }
-
+            if (zeroRun >= 3) {
                 output.write(
                         0x80
-                                | (run - 1)
+                                | (zeroRun - 1)
                 );
 
                 index +=
-                        run;
+                        zeroRun;
 
                 continue;
             }
 
-            int run = 1;
+            int start =
+                    index;
 
-            while (index + run < raw.length
-                    && raw[index + run] != 0
-                    && run < 128) {
+            int literalRun =
+                    0;
 
-                run++;
+            while (index < raw.length
+                    && literalRun < 128) {
+
+                zeroRun =
+                        zeroRunLength(
+                                raw,
+                                index
+                        );
+
+                if (zeroRun >= 3) {
+                    break;
+                }
+
+                index++;
+                literalRun++;
+            }
+
+            if (literalRun <= 0) {
+                /* Defensive fallback; the outer zero-run branch normally owns this. */
+                literalRun =
+                        1;
+                index++;
             }
 
             output.write(
-                    run - 1
+                    literalRun - 1
             );
 
             output.write(
                     raw,
-                    index,
-                    run
+                    start,
+                    literalRun
             );
-
-            index +=
-                    run;
         }
 
         return output.toByteArray();
+    }
+
+    private static int zeroRunLength(
+            byte[] raw,
+            int start
+    ) {
+        if (raw == null
+                || start < 0
+                || start >= raw.length
+                || raw[start] != 0) {
+
+            return 0;
+        }
+
+        int run = 1;
+
+        while (start + run < raw.length
+                && raw[start + run] == 0
+                && run < 128) {
+
+            run++;
+        }
+
+        return run;
     }
 
     private void sendRoadChunk(
