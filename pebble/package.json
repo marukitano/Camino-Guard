@@ -1,25 +1,17 @@
 {
   "name": "camino-guard",
   "author": "maru",
-  "version": "0.1.0",
-  "keywords": [
-    "pebble-app",
-    "camino",
-    "navigation"
-  ],
+  "version": "0.2.0",
+  "keywords": ["pebble-app", "camino", "navigation"],
   "private": true,
   "dependencies": {},
   "pebble": {
     "displayName": "Camino Guard",
     "uuid": "5d2f1422-7b95-4951-b7ce-d122783a58d4",
-    "sdkVersion": "3",
+    "sdkVersion": "4",
     "enableMultiJS": true,
-    "targetPlatforms": [
-      "emery"
-    ],
-    "watchapp": {
-      "watchface": true
-    },
+    "targetPlatforms": ["emery"],
+    "watchapp": {"watchface": false},
     "messageKeys": {
       "GLUCOSE": 0,
       "NEXT_DISTANCE": 1,
@@ -28,61 +20,39 @@
       "ALARM_ACTIVE": 4,
       "ROUTE_VALID": 5,
       "NEXT_NAME": 6,
-      "FLAT_SPEED": 7
+      "FLAT_SPEED": 7,
+      "TEMP_CURRENT_TENTHS": 8,
+      "TEMP_MIN_TENTHS": 9,
+      "TEMP_MAX_TENTHS": 10,
+      "SUNRISE_MINUTES": 11,
+      "SUNSET_MINUTES": 12,
+      "ELEVATION_CURRENT": 13,
+      "ELEVATION_MIN": 14,
+      "ELEVATION_MAX": 15,
+      "STOP_NAME": 16,
+      "STOP_TIME": 17,
+      "STOP_DISTANCE": 18,
+      "STOP_PERCENT": 19,
+      "MAP_VECTOR": 20,
+      "WATCH_PAGE": 21,
+      "WATCH_STOP_DELTA": 22
     },
     "resources": {
       "media": [
-        {
-          "characterRegex": "[0-9 A-Z-]",
-          "type": "font",
-          "name": "FONT_MEGAFONT_12",
-          "file": "fonts/megafont.ttf"
-        },
-        {
-          "characterRegex": "[0-9 A-Z-]",
-          "type": "font",
-          "name": "FONT_MEGAFONT_14",
-          "file": "fonts/megafont.ttf"
-        },
-        {
-          "characterRegex": "[0-9 A-Z-]",
-          "type": "font",
-          "name": "FONT_MEGAFONT_18",
-          "file": "fonts/megafont.ttf"
-        },
-        {
-          "type": "png",
-          "name": "ICON_HEART",
-          "file": "icons/heart.png"
-        },
-        {
-          "type": "png",
-          "name": "ICON_BLOOD",
-          "file": "icons/blood.png"
-        },
-        {
-          "type": "png",
-          "name": "ICON_SHOE",
-          "file": "icons/shoe.png"
-        },
-        {
-          "type": "png",
-          "name": "ICON_SHELL",
-          "file": "icons/shell.png"
-        }
+        {"characterRegex": "[0-9 A-Z-]", "type": "font", "name": "FONT_MEGAFONT_12", "file": "fonts/megafont.ttf"},
+        {"characterRegex": "[0-9 A-Z-]", "type": "font", "name": "FONT_MEGAFONT_14", "file": "fonts/megafont.ttf"},
+        {"characterRegex": "[0-9 A-Z-]", "type": "font", "name": "FONT_MEGAFONT_18", "file": "fonts/megafont.ttf"},
+        {"type": "png", "name": "ICON_HEART", "file": "icons/heart.png"},
+        {"type": "png", "name": "ICON_BLOOD", "file": "icons/blood.png"},
+        {"type": "png", "name": "ICON_SHOE", "file": "icons/shoe.png"},
+        {"type": "png", "name": "ICON_SHELL", "file": "icons/shell.png"}
       ]
     },
-    "capabilities": [
-      "health"
-    ],
+    "capabilities": ["health"],
     "companionApp": {
       "android": {
         "url": "https://github.com/marukitano/Camino-Guard",
-        "apps": [
-          {
-            "package": "com.marukitano.caminoguard"
-          }
-        ]
+        "apps": [{"package": "com.marukitano.caminoguard"}]
       }
     }
   }
