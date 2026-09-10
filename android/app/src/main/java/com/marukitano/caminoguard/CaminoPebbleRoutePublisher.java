@@ -80,6 +80,7 @@ final class CaminoPebbleRoutePublisher
     private Integer lastSentElevationCurrent;
     private Integer lastSentElevationMin;
     private Integer lastSentElevationMax;
+    private Integer lastSentRouteProgressPercent;
 
     private CaminoPebbleWeatherClient.Snapshot weather;
 
@@ -414,6 +415,9 @@ final class CaminoPebbleRoutePublisher
                         ? UNKNOWN_METRIC
                         : elevation.maxM;
 
+        int routeProgressPercent =
+                routeProgressPercent();
+
         String speed =
                 formatSpeed(
                         location,
@@ -461,6 +465,10 @@ final class CaminoPebbleRoutePublisher
                 && sameInt(
                         elevationMax,
                         lastSentElevationMax
+                )
+                && sameInt(
+                        routeProgressPercent,
+                        lastSentRouteProgressPercent
                 )) {
 
             return;
@@ -531,6 +539,13 @@ final class CaminoPebbleRoutePublisher
                         lastSentElevationMax
                 );
 
+        Integer routeProgressDelta =
+                intDelta(
+                        fullSend,
+                        routeProgressPercent,
+                        lastSentRouteProgressPercent
+                );
+
         forceDashboardFull =
                 false;
 
@@ -544,6 +559,7 @@ final class CaminoPebbleRoutePublisher
                 elevationCurrentDelta,
                 elevationMinDelta,
                 elevationMaxDelta,
+                routeProgressDelta,
                 delivered -> {
                     if (delivered) {
                         return;
@@ -585,6 +601,9 @@ final class CaminoPebbleRoutePublisher
 
         lastSentElevationMax =
                 elevationMax;
+
+        lastSentRouteProgressPercent =
+                routeProgressPercent;
     }
 
     private synchronized void onWeatherSnapshot(
@@ -994,6 +1013,38 @@ final class CaminoPebbleRoutePublisher
         }
     }
 
+    private int routeProgressPercent() {
+        if (latestLocked == null
+                || latestLocked.path == null
+                || !Double.isFinite(
+                        latestLocked.path.distanceM
+                )
+                || latestLocked.path.distanceM <= 0.0
+                || latestTimetableState == null
+                || !Double.isFinite(
+                        latestTimetableState.currentChainageM
+                )) {
+
+            return UNKNOWN_METRIC;
+        }
+
+        int percent =
+                (int)
+                        Math.round(
+                                100.0
+                                        * latestTimetableState.currentChainageM
+                                        / latestLocked.path.distanceM
+                        );
+
+        return Math.max(
+                0,
+                Math.min(
+                        100,
+                        percent
+                )
+        );
+    }
+
     private ElevationValues elevationValues() {
         if (latestLocked == null
                 || latestLocked.path == null
@@ -1310,18 +1361,13 @@ final class CaminoPebbleRoutePublisher
             return "--";
         }
 
-        if (distanceM < 1000.0) {
-            return String.format(
-                    Locale.US,
-                    "%.0f m",
-                    distanceM
-            );
-        }
-
         return String.format(
                 Locale.US,
                 "%.1f km",
-                distanceM / 1000.0
+                Math.max(
+                        0.0,
+                        distanceM
+                ) / 1000.0
         );
     }
 
