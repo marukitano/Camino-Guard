@@ -4,6 +4,7 @@ import android.content.Context;
 import android.location.Location;
 import android.util.Log;
 
+import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -341,10 +342,12 @@ final class CaminoPebbleBridge
                     new byte[]{2, 0, 0, 0, 0};
         }
 
-        byte[] maskCopy =
+        byte[] roadData =
                 roadMask == null
                         ? null
-                        : roadMask.clone();
+                        : encodeRoadMask(
+                                roadMask
+                        );
 
         Map<Integer, PebbleDictionaryItem> dictionary =
                 new HashMap<>();
@@ -379,8 +382,8 @@ final class CaminoPebbleBridge
                         return;
                     }
 
-                    if (maskCopy == null
-                            || maskCopy.length == 0
+                    if (roadData == null
+                            || roadData.length == 0
                             || roadGeneration <= 0) {
 
                         if (onResult != null) {
@@ -392,13 +395,13 @@ final class CaminoPebbleBridge
                     }
 
                     int chunkCount =
-                            (maskCopy.length
+                            (roadData.length
                                     + ROAD_CHUNK_BYTES
                                     - 1)
                                     / ROAD_CHUNK_BYTES;
 
                     sendRoadChunk(
-                            maskCopy,
+                            roadData,
                             roadGeneration,
                             0,
                             chunkCount,
@@ -408,8 +411,82 @@ final class CaminoPebbleBridge
         );
     }
 
+    /**
+     * Zero-run/literal codec for the sparse one-bit road bitmap.
+     *
+     * control 0x00..0x7f: copy control+1 following literal bytes
+     * control 0x80..0xff: emit control&0x7f + 1 zero bytes
+     *
+     * It has a tiny worst-case overhead but substantially reduces the normal
+     * roads-only payload, so the new full-resolution mask does not require a
+     * large Bluetooth transfer every time the cached map centre moves.
+     */
+    private static byte[] encodeRoadMask(
+            byte[] raw
+    ) {
+        if (raw == null
+                || raw.length == 0) {
+
+            return null;
+        }
+
+        ByteArrayOutputStream output =
+                new ByteArrayOutputStream(
+                        raw.length
+                );
+
+        int index = 0;
+
+        while (index < raw.length) {
+            if (raw[index] == 0) {
+                int run = 1;
+
+                while (index + run < raw.length
+                        && raw[index + run] == 0
+                        && run < 128) {
+
+                    run++;
+                }
+
+                output.write(
+                        0x80
+                                | (run - 1)
+                );
+
+                index +=
+                        run;
+
+                continue;
+            }
+
+            int run = 1;
+
+            while (index + run < raw.length
+                    && raw[index + run] != 0
+                    && run < 128) {
+
+                run++;
+            }
+
+            output.write(
+                    run - 1
+            );
+
+            output.write(
+                    raw,
+                    index,
+                    run
+            );
+
+            index +=
+                    run;
+        }
+
+        return output.toByteArray();
+    }
+
     private void sendRoadChunk(
-            byte[] roadMask,
+            byte[] roadData,
             int roadGeneration,
             int chunkIndex,
             int chunkCount,
@@ -422,7 +499,7 @@ final class CaminoPebbleBridge
         int length =
                 Math.min(
                         ROAD_CHUNK_BYTES,
-                        roadMask.length
+                        roadData.length
                                 - offset
                 );
 
@@ -441,7 +518,7 @@ final class CaminoPebbleBridge
                 new byte[length];
 
         System.arraycopy(
-                roadMask,
+                roadData,
                 offset,
                 chunk,
                 0,
@@ -508,7 +585,7 @@ final class CaminoPebbleBridge
                     }
 
                     sendRoadChunk(
-                            roadMask,
+                            roadData,
                             roadGeneration,
                             nextIndex,
                             chunkCount,
