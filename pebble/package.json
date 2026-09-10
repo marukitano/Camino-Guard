@@ -41,7 +41,8 @@
       "MAP_ROADS_GENERATION": 25,
       "MAP_ROADS_CHUNK_INDEX": 26,
       "MAP_ROADS_CHUNK_COUNT": 27,
-      "MAP_ROADS_CHUNK_DATA": 28
+      "MAP_ROADS_CHUNK_DATA": 28,
+      "STOP_IS_GOAL": 29
     },
     "resources": {
       "media": [
