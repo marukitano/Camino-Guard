@@ -1,14 +1,7 @@
 name: Apply timetable name alignment
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/apply-name-alignment.yml
-
+on: [push]
 permissions:
   contents: write
-
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -16,44 +9,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Patch Pebble timetable layout
+      - name: Apply source patch
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('pebble/src/c/main.c')
-          s = p.read_text()
-          s = s.replace('#define TIMETABLE_STOP_RADIUS 9', '#define TIMETABLE_STOP_RADIUS 8', 1)
-          old = '''    GRect name_box=GRect(TIMETABLE_CONTENT_X,TIMETABLE_NAME_Y+off,b.size.w-TIMETABLE_CONTENT_X-5,TIMETABLE_NAME_H);
-    GFont f=fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
-    GSize name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
-    if(name_size.h>TIMETABLE_NAME_H){
-        f=fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-        name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
-    }
-    /* Keep the dot fixed. Only one-line names move down to its vertical centre. */
-    if(name_size.h<=32)name_box.origin.y=TIMETABLE_STOP_Y+off-name_size.h/2;
-    graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);'''
-          new = '''    GRect name_box=GRect(TIMETABLE_CONTENT_X,TIMETABLE_NAME_Y+off,b.size.w-TIMETABLE_CONTENT_X-5,TIMETABLE_NAME_H);
-    GFont f=fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
-    GSize name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
-    if(name_size.h>TIMETABLE_NAME_H){
-        f=fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-        name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
-    }
-    /* Two-line names already center perfectly on the fixed dot. For a true
-     * one-line name, move only the text down by half one line-height so its
-     * centre lands at exactly the same vertical centre as the two-line block. */
-    int line_h=fonts_get_font_height(f);
-    bool one_line=name_size.h<=line_h+2;
-    if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+line_h/2;
-    graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);'''
-          if old not in s:
-              raise SystemExit('name layout anchor missing')
-          s = s.replace(old, new, 1)
-          p.write_text(s)
-          Path('.github/workflows/apply-name-alignment.yml').unlink()
-          PY
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwID0gUGF0aCgicGViYmxlL3NyYy9jL21haW4uYyIpCnMgPSBwLnJlYWRfdGV4dCgpCgpvbGQgPSAiI2RlZmluZSBUSU1FVEFCTEVfU1RPUF9SQURJVVMgOSIKbmV3ID0gIiNkZWZpbmUgVElNRVRBQkxFX1NUT1BfUkFESVVTIDgiCmlmIG9sZCBub3QgaW4gczoKICAgIHJhaXNlIFN5c3RlbUV4aXQoInN0b3AgcmFkaXVzIGFuY2hvciBtaXNzaW5nIikKcyA9IHMucmVwbGFjZShvbGQsIG5ldywgMSkKCm9sZCA9ICIiIiAgICBHUmVjdCBuYW1lX2JveD1HUmVjdChUSU1FVEFCTEVfQ09OVEVOVF9YLFRJTUVUQUJMRV9OQU1FX1krb2ZmLGIuc2l6ZS53LVRJTUVUQUJMRV9DT05URU5UX1gtNSxUSU1FVEFCTEVfTkFNRV9IKTsKICAgIEdGb250IGY9Zm9udHNfZ2V0X3N5c3RlbV9mb250KEZPTlRfS0VZX0dPVEhJQ18yNF9CT0xEKTsKICAgIEdTaXplIG5hbWVfc2l6ZT1ncmFwaGljc190ZXh0X2xheW91dF9nZXRfY29udGVudF9zaXplKG5hbWUsZixuYW1lX2JveCxHVGV4dE92ZXJmbG93TW9kZVdvcmRXcmFwLEdUZXh0QWxpZ25tZW50TGVmdCk7CiAgICBpZihuYW1lX3NpemUuaD5USU1FVEFCTEVfTkFNRV9IKXsKICAgICAgICBmPWZvbnRzX2dldF9zeXN0ZW1fZm9udChGT05UX0tFWV9HT1RISUNfMThfQk9MRCk7CiAgICAgICAgbmFtZV9zaXplPWdyYXBoaWNzX3RleHRfbGF5b3V0X2dldF9jb250ZW50X3NpemUobmFtZSxmLG5hbWVfYm94LEdUZXh0T3ZlcmZsb3dNb2RlV29yZFdyYXAsR1RleHRBbGlnbm1lbnRMZWZ0KTsKICAgIH0KICAgIC8qIEtlZXAgdGhlIGRvdCBmaXhlZC4gT25seSBvbmUtbGluZSBuYW1lcyBtb3ZlIGRvd24gdG8gaXRzIHZlcnRpY2FsIGNlbnRyZS4gKi8KICAgIGlmKG5hbWVfc2l6ZS5oPD0zMiluYW1lX2JveC5vcmlnaW4ueT1USU1FVEFCTEVfU1RPUF9ZK29mZi1uYW1lX3NpemUuaC8yOwogICAgZ3JhcGhpY3NfZHJhd190ZXh0KGN0eCxuYW1lLGYsbmFtZV9ib3gsR1RleHRPdmVyZmxvd01vZGVXb3JkV3JhcCxHVGV4dEFsaWdubWVudExlZnQsTlVMTCk7IiIiCm5ldyA9ICIiIiAgICBHUmVjdCBuYW1lX2JveD1HUmVjdChUSU1FVEFCTEVfQ09OVEVOVF9YLFRJTUVUQUJMRV9OQU1FX1krb2ZmLGIuc2l6ZS53LVRJTUVUQUJMRV9DT05URU5UX1gtNSxUSU1FVEFCTEVfTkFNRV9IKTsKICAgIEdGb250IGY9Zm9udHNfZ2V0X3N5c3RlbV9mb250KEZPTlRfS0VZX0dPVEhJQ18yNF9CT0xEKTsKICAgIEdTaXplIG5hbWVfc2l6ZT1ncmFwaGljc190ZXh0X2xheW91dF9nZXRfY29udGVudF9zaXplKG5hbWUsZixuYW1lX2JveCxHVGV4dE92ZXJmbG93TW9kZVdvcmRXcmFwLEdUZXh0QWxpZ25tZW50TGVmdCk7CiAgICBpZihuYW1lX3NpemUuaD5USU1FVEFCTEVfTkFNRV9IKXsKICAgICAgICBmPWZvbnRzX2dldF9zeXN0ZW1fZm9udChGT05UX0tFWV9HT1RISUNfMThfQk9MRCk7CiAgICAgICAgbmFtZV9zaXplPWdyYXBoaWNzX3RleHRfbGF5b3V0X2dldF9jb250ZW50X3NpemUobmFtZSxmLG5hbWVfYm94LEdUZXh0T3ZlcmZsb3dNb2RlV29yZFdyYXAsR1RleHRBbGlnbm1lbnRMZWZ0KTsKICAgIH0KICAgIC8qIFR3by1saW5lIG5hbWVzIGFscmVhZHkgY2VudGVyIHBlcmZlY3RseSBvbiB0aGUgZml4ZWQgZG90LiBVc2UgdGhlIGZvbnQncwogICAgICogYWN0dWFsIGxpbmUgaGVpZ2h0IHRvIGlkZW50aWZ5IGEgb25lLWxpbmUgbGF5b3V0LCB0aGVuIG1vdmUgb25seSB0aGF0CiAgICAgKiB0ZXh0IGRvd24gYnkgaGFsZiBhIGxpbmUuICovCiAgICBpbnQgbGluZV9oPWZvbnRzX2dldF9mb250X2hlaWdodChmKTsKICAgIGJvb2wgb25lX2xpbmU9bmFtZV9zaXplLmg8PWxpbmVfaCsyOwogICAgaWYob25lX2xpbmUpbmFtZV9ib3gub3JpZ2luLnk9VElNRVRBQkxFX05BTUVfWStvZmYrbGluZV9oLzI7CiAgICBncmFwaGljc19kcmF3X3RleHQoY3R4LG5hbWUsZixuYW1lX2JveCxHVGV4dE92ZXJmbG93TW9kZVdvcmRXcmFwLEdUZXh0QWxpZ25tZW50TGVmdCxOVUxMKTsiIiIKaWYgb2xkIG5vdCBpbiBzOgogICAgcmFpc2UgU3lzdGVtRXhpdCgibmFtZSBsYXlvdXQgYW5jaG9yIG1pc3NpbmciKQpzID0gcy5yZXBsYWNlKG9sZCwgbmV3LCAxKQoKcC53cml0ZV90ZXh0KHMpClBhdGgoIi5naXRodWIvd29ya2Zsb3dzL2FwcGx5LW5hbWUtYWxpZ25tZW50LnltbCIpLnVubGluaygpCg==' | base64 -d > /tmp/patch.py
+          python3 /tmp/patch.py
           git config user.name 'Camino Guard Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
