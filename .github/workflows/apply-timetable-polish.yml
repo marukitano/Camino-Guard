@@ -1,0 +1,106 @@
+name: Apply timetable polish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-timetable-polish.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply requested timetable changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          pebble = Path('pebble/src/c/main.c')
+          s = pebble.read_text()
+
+          old = '#define TIMETABLE_STOP_RADIUS 6'
+          new = '#define TIMETABLE_STOP_RADIUS 9'
+          assert old in s, 'stop radius anchor missing'
+          s = s.replace(old, new, 1)
+
+          old = 'graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-2);'
+          new = 'graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-3);'
+          assert old in s, 'hollow stop anchor missing'
+          s = s.replace(old, new, 1)
+
+          old = '''    GRect name_box=GRect(TIMETABLE_CONTENT_X,TIMETABLE_NAME_Y+off,b.size.w-TIMETABLE_CONTENT_X-5,TIMETABLE_NAME_H);
+    GFont f=fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+    GSize name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
+    if(name_size.h>TIMETABLE_NAME_H)f=fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+    graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);'''
+          new = '''    GRect name_box=GRect(TIMETABLE_CONTENT_X,TIMETABLE_NAME_Y+off,b.size.w-TIMETABLE_CONTENT_X-5,TIMETABLE_NAME_H);
+    GFont f=fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+    GSize name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
+    if(name_size.h>TIMETABLE_NAME_H){
+        f=fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+        name_size=graphics_text_layout_get_content_size(name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft);
+    }
+    /* Keep the timeline dot fixed; only center a one-line stop name on it. */
+    if(name_size.h<=32)name_box.origin.y=TIMETABLE_STOP_Y+off-name_size.h/2;
+    graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);'''
+          assert old in s, 'name layout anchor missing'
+          s = s.replace(old, new, 1)
+          pebble.write_text(s)
+
+          publisher = Path('android/app/src/main/java/com/marukitano/caminoguard/CaminoPebbleRoutePublisher.java')
+          s = publisher.read_text()
+          old = '''        int routeProgressPercent =
+                routeProgressPercent();
+
+        int percent =
+                routeProgressPercent
+                        == UNKNOWN_METRIC
+                        ? -1
+                        : routeProgressPercent;'''
+          new = '''        /* The timetable shows the fixed route share at this stop, not live progress. */
+        int percent =
+                -1;
+
+        if (latestLocked != null
+                && latestLocked.path != null
+                && Double.isFinite(latestLocked.path.distanceM)
+                && latestLocked.path.distanceM > 0.0
+                && Double.isFinite(stop.chainageM)) {
+
+            percent =
+                    (int) Math.round(
+                            100.0
+                                    * stop.chainageM
+                                    / latestLocked.path.distanceM
+                    );
+
+            percent =
+                    Math.max(
+                            0,
+                            Math.min(
+                                    100,
+                                    percent
+                            )
+                    );
+        }'''
+          assert old in s, 'timetable percent anchor missing'
+          s = s.replace(old, new, 1)
+          publisher.write_text(s)
+
+          workflow = Path('.github/workflows/apply-timetable-polish.yml')
+          workflow.unlink()
+          PY
+
+          git config user.name "Camino Guard Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Polish timetable stop layout and fixed progress"
+          git push
