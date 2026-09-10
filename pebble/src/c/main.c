@@ -114,6 +114,8 @@ static uint8_t s_map_payload[MAP_PAYLOAD_MAX];
 static size_t s_map_payload_len;
 static int s_map_position_east;
 static int s_map_position_north;
+static int32_t s_map_sine;
+static int32_t s_map_cosine = TRIG_MAX_RATIO;
 static uint8_t s_road_mask[MAP_ROAD_BYTES];
 static uint8_t s_road_compressed[MAP_ROAD_COMPRESSED_MAX];
 static size_t s_road_compressed_len;
@@ -319,6 +321,8 @@ static void health_handler(HealthEventType e,void*c){if(e==HealthEventHeartRateU
 
 #if defined(PBL_COMPASS)
 static void compass_handler(CompassHeadingData data){
+    /* Freeze heading during the Nasu-style page slide; only the layer moves. */
+    if(s_page==PAGE_MAP&&s_page_scroll_mode!=PAGE_SCROLL_IDLE)return;
     bool valid=data.compass_status==CompassStatusCalibrating||data.compass_status==CompassStatusCalibrated;
     CompassHeading h=data.true_heading;if(h<0||h>=TRIG_MAX_ANGLE)h=data.magnetic_heading;
     s_heading_valid=valid&&h>=0&&h<TRIG_MAX_ANGLE;if(s_heading_valid)s_heading=h;
@@ -352,10 +356,11 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){c
 static void draw_timetable(GContext*ctx,GRect b){if(!s_stop_animating){draw_timetable_view(ctx,b,&s_stop,0);return;}int off=(int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);draw_timetable_view(ctx,b,&s_stop_previous,off);draw_timetable_view(ctx,b,&s_stop,off+s_stop_anim_direction*b.size.h);}
 
 /*
- * Heading-up recovery map. Geometry from Android is north-up and expressed
- * around the cached road-snapshot centre. Before drawing we subtract the
- * current user offset and rotate the world so the watch heading points up.
- * The user therefore remains exactly in the screen centre while the map turns.
+ * Heading-up recovery map. Keep the compact Android payload, but follow the
+ * same rendering rule as Nasu's large OK image: touch the physical 200x228
+ * framebuffer directly instead of rebuilding thousands of Pebble primitives
+ * while a page is moving. The expensive trigonometry is prepared once per
+ * frame, not once for every road pixel.
  */
 static void update_map_position_from_payload(void){
     s_map_position_east=0;
@@ -366,44 +371,81 @@ static void update_map_position_from_payload(void){
     }
 }
 
+static void prepare_map_transform(void){
+    s_map_sine=0;
+    s_map_cosine=TRIG_MAX_RATIO;
+#if defined(PBL_COMPASS)
+    if(s_heading_valid){
+        s_map_sine=sin_lookup(s_heading);
+        s_map_cosine=cos_lookup(s_heading);
+    }
+#endif
+}
+
 static GPoint map_point(GRect b,int east,int north){
     int local_east=east-s_map_position_east;
     int local_north=north-s_map_position_north;
-    int right=local_east;
-    int forward=local_north;
-#if defined(PBL_COMPASS)
-    if(s_heading_valid){
-        int32_t sine=sin_lookup(s_heading);
-        int32_t cosine=cos_lookup(s_heading);
-        right=(int)(((int64_t)local_east*cosine-(int64_t)local_north*sine)/TRIG_MAX_RATIO);
-        forward=(int)(((int64_t)local_east*sine+(int64_t)local_north*cosine)/TRIG_MAX_RATIO);
-    }
-#endif
+    int right=(int)(((int64_t)local_east*s_map_cosine-(int64_t)local_north*s_map_sine)/TRIG_MAX_RATIO);
+    int forward=(int)(((int64_t)local_east*s_map_sine+(int64_t)local_north*s_map_cosine)/TRIG_MAX_RATIO);
     int cx=b.origin.x+b.size.w/2;
     int cy=b.origin.y+b.size.h/2;
     return GPoint(cx+right,cy-forward);
 }
 
-/*
- * Android has already supersampled the PMTiles roads at 4x resolution and
- * reduced them to one road bit per physical Pebble pixel. The watch only
- * rotates that geometry. Tiny round samples fill the sub-pixel holes that
- * otherwise appear during arbitrary compass rotations.
- */
+static void framebuffer_plot(uint8_t*data,int stride,GRect fbounds,int x,int y,int left,int top,int right,int bottom,uint8_t color){
+    if(!data||x<left||x>right||y<top||y>bottom||x<fbounds.origin.x||y<fbounds.origin.y||x>=fbounds.origin.x+fbounds.size.w||y>=fbounds.origin.y+fbounds.size.h)return;
+    data[(y-fbounds.origin.y)*stride+(x-fbounds.origin.x)]=color;
+}
+
+static void framebuffer_road_dot(uint8_t*data,int stride,GRect fbounds,int x,int y,int left,int top,int right,int bottom,uint8_t color){
+    framebuffer_plot(data,stride,fbounds,x,y,left,top,right,bottom,color);
+    framebuffer_plot(data,stride,fbounds,x-1,y,left,top,right,bottom,color);
+    framebuffer_plot(data,stride,fbounds,x+1,y,left,top,right,bottom,color);
+    framebuffer_plot(data,stride,fbounds,x,y-1,left,top,right,bottom,color);
+    framebuffer_plot(data,stride,fbounds,x,y+1,left,top,right,bottom,color);
+}
+
 static void draw_road_mask(GContext*ctx,GRect b){
-    if(!s_road_mask_valid)return;
-    graphics_context_set_antialiased(ctx,true);
-    graphics_context_set_fill_color(ctx,GColorDarkGray);
-    for(int y=0;y<MAP_ROAD_HEIGHT;y++){
-        for(int x=0;x<MAP_ROAD_WIDTH;x++){
-            int bit=y*MAP_ROAD_WIDTH+x;
-            if(!(s_road_mask[bit>>3]&(1u<<(bit&7))))continue;
+    if(!s_road_mask_valid||!s_page_layers[PAGE_MAP])return;
+
+    GBitmap*framebuffer=graphics_capture_frame_buffer_format(ctx,GBitmapFormat8Bit);
+    if(!framebuffer)return;
+
+    uint8_t*data=gbitmap_get_data(framebuffer);
+    int stride=gbitmap_get_bytes_per_row(framebuffer);
+    GRect fbounds=gbitmap_get_bounds(framebuffer);
+    GRect frame=layer_get_frame(s_page_layers[PAGE_MAP]);
+    int left=frame.origin.x+b.origin.x;
+    int top=frame.origin.y+b.origin.y;
+    int right=left+b.size.w-1;
+    int bottom=top+b.size.h-1;
+    if(left<fbounds.origin.x)left=fbounds.origin.x;
+    if(top<fbounds.origin.y)top=fbounds.origin.y;
+    if(right>=fbounds.origin.x+fbounds.size.w)right=fbounds.origin.x+fbounds.size.w-1;
+    if(bottom>=fbounds.origin.y+fbounds.size.h)bottom=fbounds.origin.y+fbounds.size.h-1;
+
+    GColor road=GColorDarkGray;
+    const size_t total_bits=(size_t)MAP_ROAD_WIDTH*MAP_ROAD_HEIGHT;
+    for(size_t byte_index=0;byte_index<sizeof(s_road_mask);byte_index++){
+        uint8_t bits=s_road_mask[byte_index];
+        if(!bits)continue;
+        size_t base=byte_index*8u;
+        for(int bit=0;bit<8;bit++){
+            if(!(bits&(1u<<bit)))continue;
+            size_t index=base+(size_t)bit;
+            if(index>=total_bits)break;
+            int y=(int)(index/MAP_ROAD_WIDTH);
+            int x=(int)(index-(size_t)y*MAP_ROAD_WIDTH);
             int east=x-MAP_ROAD_WIDTH/2;
             int north=MAP_ROAD_HEIGHT/2-y;
             GPoint p=map_point(b,east,north);
-            graphics_fill_circle(ctx,p,1);
+            int screen_x=frame.origin.x+p.x;
+            int screen_y=frame.origin.y+p.y;
+            framebuffer_road_dot(data,stride,fbounds,screen_x,screen_y,left,top,right,bottom,road.argb);
         }
     }
+
+    graphics_release_frame_buffer(ctx,framebuffer);
 }
 
 static void draw_distance_grid(GContext*ctx,GRect b){
@@ -465,13 +507,13 @@ static void draw_position_marker(GContext*ctx,GPoint p){
 static void draw_map(GContext*ctx,GRect b){
     graphics_context_set_antialiased(ctx,true);
     update_map_position_from_payload();
+    prepare_map_transform();
     draw_road_mask(ctx,b);
 
     if(s_map_payload_len>=5&&s_map_payload[0]==2){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            /* Android-style Camino: thick blue route with a visible yellow casing. */
             draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,7);
             draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
@@ -486,7 +528,6 @@ static void draw_map(GContext*ctx,GRect b){
         }
     }
 
-    /* The 25 m ruler stays screen-aligned so every square remains easy to read. */
     draw_distance_grid(ctx,b);
     draw_position_marker(ctx,GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2));
 }
