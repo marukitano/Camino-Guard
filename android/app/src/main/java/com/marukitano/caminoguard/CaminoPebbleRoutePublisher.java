@@ -71,6 +71,8 @@ final class CaminoPebbleRoutePublisher
     private int visiblePage;
     private int selectedStopIndex =
             -1;
+    private boolean selectedStopFollowsNext =
+            true;
 
     private boolean sentAnyDashboard;
     private boolean forceDashboardFull =
@@ -180,6 +182,9 @@ final class CaminoPebbleRoutePublisher
             selectedStopIndex =
                     -1;
 
+            selectedStopFollowsNext =
+                    true;
+
             forceDashboardFull =
                     true;
 
@@ -201,6 +206,25 @@ final class CaminoPebbleRoutePublisher
             refreshElevationScale(
                     locked
             );
+        }
+
+        if (visiblePage == 1
+                && selectedStopFollowsNext) {
+
+            int nextStopIndex =
+                    findNextStopIndex(
+                            latestTimetableState
+                    );
+
+            if (selectedStopIndex
+                    != nextStopIndex) {
+
+                selectedStopIndex =
+                        nextStopIndex;
+
+                forceStopSend =
+                        true;
+            }
         }
 
         updateOffRouteWatchState(
@@ -306,6 +330,9 @@ final class CaminoPebbleRoutePublisher
                             latestTimetableState
                     );
 
+            selectedStopFollowsNext =
+                    true;
+
             forceStopSend =
                     true;
 
@@ -334,6 +361,9 @@ final class CaminoPebbleRoutePublisher
                         latestTimetableState
                 );
 
+        selectedStopFollowsNext =
+                false;
+
         if (stops.isEmpty()) {
             selectedStopIndex =
                     -1;
@@ -349,13 +379,17 @@ final class CaminoPebbleRoutePublisher
                         );
             }
 
+            /*
+             * Pebble's upper button and a downward QuickSwipe send -1.
+             * Those gestures browse forward to the following route stop.
+             */
             selectedStopIndex =
                     Math.max(
                             0,
                             Math.min(
                                     stops.size() - 1,
                                     selectedStopIndex
-                                            + (delta < 0 ? -1 : 1)
+                                            + (delta < 0 ? 1 : -1)
                             )
                     );
         }
@@ -643,16 +677,37 @@ final class CaminoPebbleRoutePublisher
         forceDashboardFull =
                 true;
 
-        if (CaminoPebbleSession.isWatchOpen()
-                && visiblePage == 0) {
+        forceStopSend =
+                true;
 
-            sendDashboard(
-                    true
-            );
+        if (CaminoPebbleSession.isWatchOpen()) {
+            if (visiblePage == 0) {
+                sendDashboard(
+                        true
+                );
+
+            } else if (visiblePage == 1) {
+                sendTimetableStop();
+            }
         }
     }
 
     private void sendTimetableStop() {
+        Location location =
+                latestLocation;
+
+        if (location != null) {
+            bridge.requestWeather(
+                    location,
+                    this::onWeatherSnapshot
+            );
+        }
+
+        int temperatureCurrent =
+                weather == null
+                        ? UNKNOWN_METRIC
+                        : weather.currentTenthsC;
+
         List<CaminoTimetableStop> stops =
                 allStops(
                         latestTimetableState
@@ -667,6 +722,8 @@ final class CaminoPebbleRoutePublisher
                     "--",
                     "--",
                     -1,
+                    temperatureCurrent,
+                    false,
                     delivered -> {
                         synchronized (CaminoPebbleRoutePublisher.this) {
                             forceStopSend =
@@ -710,32 +767,18 @@ final class CaminoPebbleRoutePublisher
                         ? 0.0
                         : latestTimetableState.currentChainageM;
 
-        double routeDistanceM =
-                latestLocked == null
-                        || latestLocked.path == null
-                        ? Double.NaN
-                        : latestLocked.path.distanceM;
+        int routeProgressPercent =
+                routeProgressPercent();
 
         int percent =
-                !Double.isFinite(routeDistanceM)
-                        || routeDistanceM <= 0.0
+                routeProgressPercent
+                        == UNKNOWN_METRIC
                         ? -1
-                        : (int) Math.round(
-                                100.0
-                                        * stop.chainageM
-                                        / routeDistanceM
-                        );
+                        : routeProgressPercent;
 
-        percent =
-                percent < 0
-                        ? percent
-                        : Math.max(
-                                0,
-                                Math.min(
-                                        100,
-                                        percent
-                                )
-                        );
+        boolean isGoal =
+                selectedStopIndex
+                        == stops.size() - 1;
 
         forceStopSend =
                 false;
@@ -752,6 +795,8 @@ final class CaminoPebbleRoutePublisher
                         )
                 ),
                 percent,
+                temperatureCurrent,
+                isGoal,
                 delivered -> {
                     if (delivered) {
                         return;
