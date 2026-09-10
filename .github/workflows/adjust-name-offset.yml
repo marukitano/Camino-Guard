@@ -1,0 +1,37 @@
+name: Adjust Pebble timetable name offset
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/adjust-name-offset.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Move one-line stop names two pixels up
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('pebble/src/c/main.c')
+          s = p.read_text()
+          old = 'if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+14;'
+          new = 'if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+12;'
+          if old not in s:
+              raise SystemExit('name offset anchor missing')
+          p.write_text(s.replace(old, new, 1))
+          Path('.github/workflows/adjust-name-offset.yml').unlink()
+          PY
+          git config user.name 'Camino Guard Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Move one-line timetable names two pixels up'
+          git push
