@@ -32,6 +32,9 @@ final class CaminoPebbleBridge
                     "5d2f1422-7b95-4951-b7ce-d122783a58d4"
             );
 
+    private static final int ROAD_CHUNK_BYTES =
+            160;
+
     /* Must match pebble/package.json. */
     private static final int KEY_GLUCOSE = 0;
     private static final int KEY_CURRENT_SPEED = 3;
@@ -50,6 +53,10 @@ final class CaminoPebbleBridge
     private static final int KEY_MAP_VECTOR = 20;
     private static final int KEY_ROUTE_PROGRESS_PERCENT = 23;
     private static final int KEY_SHOW_MAP_ONCE = 24;
+    private static final int KEY_MAP_ROADS_GENERATION = 25;
+    private static final int KEY_MAP_ROADS_CHUNK_INDEX = 26;
+    private static final int KEY_MAP_ROADS_CHUNK_COUNT = 27;
+    private static final int KEY_MAP_ROADS_CHUNK_DATA = 28;
 
     private final Context appContext;
     private final JavaPebbleSender sender;
@@ -276,28 +283,57 @@ final class CaminoPebbleBridge
         );
     }
 
+    synchronized void sendShowMapOnce() {
+        if (!CaminoPebbleSession.isWatchOpen()) {
+            return;
+        }
+
+        Map<Integer, PebbleDictionaryItem> dictionary =
+                new HashMap<>();
+
+        dictionary.put(
+                KEY_SHOW_MAP_ONCE,
+                new PebbleDictionaryItem.Int32(
+                        1
+                )
+        );
+
+        sendDictionary(
+                dictionary,
+                "off-route map switch",
+                null
+        );
+    }
+
     synchronized void sendMiniMap(
             byte[] payload,
             Consumer<Boolean> onResult
     ) {
         sendMiniMap(
                 payload,
-                false,
+                0,
+                null,
                 onResult
         );
     }
 
     synchronized void sendMiniMap(
             byte[] payload,
-            boolean showMapOnce,
+            int roadGeneration,
+            byte[] roadMask,
             Consumer<Boolean> onResult
     ) {
         if (payload == null
                 || payload.length == 0) {
 
             payload =
-                    new byte[]{2, 0, 0, 0, 0, 0, 0};
+                    new byte[]{2, 0, 0, 0, 0};
         }
+
+        byte[] maskCopy =
+                roadMask == null
+                        ? null
+                        : roadMask.clone();
 
         Map<Integer, PebbleDictionaryItem> dictionary =
                 new HashMap<>();
@@ -309,21 +345,165 @@ final class CaminoPebbleBridge
                 )
         );
 
-        if (showMapOnce) {
-            dictionary.put(
-                    KEY_SHOW_MAP_ONCE,
-                    new PebbleDictionaryItem.Int32(
-                            1
-                    )
-            );
-        }
+        dictionary.put(
+                KEY_MAP_ROADS_GENERATION,
+                new PebbleDictionaryItem.Int32(
+                        Math.max(
+                                0,
+                                roadGeneration
+                        )
+                )
+        );
 
         sendDictionary(
                 dictionary,
-                showMapOnce
-                        ? "off-route mini map"
-                        : "mini map",
-                onResult
+                "mini map vector",
+                delivered -> {
+                    if (!delivered) {
+                        if (onResult != null) {
+                            onResult.accept(
+                                    false
+                            );
+                        }
+                        return;
+                    }
+
+                    if (maskCopy == null
+                            || maskCopy.length == 0
+                            || roadGeneration <= 0) {
+
+                        if (onResult != null) {
+                            onResult.accept(
+                                    true
+                            );
+                        }
+                        return;
+                    }
+
+                    int chunkCount =
+                            (maskCopy.length
+                                    + ROAD_CHUNK_BYTES
+                                    - 1)
+                                    / ROAD_CHUNK_BYTES;
+
+                    sendRoadChunk(
+                            maskCopy,
+                            roadGeneration,
+                            0,
+                            chunkCount,
+                            onResult
+                    );
+                }
+        );
+    }
+
+    private void sendRoadChunk(
+            byte[] roadMask,
+            int roadGeneration,
+            int chunkIndex,
+            int chunkCount,
+            Consumer<Boolean> onResult
+    ) {
+        int offset =
+                chunkIndex
+                        * ROAD_CHUNK_BYTES;
+
+        int length =
+                Math.min(
+                        ROAD_CHUNK_BYTES,
+                        roadMask.length
+                                - offset
+                );
+
+        if (length <= 0
+                || chunkIndex >= chunkCount) {
+
+            if (onResult != null) {
+                onResult.accept(
+                        true
+                );
+            }
+            return;
+        }
+
+        byte[] chunk =
+                new byte[length];
+
+        System.arraycopy(
+                roadMask,
+                offset,
+                chunk,
+                0,
+                length
+        );
+
+        Map<Integer, PebbleDictionaryItem> dictionary =
+                new HashMap<>();
+
+        dictionary.put(
+                KEY_MAP_ROADS_GENERATION,
+                new PebbleDictionaryItem.Int32(
+                        roadGeneration
+                )
+        );
+
+        dictionary.put(
+                KEY_MAP_ROADS_CHUNK_INDEX,
+                new PebbleDictionaryItem.Int32(
+                        chunkIndex
+                )
+        );
+
+        dictionary.put(
+                KEY_MAP_ROADS_CHUNK_COUNT,
+                new PebbleDictionaryItem.Int32(
+                        chunkCount
+                )
+        );
+
+        dictionary.put(
+                KEY_MAP_ROADS_CHUNK_DATA,
+                new PebbleDictionaryItem.Bytes(
+                        chunk
+                )
+        );
+
+        sendDictionary(
+                dictionary,
+                "mini map roads "
+                        + (chunkIndex + 1)
+                        + "/"
+                        + chunkCount,
+                delivered -> {
+                    if (!delivered) {
+                        if (onResult != null) {
+                            onResult.accept(
+                                    false
+                            );
+                        }
+                        return;
+                    }
+
+                    int nextIndex =
+                            chunkIndex + 1;
+
+                    if (nextIndex >= chunkCount) {
+                        if (onResult != null) {
+                            onResult.accept(
+                                    true
+                            );
+                        }
+                        return;
+                    }
+
+                    sendRoadChunk(
+                            roadMask,
+                            roadGeneration,
+                            nextIndex,
+                            chunkCount,
+                            onResult
+                    );
+                }
         );
     }
 
@@ -425,7 +605,8 @@ final class CaminoPebbleBridge
                         safeText(
                                 value
                         )
-        ));
+                )
+        );
     }
 
     private void putOptionalInt32(
