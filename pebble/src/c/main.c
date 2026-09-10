@@ -12,11 +12,12 @@
 #define UNKNOWN_METRIC ((int32_t)0x80000000)
 
 #define MAP_PAYLOAD_MAX 192
-#define MAP_ROAD_WIDTH 100
-#define MAP_ROAD_HEIGHT 114
+#define MAP_ROAD_WIDTH 200
+#define MAP_ROAD_HEIGHT 228
 #define MAP_ROAD_BYTES ((MAP_ROAD_WIDTH * MAP_ROAD_HEIGHT + 7) / 8)
 #define MAP_ROAD_CHUNK_BYTES 160
-#define MAP_ROAD_MAX_CHUNKS 16
+#define MAP_ROAD_MAX_CHUNKS 40
+#define MAP_ROAD_COMPRESSED_MAX (MAP_ROAD_BYTES + ((MAP_ROAD_BYTES + 127) / 128) + 8)
 
 /* Keep the Nasu-style touch physics that already feels good on PT2. */
 #define SCROLL_Q8 256
@@ -114,6 +115,8 @@ static size_t s_map_payload_len;
 static int s_map_position_east;
 static int s_map_position_north;
 static uint8_t s_road_mask[MAP_ROAD_BYTES];
+static uint8_t s_road_compressed[MAP_ROAD_COMPRESSED_MAX];
+static size_t s_road_compressed_len;
 static bool s_road_mask_valid;
 static int32_t s_road_generation;
 static int32_t s_road_receiving_generation;
@@ -378,19 +381,25 @@ static GPoint map_point(GRect b,int east,int north){
 #endif
     int cx=b.origin.x+b.size.w/2;
     int cy=b.origin.y+b.size.h/2;
-    /* Let the graphics layer clip rotated geometry naturally at the edge. */
     return GPoint(cx+right,cy-forward);
 }
 
+/*
+ * Android has already supersampled the PMTiles roads at 4x resolution and
+ * reduced them to one road bit per physical Pebble pixel. The watch only
+ * rotates that geometry. Tiny round samples fill the sub-pixel holes that
+ * otherwise appear during arbitrary compass rotations.
+ */
 static void draw_road_mask(GContext*ctx,GRect b){
     if(!s_road_mask_valid)return;
+    graphics_context_set_antialiased(ctx,true);
     graphics_context_set_fill_color(ctx,GColorDarkGray);
     for(int y=0;y<MAP_ROAD_HEIGHT;y++){
         for(int x=0;x<MAP_ROAD_WIDTH;x++){
             int bit=y*MAP_ROAD_WIDTH+x;
             if(!(s_road_mask[bit>>3]&(1u<<(bit&7))))continue;
-            int east=x*2-(MAP_ROAD_WIDTH-1);
-            int north=(MAP_ROAD_HEIGHT-1)-y*2;
+            int east=x-MAP_ROAD_WIDTH/2;
+            int north=MAP_ROAD_HEIGHT/2-y;
             GPoint p=map_point(b,east,north);
             graphics_fill_circle(ctx,p,1);
         }
@@ -411,10 +420,14 @@ static void draw_distance_grid(GContext*ctx,GRect b){
     }
 }
 
+/* Round caps at every vector vertex remove square/stair-stepped joins. */
 static void draw_map_polyline(GContext*ctx,GRect b,size_t offset,int pairs,bool breaks,GColor color,int width){
     bool have=false;
     GPoint prev=GPoint(0,0);
+    int radius=width>1?(width+1)/2:0;
+    graphics_context_set_antialiased(ctx,true);
     graphics_context_set_stroke_color(ctx,color);
+    graphics_context_set_fill_color(ctx,color);
     graphics_context_set_stroke_width(ctx,width);
     for(int i=0;i<pairs;i++){
         if(offset+1>=s_map_payload_len)break;
@@ -422,6 +435,7 @@ static void draw_map_polyline(GContext*ctx,GRect b,size_t offset,int pairs,bool 
         if(breaks&&east==-128&&north==-128){have=false;continue;}
         GPoint p=map_point(b,east,north);
         if(have)graphics_draw_line(ctx,prev,p);
+        if(radius>0)graphics_fill_circle(ctx,p,radius);
         prev=p;
         have=true;
     }
@@ -449,6 +463,7 @@ static void draw_position_marker(GContext*ctx,GPoint p){
 }
 
 static void draw_map(GContext*ctx,GRect b){
+    graphics_context_set_antialiased(ctx,true);
     update_map_position_from_payload();
     draw_road_mask(ctx,b);
 
@@ -493,7 +508,7 @@ static void finish_page_scroll(bool committed){cancel_page_scroll_timer();if(com
     update_heart_rate_sampling();
 #endif
 } s_page_neighbor=-1;s_page_direction=0;s_page_position_q8=0;s_page_target_q8=0;s_page_velocity_q8=0;s_page_scroll_mode=PAGE_SCROLL_IDLE;reset_page_layers();update_compass_sampling();dirty();}
-static void page_scroll_tick(void*c){s_page_scroll_timer=NULL;if(s_page_scroll_mode==PAGE_SCROLL_IDLE)return;int32_t force=(s_page_target_q8-s_page_position_q8)*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_NUM:SCROLL_SNAP_SPRING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_DEN:SCROLL_SNAP_DAMPING_DEN);s_page_velocity_q8+=force;s_page_velocity_q8=s_page_velocity_q8*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_NUM:SCROLL_SNAP_DAMPING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_DEN:SCROLL_SNAP_DAMPING_DEN);s_page_velocity_q8=clamp_symmetric_i32(s_page_velocity_q8,SCROLL_MAX_VELOCITY_Q8);s_page_position_q8+=s_page_velocity_q8;update_page_layer_positions();if(s_page_scroll_mode==PAGE_SCROLL_SNAP&&abs_i32(s_page_target_q8-s_page_position_q8)<=SCROLL_STOP_POSITION_Q8&&abs_i32(s_page_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8){bool committed=s_page_target_q8!=0&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page;finish_page_scroll(committed);return;}schedule_page_scroll();}
+static void page_scroll_tick(void*c){s_page_scroll_timer=NULL;if(s_page_scroll_mode==PAGE_SCROLL_IDLE)return;int32_t force=(s_page_target_q8-s_page_position_q8)*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_NUM:SCROLL_SNAP_SPRING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_SPRING_DEN:SCROLL_SNAP_SPRING_DEN);s_page_velocity_q8+=force;s_page_velocity_q8=s_page_velocity_q8*(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_NUM:SCROLL_SNAP_DAMPING_NUM)/(s_page_scroll_mode==PAGE_SCROLL_TOUCH?SCROLL_FINGER_DAMPING_DEN:SCROLL_SNAP_DAMPING_DEN);s_page_velocity_q8=clamp_symmetric_i32(s_page_velocity_q8,SCROLL_MAX_VELOCITY_Q8);s_page_position_q8+=s_page_velocity_q8;update_page_layer_positions();if(s_page_scroll_mode==PAGE_SCROLL_SNAP&&abs_i32(s_page_target_q8-s_page_position_q8)<=SCROLL_STOP_POSITION_Q8&&abs_i32(s_page_velocity_q8)<=SCROLL_STOP_VELOCITY_Q8){bool committed=s_page_target_q8!=0&&s_page_neighbor>=PAGE_DASHBOARD&&s_page_neighbor<=PAGE_MAP&&s_page_neighbor!=s_page;finish_page_scroll(committed);return;}schedule_page_scroll();}
 static void schedule_page_scroll(void){if(!s_page_scroll_timer&&s_page_scroll_mode!=PAGE_SCROLL_IDLE)s_page_scroll_timer=app_timer_register(SCROLL_FRAME_MS,page_scroll_tick,NULL);}
 static bool prepare_page_neighbor(int dir){int n=s_page+dir;if(n<PAGE_DASHBOARD||n>PAGE_MAP){s_page_neighbor=-1;s_page_direction=dir;return false;}s_page_neighbor=n;s_page_direction=dir;if(s_page_layers[n]){layer_set_hidden(s_page_layers[n],false);set_page_layer_x(n,dir*page_width());layer_mark_dirty(s_page_layers[n]);}return true;}
 static void start_page_touch(int dir){if(s_page_scroll_mode!=PAGE_SCROLL_IDLE)return;prepare_page_neighbor(dir);s_page_position_q8=s_page_target_q8=s_page_velocity_q8=0;s_page_scroll_mode=PAGE_SCROLL_TOUCH;schedule_page_scroll();}
@@ -528,8 +543,29 @@ static void tick_handler(struct tm*t,TimeUnits u){update_clock(t);update_steps()
 static void copy_text(DictionaryIterator*it,uint32_t key,char*dst,size_t n){Tuple*t=dict_find(it,key);if(t&&dst&&n)snprintf(dst,n,"%s",t->value->cstring);}
 static void copy_int32(DictionaryIterator*it,uint32_t key,int32_t*dst){Tuple*t=dict_find(it,key);if(t&&dst)*dst=t->value->int32;}
 static void copy_map_vector(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_VECTOR);if(!t)return;size_t n=t->length;if(n>sizeof(s_map_payload))n=sizeof(s_map_payload);memcpy(s_map_payload,t->value->data,n);s_map_payload_len=n;}
-static void note_road_generation(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION);if(!t)return;int32_t g=t->value->int32;if(g<=0){s_road_generation=s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;s_road_mask_valid=false;return;}if(g!=s_road_generation&&g!=s_road_receiving_generation){s_road_mask_valid=false;s_road_receiving_generation=g;s_road_expected_chunks=s_road_received_chunks=0;}}
-static void copy_road_chunk(DictionaryIterator*it){Tuple*data=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_DATA),*gt=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION),*itx=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_INDEX),*ct=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_COUNT);if(!data||!gt||!itx||!ct)return;int32_t g=gt->value->int32;int idx=itx->value->int32,count=ct->value->int32;if(g<=0||idx<0||count<=0||count>MAP_ROAD_MAX_CHUNKS||idx>=count)return;if(idx==0||g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=count;s_road_received_chunks=0;s_road_mask_valid=false;memset(s_road_mask,0,sizeof(s_road_mask));}if(g!=s_road_receiving_generation||count!=s_road_expected_chunks||idx!=s_road_received_chunks)return;size_t off=(size_t)idx*MAP_ROAD_CHUNK_BYTES,n=data->length;if(off+n>sizeof(s_road_mask))return;memcpy(s_road_mask+off,data->value->data,n);s_road_received_chunks++;if(s_road_received_chunks==s_road_expected_chunks){s_road_mask_valid=off+n==sizeof(s_road_mask);if(s_road_mask_valid)s_road_generation=g;s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;}}
+
+static bool decompress_road_mask(size_t compressed_len){
+    size_t in=0,out=0;
+    memset(s_road_mask,0,sizeof(s_road_mask));
+    while(in<compressed_len&&out<sizeof(s_road_mask)){
+        uint8_t control=s_road_compressed[in++];
+        size_t count=(size_t)(control&0x7f)+1u;
+        if(control&0x80){
+            if(out+count>sizeof(s_road_mask))return false;
+            memset(s_road_mask+out,0,count);
+            out+=count;
+        }else{
+            if(in+count>compressed_len||out+count>sizeof(s_road_mask))return false;
+            memcpy(s_road_mask+out,s_road_compressed+in,count);
+            in+=count;
+            out+=count;
+        }
+    }
+    return in==compressed_len&&out==sizeof(s_road_mask);
+}
+
+static void note_road_generation(DictionaryIterator*it){Tuple*t=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION);if(!t)return;int32_t g=t->value->int32;if(g<=0){s_road_generation=s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;s_road_mask_valid=false;return;}if(g!=s_road_generation&&g!=s_road_receiving_generation){s_road_mask_valid=false;s_road_receiving_generation=g;s_road_expected_chunks=s_road_received_chunks=0;s_road_compressed_len=0;}}
+static void copy_road_chunk(DictionaryIterator*it){Tuple*data=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_DATA),*gt=dict_find(it,MESSAGE_KEY_MAP_ROADS_GENERATION),*itx=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_INDEX),*ct=dict_find(it,MESSAGE_KEY_MAP_ROADS_CHUNK_COUNT);if(!data||!gt||!itx||!ct)return;int32_t g=gt->value->int32;int idx=itx->value->int32,count=ct->value->int32;if(g<=0||idx<0||count<=0||count>MAP_ROAD_MAX_CHUNKS||idx>=count)return;if(idx==0||g!=s_road_receiving_generation){s_road_receiving_generation=g;s_road_expected_chunks=count;s_road_received_chunks=0;s_road_compressed_len=0;s_road_mask_valid=false;}if(g!=s_road_receiving_generation||count!=s_road_expected_chunks||idx!=s_road_received_chunks)return;size_t off=(size_t)idx*MAP_ROAD_CHUNK_BYTES,n=data->length;if(off+n>sizeof(s_road_compressed))return;memcpy(s_road_compressed+off,data->value->data,n);s_road_received_chunks++;if(s_road_received_chunks==s_road_expected_chunks){s_road_compressed_len=off+n;s_road_mask_valid=decompress_road_mask(s_road_compressed_len);if(s_road_mask_valid)s_road_generation=g;s_road_receiving_generation=0;s_road_expected_chunks=s_road_received_chunks=0;}}
 static bool stop_fields_present(DictionaryIterator*it){return dict_find(it,MESSAGE_KEY_STOP_NAME)||dict_find(it,MESSAGE_KEY_STOP_TIME)||dict_find(it,MESSAGE_KEY_STOP_DISTANCE)||dict_find(it,MESSAGE_KEY_STOP_PERCENT);}
 static void copy_stop_fields(DictionaryIterator*it,StopView*v){if(!v)return;copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);}
 static void inbox_received(DictionaryIterator*it,void*c){copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));copy_int32(it,MESSAGE_KEY_TEMP_CURRENT_TENTHS,&s_temp_current);copy_int32(it,MESSAGE_KEY_TEMP_MIN_TENTHS,&s_temp_min);copy_int32(it,MESSAGE_KEY_TEMP_MAX_TENTHS,&s_temp_max);copy_int32(it,MESSAGE_KEY_SUNRISE_MINUTES,&s_sunrise_minutes);copy_int32(it,MESSAGE_KEY_SUNSET_MINUTES,&s_sunset_minutes);copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);copy_int32(it,MESSAGE_KEY_ROUTE_PROGRESS_PERCENT,&s_route_progress_percent);if(stop_fields_present(it)){StopView old=s_stop,incoming=s_stop;copy_stop_fields(it,&incoming);s_stop=incoming;if(s_stop_request_pending){int d=s_stop_request_delta;s_stop_request_pending=false;s_stop_request_delta=0;cancel_stop_request_timeout();begin_stop_animation(d,&old);}}copy_map_vector(it);note_road_generation(it);copy_road_chunk(it);Tuple*show=dict_find(it,MESSAGE_KEY_SHOW_MAP_ONCE);if(show&&show->value->int32)show_map_once();dirty();}
