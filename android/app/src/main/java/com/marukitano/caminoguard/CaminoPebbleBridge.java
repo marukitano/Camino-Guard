@@ -58,6 +58,7 @@ final class CaminoPebbleBridge
     private static final int KEY_MAP_ROADS_CHUNK_INDEX = 26;
     private static final int KEY_MAP_ROADS_CHUNK_COUNT = 27;
     private static final int KEY_MAP_ROADS_CHUNK_DATA = 28;
+    private static final int KEY_STOP_IS_GOAL = 29;
 
     private final JavaPebbleSender sender;
     private final CaminoPebbleWeatherClient weatherClient;
@@ -259,6 +260,8 @@ final class CaminoPebbleBridge
             String arrivalTime,
             String remainingDistance,
             Integer routePercent,
+            Integer temperatureCurrentTenths,
+            boolean isGoal,
             Consumer<Boolean> onResult
     ) {
         Map<Integer, PebbleDictionaryItem> dictionary =
@@ -286,6 +289,18 @@ final class CaminoPebbleBridge
                 dictionary,
                 KEY_STOP_PERCENT,
                 routePercent
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_TEMP_CURRENT_TENTHS,
+                temperatureCurrentTenths
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_STOP_IS_GOAL,
+                isGoal ? 1 : 0
         );
 
         sendDictionary(
