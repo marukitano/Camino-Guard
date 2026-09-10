@@ -335,15 +335,24 @@ static void health_handler(HealthEventType e,void*c){if(e==HealthEventHeartRateU
 
 #if defined(PBL_COMPASS)
 static void compass_handler(CompassHeadingData data){
-    /* Freeze the visual heading during a page slide, but keep the last good value. */
-    if(s_page==PAGE_MAP&&s_page_scroll_mode!=PAGE_SCROLL_IDLE)return;
     bool valid=data.compass_status==CompassStatusCalibrating||data.compass_status==CompassStatusCalibrated;
     CompassHeading h=data.magnetic_heading;
     if(!valid||h<0||h>=TRIG_MAX_ANGLE)return;
+
+    /*
+     * Never throw compass samples away during a swipe. Keep the newest heading
+     * for the frame that will be built after the page settles, but do not ask
+     * the expensive map renderer to run while the finger/slide is active.
+     */
     s_heading=h;
     s_heading_valid=true;
     s_map_frame_dirty=true;
-    if(s_page==PAGE_MAP&&s_page_layers[PAGE_MAP])layer_mark_dirty(s_page_layers[PAGE_MAP]);
+
+    bool can_redraw=s_page==PAGE_MAP&&s_page_scroll_mode==PAGE_SCROLL_IDLE;
+#if defined(PBL_TOUCH)
+    can_redraw=can_redraw&&!s_touch_active;
+#endif
+    if(can_redraw&&s_page_layers[PAGE_MAP])layer_mark_dirty(s_page_layers[PAGE_MAP]);
 }
 static void start_compass_sampling(void){
     if(s_compass_subscribed)return;
@@ -520,24 +529,21 @@ static void draw_map(GContext*ctx,GRect b){
     prepare_map_transform();
     draw_road_bitmap(ctx,b);
 
-    GColor camino_outline=GColorFromHEX(0x000055);
-    GColor camino_core=GColorFromHEX(0x55AAFF);
-
     if(s_map_payload_len>=5&&s_map_payload[0]==2){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            /* 5 px light-blue Camino plus roughly 3 px dark-blue casing. */
-            draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);
-            draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);
+            /* Blue Camino with a 3 px yellow casing on each side. */
+            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,11);
+            draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
         }
     }else if(s_map_payload_len>=3&&s_map_payload[0]==1){
         int rp=s_map_payload[1],tp=s_map_payload[2];
         size_t ro=3,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
         if(need<=s_map_payload_len){
-            draw_map_polyline(ctx,b,ro,rp,true,camino_outline,11);
-            draw_map_polyline(ctx,b,ro,rp,true,camino_core,5);
+            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,11);
+            draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
             draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
         }
     }
@@ -580,8 +586,11 @@ static void timetable_update_proc(Layer*l,GContext*c){GRect b=layer_get_bounds(l
 static void map_update_proc(Layer*l,GContext*c){
     GRect b=layer_get_bounds(l);
     bool settled=s_page==PAGE_MAP&&s_page_scroll_mode==PAGE_SCROLL_IDLE&&layer_get_frame(l).origin.x==0;
+#if defined(PBL_TOUCH)
+    /* From touch-down onward, behave like Nasu: only move the retained frame. */
+    settled=settled&&!s_touch_active;
+#endif
     if(!settled){
-        /* Exactly the Nasu rule: while flying, move one already-built image. */
         if(draw_cached_map_frame(c,b))return;
         page_background(c,b);
         draw_distance_grid(c,b);
