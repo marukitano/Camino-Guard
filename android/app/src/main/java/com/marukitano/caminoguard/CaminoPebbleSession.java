@@ -1,5 +1,8 @@
 package com.marukitano.caminoguard;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import java.lang.ref.WeakReference;
 
 /**
@@ -13,6 +16,9 @@ import java.lang.ref.WeakReference;
  */
 final class CaminoPebbleSession {
 
+    private static final long MAP_PAGE_SETTLE_MS =
+            450L;
+
     interface Listener {
         void onPebbleOpened();
         void onPebbleClosed();
@@ -23,8 +29,12 @@ final class CaminoPebbleSession {
     private static WeakReference<Listener> listenerRef =
             new WeakReference<>(null);
 
+    private static final Handler mainHandler =
+            new Handler(Looper.getMainLooper());
+
     private static boolean watchOpen;
     private static int page;
+    private static int pageDispatchGeneration;
 
     private CaminoPebbleSession() {
     }
@@ -41,7 +51,7 @@ final class CaminoPebbleSession {
                 && watchOpen) {
 
             listener.onPebbleOpened();
-            listener.onPebblePageChanged(
+            dispatchPageChangedLocked(
                     page
             );
         }
@@ -62,6 +72,8 @@ final class CaminoPebbleSession {
         page =
                 0;
 
+        pageDispatchGeneration++;
+
         Listener listener =
                 listenerRef.get();
 
@@ -76,6 +88,8 @@ final class CaminoPebbleSession {
     static synchronized void watchClosed() {
         watchOpen =
                 false;
+
+        pageDispatchGeneration++;
 
         Listener listener =
                 listenerRef.get();
@@ -97,12 +111,58 @@ final class CaminoPebbleSession {
                         )
                 );
 
+        int requestedGeneration =
+                ++pageDispatchGeneration;
+
+        if (page != 2) {
+            dispatchPageChangedLocked(
+                    page
+            );
+            return;
+        }
+
+        /*
+         * Screen 3 can require several KB of compressed road geometry. The
+         * watch sends its target page when the Nasu-style snap starts, not
+         * after the slide has finished. Starting that transfer immediately
+         * competes with the 16 ms animation loop and can make a valid swipe
+         * look as if the large map is pushing itself on-screen in slow motion.
+         * Give the page transition a short head start; a newer page command
+         * invalidates this delayed dispatch automatically.
+         */
+        mainHandler.postDelayed(
+                () -> dispatchSettledMapPage(
+                        requestedGeneration
+                ),
+                MAP_PAGE_SETTLE_MS
+        );
+    }
+
+    private static synchronized void dispatchSettledMapPage(
+            int requestedGeneration
+    ) {
+        if (!watchOpen
+                || page != 2
+                || requestedGeneration
+                != pageDispatchGeneration) {
+
+            return;
+        }
+
+        dispatchPageChangedLocked(
+                2
+        );
+    }
+
+    private static void dispatchPageChangedLocked(
+            int changedPage
+    ) {
         Listener listener =
                 listenerRef.get();
 
         if (listener != null) {
             listener.onPebblePageChanged(
-                    page
+                    changedPage
             );
         }
     }
