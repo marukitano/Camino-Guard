@@ -446,7 +446,7 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     GRect single_line_box=GRect(0,0,1000,TIMETABLE_NAME_H);
     GSize single_line_size=graphics_text_layout_get_content_size(name,f,single_line_box,GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft);
     bool one_line=single_line_size.w<=name_box.size.w;
-    if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+14;
+    if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+12;
     graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);
 
     draw_timetable_value(ctx,b,v->distance,TIMETABLE_DISTANCE_Y+off,"KM");
