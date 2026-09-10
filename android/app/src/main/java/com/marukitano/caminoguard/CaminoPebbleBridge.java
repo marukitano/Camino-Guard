@@ -261,7 +261,7 @@ final class CaminoPebbleBridge
             String remainingDistance,
             Integer routePercent,
             Integer temperatureCurrentTenths,
-            boolean isGoal,
+            int endpointFlags,
             Consumer<Boolean> onResult
     ) {
         Map<Integer, PebbleDictionaryItem> dictionary =
@@ -297,10 +297,11 @@ final class CaminoPebbleBridge
                 temperatureCurrentTenths
         );
 
+        /* Bit 0 = goal, bit 1 = start. The message key stays wire-compatible. */
         putOptionalInt32(
                 dictionary,
                 KEY_STOP_IS_GOAL,
-                isGoal ? 1 : 0
+                endpointFlags & 0x3
         );
 
         sendDictionary(
