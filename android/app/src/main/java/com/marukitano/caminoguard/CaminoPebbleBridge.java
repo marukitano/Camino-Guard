@@ -49,7 +49,9 @@ final class CaminoPebbleBridge
     private static final int KEY_STOP_PERCENT = 19;
     private static final int KEY_MAP_VECTOR = 20;
     private static final int KEY_ROUTE_PROGRESS_PERCENT = 23;
+    private static final int KEY_SHOW_MAP_ONCE = 24;
 
+    private final Context appContext;
     private final JavaPebbleSender sender;
     private final CaminoPebbleWeatherClient weatherClient;
     private final LibreLinkUpStore libreStore;
@@ -57,7 +59,7 @@ final class CaminoPebbleBridge
     CaminoPebbleBridge(
             Context context
     ) {
-        Context appContext =
+        appContext =
                 context.getApplicationContext();
 
         sender =
@@ -74,6 +76,10 @@ final class CaminoPebbleBridge
                 new LibreLinkUpStore(
                         appContext
                 );
+    }
+
+    Context appContext() {
+        return appContext;
     }
 
     void requestWeather(
@@ -274,11 +280,23 @@ final class CaminoPebbleBridge
             byte[] payload,
             Consumer<Boolean> onResult
     ) {
+        sendMiniMap(
+                payload,
+                false,
+                onResult
+        );
+    }
+
+    synchronized void sendMiniMap(
+            byte[] payload,
+            boolean showMapOnce,
+            Consumer<Boolean> onResult
+    ) {
         if (payload == null
                 || payload.length == 0) {
 
             payload =
-                    new byte[]{1, 0, 0};
+                    new byte[]{2, 0, 0, 0, 0, 0, 0};
         }
 
         Map<Integer, PebbleDictionaryItem> dictionary =
@@ -291,9 +309,20 @@ final class CaminoPebbleBridge
                 )
         );
 
+        if (showMapOnce) {
+            dictionary.put(
+                    KEY_SHOW_MAP_ONCE,
+                    new PebbleDictionaryItem.Int32(
+                            1
+                    )
+            );
+        }
+
         sendDictionary(
                 dictionary,
-                "mini map",
+                showMapOnce
+                        ? "off-route mini map"
+                        : "mini map",
                 onResult
         );
     }
@@ -396,8 +425,7 @@ final class CaminoPebbleBridge
                         safeText(
                                 value
                         )
-                )
-        );
+        ));
     }
 
     private void putOptionalInt32(
