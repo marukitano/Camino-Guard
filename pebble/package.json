@@ -36,7 +36,8 @@
       "MAP_VECTOR": 20,
       "WATCH_PAGE": 21,
       "WATCH_STOP_DELTA": 22,
-      "ROUTE_PROGRESS_PERCENT": 23
+      "ROUTE_PROGRESS_PERCENT": 23,
+      "SHOW_MAP_ONCE": 24
     },
     "resources": {
       "media": [
