@@ -1,6 +1,7 @@
 package com.marukitano.caminoguard;
 
 import android.content.Context;
+import android.location.Location;
 import android.util.Log;
 
 import java.util.HashMap;
@@ -14,12 +15,11 @@ import io.rebble.pebblekit2.common.model.PebbleDictionaryItem;
 import io.rebble.pebblekit2.common.model.TransmissionResult;
 import io.rebble.pebblekit2.common.model.WatchIdentifier;
 
-
 /**
  * Android -> Camino Guard Pebble bridge.
  *
- * The watch is a presentation endpoint. Navigation and LibreLinkUp logic stay
- * on Android.
+ * The watchapp is a presentation endpoint. Navigation, route progress and ETA
+ * stay Android-owned. The bridge only serializes already-calculated values.
  */
 final class CaminoPebbleBridge
         implements AutoCloseable {
@@ -32,51 +32,58 @@ final class CaminoPebbleBridge
                     "5d2f1422-7b95-4951-b7ce-d122783a58d4"
             );
 
-    /*
-     * Must match pebble/package.json.
-     */
-    private static final int KEY_GLUCOSE =
-            0;
-
-    private static final int KEY_NEXT_DISTANCE =
-            1;
-
-    private static final int KEY_NEXT_TIME =
-            2;
-
-    private static final int KEY_CURRENT_SPEED =
-            3;
-
-    private static final int KEY_ALARM_ACTIVE =
-            4;
-
-    private static final int KEY_ROUTE_VALID =
-            5;
-
-    private static final int KEY_NEXT_NAME =
-            6;
-
-    private static final int KEY_FLAT_SPEED =
-            7;
-
+    /* Must match pebble/package.json. */
+    private static final int KEY_GLUCOSE = 0;
+    private static final int KEY_CURRENT_SPEED = 3;
+    private static final int KEY_TEMP_CURRENT_TENTHS = 8;
+    private static final int KEY_TEMP_MIN_TENTHS = 9;
+    private static final int KEY_TEMP_MAX_TENTHS = 10;
+    private static final int KEY_SUNRISE_MINUTES = 11;
+    private static final int KEY_SUNSET_MINUTES = 12;
+    private static final int KEY_ELEVATION_CURRENT = 13;
+    private static final int KEY_ELEVATION_MIN = 14;
+    private static final int KEY_ELEVATION_MAX = 15;
+    private static final int KEY_STOP_NAME = 16;
+    private static final int KEY_STOP_TIME = 17;
+    private static final int KEY_STOP_DISTANCE = 18;
+    private static final int KEY_STOP_PERCENT = 19;
+    private static final int KEY_MAP_VECTOR = 20;
 
     private final JavaPebbleSender sender;
-
+    private final CaminoPebbleWeatherClient weatherClient;
 
     CaminoPebbleBridge(
             Context context
     ) {
+        Context appContext =
+                context.getApplicationContext();
+
         sender =
                 new DefaultJavaPebbleSender(
-                        context.getApplicationContext()
+                        appContext
+                );
+
+        weatherClient =
+                new CaminoPebbleWeatherClient(
+                        appContext
                 );
     }
 
+    void requestWeather(
+            Location location,
+            Consumer<CaminoPebbleWeatherClient.Snapshot> callback
+    ) {
+        weatherClient.request(
+                location,
+                callback
+        );
+    }
 
     synchronized void sendGlucose(
             String glucoseText
     ) {
-        if (glucoseText == null
+        if (!CaminoPebbleSession.isWatchOpen()
+                || glucoseText == null
                 || glucoseText.trim().isEmpty()) {
 
             return;
@@ -92,78 +99,27 @@ final class CaminoPebbleBridge
                 )
         );
 
-        try {
-            sender.sendDataToPebble(
-                    APP_UUID,
-                    dictionary,
-                    result -> {
-                        if (!transmissionSucceeded(
-                                result
-                        )) {
-                            Log.d(
-                                    TAG,
-                                    "Glucose not delivered to Pebble: "
-                                            + result
-                            );
-
-                        } else {
-                            Log.d(
-                                    TAG,
-                                    "Glucose sent to Pebble: "
-                                            + glucoseText
-                            );
-                        }
-                    }
-            );
-
-        } catch (RuntimeException error) {
-            /*
-             * Pebble communication is never allowed to affect GPS or Libre.
-             */
-            Log.w(
-                    TAG,
-                    "Could not send glucose to Pebble",
-                    error
-            );
-        }
+        sendDictionary(
+                dictionary,
+                "glucose",
+                null
+        );
     }
 
-
-    synchronized void sendRouteState(
-            String nextName,
-            String nextDistance,
-            String nextTime,
+    synchronized void sendDashboardState(
             String currentSpeed,
-            String flatSpeed,
-            Boolean alarmActive,
-            Boolean routeValid,
+            Integer temperatureCurrentTenths,
+            Integer temperatureMinTenths,
+            Integer temperatureMaxTenths,
+            Integer sunriseMinutes,
+            Integer sunsetMinutes,
+            Integer elevationCurrentM,
+            Integer elevationMinM,
+            Integer elevationMaxM,
             Consumer<Boolean> onResult
     ) {
         Map<Integer, PebbleDictionaryItem> dictionary =
                 new HashMap<>();
-
-        /*
-         * Pebble's receiver treats a missing tuple as "keep the previous
-         * value". Therefore a null argument means this key did not change and
-         * does not need to consume AppMessage bandwidth.
-         */
-        putOptionalText(
-                dictionary,
-                KEY_NEXT_NAME,
-                nextName
-        );
-
-        putOptionalText(
-                dictionary,
-                KEY_NEXT_DISTANCE,
-                nextDistance
-        );
-
-        putOptionalText(
-                dictionary,
-                KEY_NEXT_TIME,
-                nextTime
-        );
 
         putOptionalText(
                 dictionary,
@@ -171,36 +127,138 @@ final class CaminoPebbleBridge
                 currentSpeed
         );
 
-        putOptionalText(
+        putOptionalInt32(
                 dictionary,
-                KEY_FLAT_SPEED,
-                flatSpeed
+                KEY_TEMP_CURRENT_TENTHS,
+                temperatureCurrentTenths
         );
 
-        /*
-         * The current Pebble C receiver reads these values as strings.
-         */
+        putOptionalInt32(
+                dictionary,
+                KEY_TEMP_MIN_TENTHS,
+                temperatureMinTenths
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_TEMP_MAX_TENTHS,
+                temperatureMaxTenths
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_SUNRISE_MINUTES,
+                sunriseMinutes
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_SUNSET_MINUTES,
+                sunsetMinutes
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_ELEVATION_CURRENT,
+                elevationCurrentM
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_ELEVATION_MIN,
+                elevationMinM
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_ELEVATION_MAX,
+                elevationMaxM
+        );
+
+        sendDictionary(
+                dictionary,
+                "dashboard",
+                onResult
+        );
+    }
+
+    synchronized void sendTimetableStop(
+            String name,
+            String arrivalTime,
+            String remainingDistance,
+            Integer routePercent,
+            Consumer<Boolean> onResult
+    ) {
+        Map<Integer, PebbleDictionaryItem> dictionary =
+                new HashMap<>();
+
         putOptionalText(
                 dictionary,
-                KEY_ALARM_ACTIVE,
-                alarmActive == null
-                        ? null
-                        : alarmActive
-                        ? "1"
-                        : "0"
+                KEY_STOP_NAME,
+                name
         );
 
         putOptionalText(
                 dictionary,
-                KEY_ROUTE_VALID,
-                routeValid == null
-                        ? null
-                        : routeValid
-                        ? "1"
-                        : "0"
+                KEY_STOP_TIME,
+                arrivalTime
         );
 
-        if (dictionary.isEmpty()) {
+        putOptionalText(
+                dictionary,
+                KEY_STOP_DISTANCE,
+                remainingDistance
+        );
+
+        putOptionalInt32(
+                dictionary,
+                KEY_STOP_PERCENT,
+                routePercent
+        );
+
+        sendDictionary(
+                dictionary,
+                "timetable stop",
+                onResult
+        );
+    }
+
+    synchronized void sendMiniMap(
+            byte[] payload,
+            Consumer<Boolean> onResult
+    ) {
+        if (payload == null
+                || payload.length == 0) {
+
+            payload =
+                    new byte[]{1, 0, 0};
+        }
+
+        Map<Integer, PebbleDictionaryItem> dictionary =
+                new HashMap<>();
+
+        dictionary.put(
+                KEY_MAP_VECTOR,
+                new PebbleDictionaryItem.Bytes(
+                        payload
+                )
+        );
+
+        sendDictionary(
+                dictionary,
+                "mini map",
+                onResult
+        );
+    }
+
+    private void sendDictionary(
+            Map<Integer, PebbleDictionaryItem> dictionary,
+            String label,
+            Consumer<Boolean> onResult
+    ) {
+        if (dictionary == null
+                || dictionary.isEmpty()) {
+
             if (onResult != null) {
                 onResult.accept(
                         true
@@ -221,9 +279,10 @@ final class CaminoPebbleBridge
                                 );
 
                         if (!delivered) {
-                            Log.w(
+                            Log.d(
                                     TAG,
-                                    "Route state not delivered to Pebble: "
+                                    label
+                                            + " not delivered to Pebble: "
                                             + result
                             );
                         }
@@ -237,13 +296,11 @@ final class CaminoPebbleBridge
             );
 
         } catch (RuntimeException error) {
-            /*
-             * Pebble transport is presentation only.
-             * Never let it affect GPS/navigation.
-             */
             Log.w(
                     TAG,
-                    "Could not send route state to Pebble",
+                    "Could not send "
+                            + label
+                            + " to Pebble",
                     error
             );
 
@@ -254,7 +311,6 @@ final class CaminoPebbleBridge
             }
         }
     }
-
 
     static boolean transmissionSucceeded(
             Map<WatchIdentifier, TransmissionResult> result
@@ -278,7 +334,6 @@ final class CaminoPebbleBridge
         return true;
     }
 
-
     private void putOptionalText(
             Map<Integer, PebbleDictionaryItem> dictionary,
             int key,
@@ -298,13 +353,28 @@ final class CaminoPebbleBridge
         );
     }
 
+    private void putOptionalInt32(
+            Map<Integer, PebbleDictionaryItem> dictionary,
+            int key,
+            Integer value
+    ) {
+        if (value == null) {
+            return;
+        }
+
+        dictionary.put(
+                key,
+                new PebbleDictionaryItem.Int32(
+                        value
+                )
+        );
+    }
 
     private String safeText(
             String value
     ) {
         if (value == null
-                || value.trim()
-                .isEmpty()) {
+                || value.trim().isEmpty()) {
 
             return "--";
         }
@@ -312,9 +382,10 @@ final class CaminoPebbleBridge
         return value.trim();
     }
 
-
     @Override
     public synchronized void close() {
+        weatherClient.close();
+
         try {
             sender.close();
 
