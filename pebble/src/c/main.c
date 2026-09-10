@@ -111,6 +111,8 @@ static AppTimer *s_stop_animation_timer;
 
 static uint8_t s_map_payload[MAP_PAYLOAD_MAX];
 static size_t s_map_payload_len;
+static int s_map_position_east;
+static int s_map_position_north;
 static uint8_t s_road_mask[MAP_ROAD_BYTES];
 static bool s_road_mask_valid;
 static int32_t s_road_generation;
@@ -346,24 +348,135 @@ static void draw_centered_ppf(GContext*ctx,const char*value,int y,const char*suf
 static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){char name[48];megafont_text(v?v->name:"--",name,sizeof(name));graphics_context_set_text_color(ctx,GColorWhite);GFont f=s_font_megafont_18;GSize s=graphics_text_layout_get_content_size(name,f,GRect(0,0,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter);if(s.h>58)f=s_font_megafont_14;graphics_draw_text(ctx,name,f,GRect(6,10+off,b.size.w-12,64),GTextOverflowModeWordWrap,GTextAlignmentCenter,NULL);draw_centered_ppf(ctx,v?v->time:"--",82+off,NULL,b);draw_centered_ppf(ctx,v?v->distance:"--",128+off,"KM",b);char p[16]="--";if(v&&v->percent>=0)snprintf(p,sizeof(p),"%ld",(long)v->percent);draw_centered_ppf(ctx,p,174+off,"%",b);}
 static void draw_timetable(GContext*ctx,GRect b){if(!s_stop_animating){draw_timetable_view(ctx,b,&s_stop,0);return;}int off=(int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);draw_timetable_view(ctx,b,&s_stop_previous,off);draw_timetable_view(ctx,b,&s_stop,off+s_stop_anim_direction*b.size.h);}
 
-/* North-up recovery map: one Pebble pixel equals one metre. */
-static GPoint map_point(GRect b,int east,int north){int cx=b.origin.x+b.size.w/2,cy=b.origin.y+b.size.h/2;return GPoint(clamp_i(cx+east,b.origin.x,b.origin.x+b.size.w-1),clamp_i(cy-north,b.origin.y,b.origin.y+b.size.h-1));}
-static void draw_road_mask(GContext*ctx,GRect b){if(!s_road_mask_valid)return;graphics_context_set_fill_color(ctx,GColorLightGray);for(int y=0;y<MAP_ROAD_HEIGHT;y++)for(int x=0;x<MAP_ROAD_WIDTH;x++){int bit=y*MAP_ROAD_WIDTH+x;if(s_road_mask[bit>>3]&(1u<<(bit&7)))graphics_fill_rect(ctx,GRect(b.origin.x+x*2,b.origin.y+y*2,2,2),0,GCornerNone);}}
-static void draw_distance_grid(GContext*ctx,GRect b){int cx=b.origin.x+b.size.w/2,cy=b.origin.y+b.size.h/2;graphics_context_set_stroke_color(ctx,GColorDarkGray);graphics_context_set_stroke_width(ctx,1);for(int m=-100;m<=100;m+=25){int x=cx+m;if(x>=b.origin.x&&x<b.origin.x+b.size.w)graphics_draw_line(ctx,GPoint(x,b.origin.y),GPoint(x,b.origin.y+b.size.h-1));}for(int m=-100;m<=100;m+=25){int y=cy-m;if(y>=b.origin.y&&y<b.origin.y+b.size.h)graphics_draw_line(ctx,GPoint(b.origin.x,y),GPoint(b.origin.x+b.size.w-1,y));}}
-static void draw_map_polyline(GContext*ctx,GRect b,size_t offset,int pairs,bool breaks,GColor color,int width){bool have=false;GPoint prev=GPoint(0,0);graphics_context_set_stroke_color(ctx,color);graphics_context_set_stroke_width(ctx,width);for(int i=0;i<pairs;i++){if(offset+1>=s_map_payload_len)break;int east=(int8_t)s_map_payload[offset++],north=(int8_t)s_map_payload[offset++];if(breaks&&east==-128&&north==-128){have=false;continue;}GPoint p=map_point(b,east,north);if(have)graphics_draw_line(ctx,prev,p);prev=p;have=true;}graphics_context_set_stroke_width(ctx,1);}
-static uint32_t marker_screen_angle(void){
-#if defined(PBL_COMPASS)
-    if(s_heading_valid)return(uint32_t)((TRIG_MAX_ANGLE-(uint32_t)s_heading)%TRIG_MAX_ANGLE);
-#endif
-    return 0;
+/*
+ * Heading-up recovery map. Geometry from Android is north-up and expressed
+ * around the cached road-snapshot centre. Before drawing we subtract the
+ * current user offset and rotate the world so the watch heading points up.
+ * The user therefore remains exactly in the screen centre while the map turns.
+ */
+static void update_map_position_from_payload(void){
+    s_map_position_east=0;
+    s_map_position_north=0;
+    if(s_map_payload_len>=5&&s_map_payload[0]==2){
+        s_map_position_east=(int8_t)s_map_payload[3];
+        s_map_position_north=(int8_t)s_map_payload[4];
+    }
 }
+
+static GPoint map_point(GRect b,int east,int north){
+    int local_east=east-s_map_position_east;
+    int local_north=north-s_map_position_north;
+    int right=local_east;
+    int forward=local_north;
+#if defined(PBL_COMPASS)
+    if(s_heading_valid){
+        int32_t sine=sin_lookup(s_heading);
+        int32_t cosine=cos_lookup(s_heading);
+        right=(int)(((int64_t)local_east*cosine-(int64_t)local_north*sine)/TRIG_MAX_RATIO);
+        forward=(int)(((int64_t)local_east*sine+(int64_t)local_north*cosine)/TRIG_MAX_RATIO);
+    }
+#endif
+    int cx=b.origin.x+b.size.w/2;
+    int cy=b.origin.y+b.size.h/2;
+    return GPoint(
+        clamp_i(cx+right,b.origin.x,b.origin.x+b.size.w-1),
+        clamp_i(cy-forward,b.origin.y,b.origin.y+b.size.h-1)
+    );
+}
+
+static void draw_road_mask(GContext*ctx,GRect b){
+    if(!s_road_mask_valid)return;
+    graphics_context_set_fill_color(ctx,GColorDarkGray);
+    for(int y=0;y<MAP_ROAD_HEIGHT;y++){
+        for(int x=0;x<MAP_ROAD_WIDTH;x++){
+            int bit=y*MAP_ROAD_WIDTH+x;
+            if(!(s_road_mask[bit>>3]&(1u<<(bit&7))))continue;
+            int east=x*2-(MAP_ROAD_WIDTH-1);
+            int north=(MAP_ROAD_HEIGHT-1)-y*2;
+            GPoint p=map_point(b,east,north);
+            graphics_fill_circle(ctx,p,1);
+        }
+    }
+}
+
+static void draw_distance_grid(GContext*ctx,GRect b){
+    int cx=b.origin.x+b.size.w/2,cy=b.origin.y+b.size.h/2;
+    graphics_context_set_stroke_color(ctx,GColorDarkGray);
+    graphics_context_set_stroke_width(ctx,1);
+    for(int m=-100;m<=100;m+=25){
+        int x=cx+m;
+        if(x>=b.origin.x&&x<b.origin.x+b.size.w)graphics_draw_line(ctx,GPoint(x,b.origin.y),GPoint(x,b.origin.y+b.size.h-1));
+    }
+    for(int m=-100;m<=100;m+=25){
+        int y=cy-m;
+        if(y>=b.origin.y&&y<b.origin.y+b.size.h)graphics_draw_line(ctx,GPoint(b.origin.x,y),GPoint(b.origin.x+b.size.w-1,y));
+    }
+}
+
+static void draw_map_polyline(GContext*ctx,GRect b,size_t offset,int pairs,bool breaks,GColor color,int width){
+    bool have=false;
+    GPoint prev=GPoint(0,0);
+    graphics_context_set_stroke_color(ctx,color);
+    graphics_context_set_stroke_width(ctx,width);
+    for(int i=0;i<pairs;i++){
+        if(offset+1>=s_map_payload_len)break;
+        int east=(int8_t)s_map_payload[offset++],north=(int8_t)s_map_payload[offset++];
+        if(breaks&&east==-128&&north==-128){have=false;continue;}
+        GPoint p=map_point(b,east,north);
+        if(have)graphics_draw_line(ctx,prev,p);
+        prev=p;
+        have=true;
+    }
+    graphics_context_set_stroke_width(ctx,1);
+}
+
 static void draw_position_marker(GContext*ctx,GPoint p){
 #if defined(PBL_COMPASS)
-    if(s_heading_valid&&s_marker_outline_path&&s_marker_fill_path){uint32_t a=marker_screen_angle();gpath_rotate_to(s_marker_outline_path,a);gpath_move_to(s_marker_outline_path,p);graphics_context_set_fill_color(ctx,GColorWhite);gpath_draw_filled(ctx,s_marker_outline_path);gpath_rotate_to(s_marker_fill_path,a);gpath_move_to(s_marker_fill_path,p);graphics_context_set_fill_color(ctx,GColorRed);gpath_draw_filled(ctx,s_marker_fill_path);return;}
+    if(s_heading_valid&&s_marker_outline_path&&s_marker_fill_path){
+        gpath_rotate_to(s_marker_outline_path,0);
+        gpath_move_to(s_marker_outline_path,p);
+        graphics_context_set_fill_color(ctx,GColorWhite);
+        gpath_draw_filled(ctx,s_marker_outline_path);
+        gpath_rotate_to(s_marker_fill_path,0);
+        gpath_move_to(s_marker_fill_path,p);
+        graphics_context_set_fill_color(ctx,GColorRed);
+        gpath_draw_filled(ctx,s_marker_fill_path);
+        return;
+    }
 #endif
-    graphics_context_set_fill_color(ctx,GColorWhite);graphics_fill_circle(ctx,p,7);graphics_context_set_fill_color(ctx,GColorRed);graphics_fill_circle(ctx,p,4);
+    graphics_context_set_fill_color(ctx,GColorWhite);
+    graphics_fill_circle(ctx,p,7);
+    graphics_context_set_fill_color(ctx,GColorRed);
+    graphics_fill_circle(ctx,p,4);
 }
-static void draw_map(GContext*ctx,GRect b){draw_road_mask(ctx,b);draw_distance_grid(ctx,b);int east=0,north=0;if(s_map_payload_len>=5&&s_map_payload[0]==2){int rp=s_map_payload[1],tp=s_map_payload[2];east=(int8_t)s_map_payload[3];north=(int8_t)s_map_payload[4];size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;if(need<=s_map_payload_len){draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,3);draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);}}else if(s_map_payload_len>=3&&s_map_payload[0]==1){int rp=s_map_payload[1],tp=s_map_payload[2];size_t ro=3,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;if(need<=s_map_payload_len){draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,3);draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);}}draw_position_marker(ctx,map_point(b,east,north));}
+
+static void draw_map(GContext*ctx,GRect b){
+    update_map_position_from_payload();
+    draw_road_mask(ctx,b);
+
+    if(s_map_payload_len>=5&&s_map_payload[0]==2){
+        int rp=s_map_payload[1],tp=s_map_payload[2];
+        size_t ro=5,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
+        if(need<=s_map_payload_len){
+            /* Android-style Camino: thick blue route with a visible yellow casing. */
+            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,7);
+            draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
+            draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
+        }
+    }else if(s_map_payload_len>=3&&s_map_payload[0]==1){
+        int rp=s_map_payload[1],tp=s_map_payload[2];
+        size_t ro=3,to=ro+(size_t)rp*2,need=to+(size_t)tp*2;
+        if(need<=s_map_payload_len){
+            draw_map_polyline(ctx,b,ro,rp,true,GColorYellow,7);
+            draw_map_polyline(ctx,b,ro,rp,true,GColorBlue,5);
+            draw_map_polyline(ctx,b,to,tp,false,GColorRed,3);
+        }
+    }
+
+    /* The 25 m ruler stays screen-aligned so every square remains easy to read. */
+    draw_distance_grid(ctx,b);
+    draw_position_marker(ctx,GPoint(b.origin.x+b.size.w/2,b.origin.y+b.size.h/2));
+}
 
 static void page_background(GContext*ctx,GRect b){graphics_context_set_fill_color(ctx,GColorBlack);graphics_fill_rect(ctx,b,0,GCornerNone);s_ink=GColorWhite;}
 static void dashboard_update_proc(Layer*l,GContext*c){GRect b=layer_get_bounds(l);page_background(c,b);draw_dashboard(c,b);}
