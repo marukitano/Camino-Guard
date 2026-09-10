@@ -25,22 +25,16 @@ jobs:
           p = Path('pebble/src/c/main.c')
           s = p.read_text()
 
-          old = '''    /* Two-line names already center perfectly on the fixed dot. Use the font's
-           * actual line height to identify a one-line layout, then move only that
-           * text down by half a line. */
-              int line_h=fonts_get_font_height(f);
+          old = '''    int line_h=fonts_get_font_height(f);
               bool one_line=name_size.h<=line_h+2;
               if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+line_h/2;'''
-          new = '''    /* Two-line names already align correctly. Detect whether the 24/18 bold
-           * name actually fits on one line by measuring it in a very wide box;
-           * then move only one-line labels down to the same visual centre. */
-              GRect single_line_box=GRect(0,0,1000,TIMETABLE_NAME_H);
+          new = '''    GRect single_line_box=GRect(0,0,1000,TIMETABLE_NAME_H);
               GSize single_line_size=graphics_text_layout_get_content_size(name,f,single_line_box,GTextOverflowModeTrailingEllipsis,GTextAlignmentLeft);
               bool one_line=single_line_size.w<=name_box.size.w;
               if(one_line)name_box.origin.y=TIMETABLE_NAME_Y+off+14;'''
 
           if old not in s:
-              raise SystemExit('alignment anchor missing')
+              raise SystemExit('alignment code anchor missing')
 
           s = s.replace(old, new, 1)
           p.write_text(s)
