@@ -22,101 +22,15 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           p = Path('pebble/src/c/main.c')
           s = p.read_text()
-
-          old = '''static void draw_timetable_duration(GContext*ctx,GRect b,const char*value,int y){
-    int hours=0,minutes=0;
-    if(!value||sscanf(value,"%d:%d",&hours,&minutes)!=2||hours<0||minutes<0){
-        draw_timetable_value(ctx,b,value,y,NULL);
-        return;
-    }
-
-    int x=TIMETABLE_CONTENT_X;
-    char number[12];
-    s_ink=GColorWhite;
-
-    if(hours>0){
-        snprintf(number,sizeof(number),"%d",hours);
-        int w=ppf_value_width(number);
-        ppf_draw_value(ctx,number,x+w,y,GColorWhite);
-        x+=w+4;
-        int label_w=text_w("STD",1);
-        dot_text(ctx,"STD",GRect(x,y+6,label_w,12),1,GTextAlignmentLeft);
-        x+=label_w+7;
-    }
-
-    snprintf(number,sizeof(number),"%d",minutes);
-    int w=ppf_value_width(number);
-    ppf_draw_value(ctx,number,x+w,y,GColorWhite);
-    x+=w+4;
-    dot_text(ctx,"MIN",GRect(x,y+6,b.size.w-x-4,12),1,GTextAlignmentLeft);
-}
-'''
-
-          new = '''static bool parse_duration_hm(const char*value,int*hours,int*minutes){
-    if(!value||!hours||!minutes)return false;
-    int h=0,m=0;
-    const char*p=value;
-    bool have_hour=false,have_minute=false;
-    while(*p>='0'&&*p<='9'){
-        have_hour=true;
-        h=h*10+(*p-'0');
-        if(h>999)return false;
-        p++;
-    }
-    if(!have_hour||*p!=':')return false;
-    p++;
-    while(*p>='0'&&*p<='9'){
-        have_minute=true;
-        m=m*10+(*p-'0');
-        if(m>59)return false;
-        p++;
-    }
-    if(!have_minute||*p!='\\0')return false;
-    *hours=h;
-    *minutes=m;
-    return true;
-}
-
-static void draw_timetable_duration(GContext*ctx,GRect b,const char*value,int y){
-    int hours=0,minutes=0;
-    if(!parse_duration_hm(value,&hours,&minutes)){
-        draw_timetable_value(ctx,b,value,y,NULL);
-        return;
-    }
-
-    int x=TIMETABLE_CONTENT_X;
-    char number[12];
-    s_ink=GColorWhite;
-
-    if(hours>0){
-        snprintf(number,sizeof(number),"%d",hours);
-        int w=ppf_value_width(number);
-        ppf_draw_value(ctx,number,x+w,y,GColorWhite);
-        x+=w+4;
-        int label_w=text_w("STD",1);
-        dot_text(ctx,"STD",GRect(x,y+6,label_w,12),1,GTextAlignmentLeft);
-        x+=label_w+7;
-    }
-
-    snprintf(number,sizeof(number),"%d",minutes);
-    int w=ppf_value_width(number);
-    ppf_draw_value(ctx,number,x+w,y,GColorWhite);
-    x+=w+4;
-    dot_text(ctx,"MIN",GRect(x,y+6,b.size.w-x-4,12),1,GTextAlignmentLeft);
-}
-'''
-
+          old = '    int hours=0,minutes=0;\n    if(!value||sscanf(value,"%d:%d",&hours,&minutes)!=2||hours<0||minutes<0){\n        draw_timetable_value(ctx,b,value,y,NULL);\n        return;\n    }'
+          new = '    int hours=0,minutes=0;\n    bool valid=value!=NULL;\n    const char*p=value;\n    bool have_hour=false,have_minute=false;\n    if(valid){\n        while(*p>=\'0\'&&*p<=\'9\'){\n            have_hour=true;hours=hours*10+(*p-\'0\');\n            if(hours>999){valid=false;break;}\n            p++;\n        }\n        if(valid&&(!have_hour||*p!=\':\'))valid=false;\n    }\n    if(valid){\n        p++;\n        while(*p>=\'0\'&&*p<=\'9\'){\n            have_minute=true;minutes=minutes*10+(*p-\'0\');\n            if(minutes>59){valid=false;break;}\n            p++;\n        }\n        if(valid&&(!have_minute||*p!=\'\\0\'))valid=false;\n    }\n    if(!valid){\n        draw_timetable_value(ctx,b,value,y,NULL);\n        return;\n    }'
           if s.count(old) != 1:
-              raise SystemExit(f'Expected exactly one duration renderer, found {s.count(old)}')
-
+              raise SystemExit(f'Expected one sscanf duration block, found {s.count(old)}')
           s = s.replace(old, new, 1)
-
           if 'sscanf(' in s:
               raise SystemExit('sscanf still present in pebble/src/c/main.c')
-
           p.write_text(s)
           Path('.github/workflows/fix-pebble-duration-parser.yml').unlink()
           PY
