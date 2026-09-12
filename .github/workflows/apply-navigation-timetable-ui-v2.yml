@@ -1,0 +1,149 @@
+name: Apply navigation and Pebble timetable updates v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-navigation-timetable-ui-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply focused source changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              return text.replace(old, new, 1)
+
+          p = Path('android/app/src/main/java/com/marukitano/caminoguard/GpsGyroOrientationController.java')
+          s = p.read_text()
+          s = replace_once(s,
+              '    private GeoJsonSource posSource;\n    private SymbolLayer arrowLayer;',
+              '    private GeoJsonSource posSource;\n    private CircleLayer positionDotLayer;\n    private SymbolLayer arrowLayer;',
+              'gps dot field')
+          s = replace_once(s, '        CircleLayer dot=new CircleLayer(DOT,POS_SRC);', '        positionDotLayer=new CircleLayer(DOT,POS_SRC);', 'gps dot construction')
+          s = replace_once(s, '        dot.setProperties(', '        positionDotLayer.setProperties(', 'gps dot properties')
+          s = replace_once(s, '        style.addLayer(dot);', '        style.addLayer(positionDotLayer);', 'gps dot layer add')
+          s = replace_once(s,
+              '        render(state!=null?state:CaminoTrackingService.snapshot());\n    }\n\n    boolean isForegroundDirectionReady() {',
+              '''        CaminoTrackingService.Snapshot currentState =\n                state != null\n                        ? state\n                        : CaminoTrackingService.snapshot();\n\n        /* Re-seed a newly-created MapLibre style even when its GPS timestamp\n         * was already rendered before the style recreation. */\n        seedPositionSource(currentState);\n        render(currentState);\n    }\n\n    private void seedPositionSource(\n            CaminoTrackingService.Snapshot snapshot\n    ) {\n        if (posSource == null\n                || snapshot == null\n                || snapshot.location == null) {\n            return;\n        }\n\n        LatLng position =\n                new LatLng(\n                        snapshot.location.getLatitude(),\n                        snapshot.location.getLongitude()\n                );\n\n        posSource.setGeoJson(\n                Feature.fromGeometry(\n                        Point.fromLngLat(\n                                position.getLongitude(),\n                                position.getLatitude()\n                        )\n                )\n        );\n\n        displayedPosition = position;\n        if (snapshot.courseDeg != null) {\n            displayedBearing = (double) snapshot.courseDeg;\n        }\n    }\n\n    private void setPositionDotVisible(boolean visible) {\n        if (positionDotLayer == null) {\n            return;\n        }\n        positionDotLayer.setProperties(\n                PropertyFactory.circleOpacity(visible ? 1f : 0f)\n        );\n    }\n\n    boolean isForegroundDirectionReady() {''',
+              'gps style reseed')
+          s = replace_once(s,
+              '''        if (!foregroundDirectionReady) {\n            arrowLayer.setProperties(''',
+              '''        if (!foregroundDirectionReady) {\n            setPositionDotVisible(state.location != null);\n            arrowLayer.setProperties(''',
+              'gps fallback warmup')
+          s = replace_once(s,
+              '''        if (baseCourse == null) {\n            arrowLayer.setProperties(''',
+              '''        if (baseCourse == null) {\n            setPositionDotVisible(state.location != null);\n            arrowLayer.setProperties(''',
+              'gps fallback no course')
+          s = replace_once(s,
+              '''        lastTraceScreenAngleDeg =\n                screenAngle;\n\n        arrowLayer.setProperties(''',
+              '''        lastTraceScreenAngleDeg =\n                screenAngle;\n\n        setPositionDotVisible(false);\n        arrowLayer.setProperties(''',
+              'gps hide dot under visible arrow')
+          p.write_text(s)
+
+          p = Path('android/app/src/main/java/com/marukitano/caminoguard/CaminoPebbleRoutePublisher.java')
+          s = p.read_text()
+          s = replace_once(s, 'import java.util.ArrayList;\n', 'import java.util.ArrayList;\nimport java.util.Calendar;\n', 'publisher Calendar import')
+          s = replace_once(s,
+              '''        int endpointFlags =\n                (selectedStopIndex\n                        == stops.size() - 1\n                        ? 0x1\n                        : 0)\n                        | (selectedStopIndex == 0\n                        ? 0x2\n                        : 0);''',
+              '''        boolean passed =\n                Double.isFinite(stop.chainageM)\n                        && stop.chainageM <= currentChainageM + 0.5;\n\n        int endpointFlags =\n                (selectedStopIndex\n                        == stops.size() - 1\n                        ? 0x1\n                        : 0)\n                        | (selectedStopIndex == 0\n                        ? 0x2\n                        : 0)\n                        | (passed\n                        ? 0x4\n                        : 0);''',
+              'publisher passed flag')
+          s = replace_once(s,
+              '''                formatArrivalTime(\n                        stop.arrivalMinutesOfDay\n                ),''',
+              '''                formatRemainingDuration(\n                        stop,\n                        currentChainageM\n                ),''',
+              'publisher duration call')
+          s = replace_once(s,
+              '''    private static String formatArrivalTime(\n            int minutesOfDay\n    ) {\n        int normalized =\n                minutesOfDay\n                        % (24 * 60);\n\n        if (normalized < 0) {\n            normalized +=\n                    24 * 60;\n        }\n\n        return String.format(\n                Locale.US,\n                "%02d:%02d",\n                normalized / 60,\n                normalized % 60\n        );\n    }''',
+              '''    private static String formatRemainingDuration(\n            CaminoTimetableStop stop,\n            double currentChainageM\n    ) {\n        if (stop == null\n                || !Double.isFinite(stop.chainageM)\n                || !Double.isFinite(currentChainageM)) {\n            return "--";\n        }\n\n        if (stop.chainageM <= currentChainageM + 0.5) {\n            return "0:00";\n        }\n\n        Calendar now = Calendar.getInstance();\n        int nowMinutes =\n                now.get(Calendar.HOUR_OF_DAY) * 60\n                        + now.get(Calendar.MINUTE);\n        int remainingMinutes =\n                stop.arrivalMinutesOfDay - nowMinutes;\n\n        if (remainingMinutes < 0) {\n            remainingMinutes += 24 * 60;\n        }\n\n        return String.format(\n                Locale.US,\n                "%d:%02d",\n                remainingMinutes / 60,\n                remainingMinutes % 60\n        );\n    }''',
+              'publisher duration formatter')
+          p.write_text(s)
+
+          p = Path('android/app/src/main/java/com/marukitano/caminoguard/CaminoPebbleBridge.java')
+          s = p.read_text()
+          s = replace_once(s,
+              '        /* Bit 0 = goal, bit 1 = start. The message key stays wire-compatible. */',
+              '        /* Bit 0 = goal, bit 1 = start, bit 2 = already passed. */',
+              'bridge flags comment')
+          s = replace_once(s, '                endpointFlags & 0x3', '                endpointFlags & 0x7', 'bridge flags mask')
+          p.write_text(s)
+
+          p = Path('pebble/src/c/main.c')
+          s = p.read_text()
+          s = replace_once(s,
+              '    bool is_goal;\n    bool is_start;\n} StopView;',
+              '    bool is_goal;\n    bool is_start;\n    bool is_passed;\n} StopView;',
+              'pebble passed field')
+          s = replace_once(s, 'static StopView s_stop = {"--", "--", "--", -1, false, false};', 'static StopView s_stop = {"--", "--", "--", -1, false, false, false};', 'pebble stop init')
+          s = replace_once(s, 'static StopView s_stop_previous = {"--", "--", "--", -1, false, false};', 'static StopView s_stop_previous = {"--", "--", "--", -1, false, false, false};', 'pebble previous init')
+          s = replace_once(s, '    StopView fallback={"--","--","--",-1,false,false};', '    StopView fallback={"--","--","--",-1,false,false,false};', 'pebble fallback init')
+
+          s = replace_once(s,
+              '''    graphics_context_set_antialiased(ctx,true);\n    graphics_context_set_stroke_color(ctx,timeline);\n    graphics_context_set_fill_color(ctx,timeline);\n    graphics_context_set_stroke_width(ctx,2);\n\n    /* Start has no past below; goal has no future above. */\n    if(!v->is_goal){\n        graphics_draw_line(ctx,GPoint(line_x,top),GPoint(line_x,stop_y-TIMETABLE_STOP_RADIUS));\n    }\n    if(!v->is_start){\n        graphics_draw_line(ctx,GPoint(line_x,stop_y+TIMETABLE_STOP_RADIUS),GPoint(line_x,bottom));\n    }\n\n    graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS);\n    if(!v->is_goal&&!v->is_start){\n        graphics_context_set_fill_color(ctx,GColorBlack);\n        graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-3);\n    }''',
+              '''    graphics_context_set_antialiased(ctx,true);\n    graphics_context_set_fill_color(ctx,timeline);\n    graphics_context_set_stroke_width(ctx,2);\n\n    /* Past is below the stop and yellow; future is above and white. */\n    if(!v->is_goal){\n        graphics_context_set_stroke_color(ctx,GColorWhite);\n        graphics_draw_line(ctx,GPoint(line_x,top),GPoint(line_x,stop_y-TIMETABLE_STOP_RADIUS));\n    }\n    if(!v->is_start){\n        graphics_context_set_stroke_color(ctx,timeline);\n        graphics_draw_line(ctx,GPoint(line_x,stop_y+TIMETABLE_STOP_RADIUS),GPoint(line_x,bottom));\n    }\n\n    graphics_context_set_fill_color(ctx,timeline);\n    graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS);\n    if(!v->is_goal&&!v->is_start&&!v->is_passed){\n        graphics_context_set_fill_color(ctx,GColorBlack);\n        graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-3);\n    }''',
+              'pebble timeline')
+
+          anchor = '''static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,const char*suffix){\n    const char*shown=value&&value[0]?value:"--";\n    int vw=ppf_value_width(shown);\n    int x=TIMETABLE_CONTENT_X;\n    ppf_draw_value(ctx,shown,x+vw,y,GColorWhite);\n    if(suffix&&suffix[0]){\n        s_ink=GColorWhite;\n        dot_text(ctx,suffix,GRect(x+vw+5,y+6,b.size.w-(x+vw+5)-4,12),1,GTextAlignmentLeft);\n    }\n}\n'''
+          duration = anchor + '''\nstatic void draw_timetable_duration(GContext*ctx,GRect b,const char*value,int y){\n    int hours=0,minutes=0;\n    if(!value||sscanf(value,"%d:%d",&hours,&minutes)!=2||hours<0||minutes<0){\n        draw_timetable_value(ctx,b,value,y,NULL);\n        return;\n    }\n\n    int x=TIMETABLE_CONTENT_X;\n    char number[12];\n    s_ink=GColorWhite;\n\n    if(hours>0){\n        snprintf(number,sizeof(number),"%d",hours);\n        int w=ppf_value_width(number);\n        ppf_draw_value(ctx,number,x+w,y,GColorWhite);\n        x+=w+4;\n        int label_w=text_w("STD",1);\n        dot_text(ctx,"STD",GRect(x,y+6,label_w,12),1,GTextAlignmentLeft);\n        x+=label_w+7;\n    }\n\n    snprintf(number,sizeof(number),"%d",minutes);\n    int w=ppf_value_width(number);\n    ppf_draw_value(ctx,number,x+w,y,GColorWhite);\n    x+=w+4;\n    dot_text(ctx,"MIN",GRect(x,y+6,b.size.w-x-4,12),1,GTextAlignmentLeft);\n}\n'''
+          s = replace_once(s, anchor, duration, 'pebble duration renderer')
+          s = replace_once(s, '    draw_timetable_value(ctx,b,v->time,TIMETABLE_TIME_Y+off,NULL);', '    draw_timetable_duration(ctx,b,v->time,TIMETABLE_TIME_Y+off);', 'pebble duration row')
+          s = replace_once(s,
+              '    if(endpoint){int32_t flags=endpoint->value->int32;v->is_goal=(flags&0x1)!=0;v->is_start=(flags&0x2)!=0;}',
+              '    if(endpoint){int32_t flags=endpoint->value->int32;v->is_goal=(flags&0x1)!=0;v->is_start=(flags&0x2)!=0;v->is_passed=(flags&0x4)!=0;}',
+              'pebble decode passed')
+
+          s = replace_once(s,
+              'static void format_int_value(int32_t v,char*d,size_t n){if(!d||!n)return;if(!metric_known(v))snprintf(d,n,"--");else snprintf(d,n,"%ld",(long)v);}\n',
+              '''static void format_int_value(int32_t v,char*d,size_t n){if(!d||!n)return;if(!metric_known(v))snprintf(d,n,"--");else snprintf(d,n,"%ld",(long)v);}\n\nstatic void progress_row(GContext*ctx,int y,int32_t percent,GColor color,GRect b){\n    int row_y=y+2;\n    int clamped=metric_known(percent)?clamp_i((int)percent,0,100):0;\n    int w=b.size.w*clamped/100;\n    if(w>0){graphics_context_set_fill_color(ctx,color);graphics_fill_rect(ctx,GRect(0,row_y,w,PPF_VALUE_HEIGHT),0,GCornerNone);}\n    char value[16]="--";\n    if(metric_known(percent))snprintf(value,sizeof(value),"%d",clamped);\n    int value_w=ppf_value_width(value),x=4;\n    ppf_draw_value(ctx,value,x+value_w,row_y,GColorWhite);\n    s_ink=GColorWhite;\n    dot_text(ctx,"%",GRect(x+value_w+3,row_y+6,b.size.w-(x+value_w+3),12),1,GTextAlignmentLeft);\n}\n''',
+              'pebble progress helper')
+          s = replace_once(s,
+              '    char heart[16]="--",glucose[16]="--",age[8]="",speed[16]="--",temp[16]="--",steps[16]="--",elev[16]="--",progress[16]="--";',
+              '    char heart[16]="--",glucose[16]="--",age[8]="",speed[16]="--",temp[16]="--",steps[16]="--",elev[16]="--";',
+              'pebble progress local')
+          s = replace_once(s,
+              'if(metric_known(s_temp_current)){int r=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;snprintf(temp,sizeof(temp),"%d",r);}if(s_steps>=0)snprintf(steps,sizeof(steps),"%d",s_steps);format_int_value(s_elevation_current,elev,sizeof(elev));if(metric_known(s_route_progress_percent))snprintf(progress,sizeof(progress),"%ld",(long)clamp_i((int)s_route_progress_percent,0,100));',
+              'if(metric_known(s_temp_current)){int r=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;snprintf(temp,sizeof(temp),"%d",r);}if(s_steps>=0)snprintf(steps,sizeof(steps),"%d",s_steps);format_int_value(s_elevation_current,elev,sizeof(elev));',
+              'pebble progress format')
+          s = replace_once(s,
+              ',elevf=fraction_between(s_elevation_current,s_elevation_min,s_elevation_max),pf=metric_known(s_route_progress_percent)?clamp_i((int)s_route_progress_percent,0,100)*10:0;',
+              ',elevf=fraction_between(s_elevation_current,s_elevation_min,s_elevation_max);',
+              'pebble progress fraction')
+          s = replace_once(s,
+              'live_row(ctx,197,DASH_ICON_PROGRESS,progress,pf,GColorBlue,b,"%");',
+              'progress_row(ctx,197,s_route_progress_percent,GColorBlue,b);',
+              'pebble progress call')
+          p.write_text(s)
+
+          for workflow in [
+              '.github/workflows/apply-navigation-timetable-ui.yml',
+              '.github/workflows/apply-navigation-timetable-ui-v2.yml'
+          ]:
+              Path(workflow).unlink(missing_ok=True)
+          PY
+
+      - name: Compile Android Java
+        working-directory: android
+        run: ./gradlew :app:compileDebugJavaWithJavac
+
+      - name: Commit source changes
+        shell: bash
+        run: |
+          git config user.name 'Camino Guard Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix live marker and refine Pebble progress timetable'
+          git push
