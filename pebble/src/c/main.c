@@ -466,7 +466,7 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     StopView fallback={"--","--","--",-1,false,false,false};
     if(!v)v=&fallback;
 
-    GColor timeline=GColorFromHEX(0xFFDD69);
+    GColor timeline=GColorFromHEX(0xD98A2B);
     int line_x=b.origin.x+TIMETABLE_LINE_X;
     int stop_y=b.origin.y+TIMETABLE_STOP_Y+off;
     int top=b.origin.y+off;
@@ -476,7 +476,7 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     graphics_context_set_fill_color(ctx,timeline);
     graphics_context_set_stroke_width(ctx,2);
 
-    /* Past is below the stop and yellow; future is above and white. */
+    /* Past is below the stop and orange; future is above and white. */
     if(!v->is_goal){
         graphics_context_set_stroke_color(ctx,GColorWhite);
         graphics_draw_line(ctx,GPoint(line_x,top),GPoint(line_x,stop_y-TIMETABLE_STOP_RADIUS));
@@ -488,7 +488,7 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
 
     graphics_context_set_fill_color(ctx,timeline);
     graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS);
-    if(!v->is_goal&&!v->is_start&&!v->is_passed){
+    if(!v->is_start&&!v->is_passed){
         graphics_context_set_fill_color(ctx,GColorBlack);
         graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-3);
     }
