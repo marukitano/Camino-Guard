@@ -334,14 +334,22 @@ static void format_int_value(int32_t v,char*d,size_t n){if(!d||!n)return;if(!met
 static void progress_row(GContext*ctx,int y,int32_t percent,GColor color,GRect b){
     int row_y=y+2;
     int clamped=metric_known(percent)?clamp_i((int)percent,0,100):0;
-    int w=b.size.w*clamped/100;
-    if(w>0){graphics_context_set_fill_color(ctx,color);graphics_fill_rect(ctx,GRect(0,row_y,w,PPF_VALUE_HEIGHT),0,GCornerNone);}
+
     char value[16]="--";
     if(metric_known(percent))snprintf(value,sizeof(value),"%d",clamped);
-    int value_w=ppf_value_width(value),x=4;
+
+    int value_w=ppf_value_width(value);
+    int min_w=value_w+8;
+    int w=b.size.w*clamped/100;
+
+    if(w<min_w)w=min_w;
+    if(w>b.size.w)w=b.size.w;
+
+    graphics_context_set_fill_color(ctx,color);
+    graphics_fill_rect(ctx,GRect(0,row_y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
+
+    int x=4;
     ppf_draw_value(ctx,value,x+value_w,row_y,GColorWhite);
-    s_ink=GColorWhite;
-    dot_text(ctx,"%",GRect(x+value_w+3,row_y+6,b.size.w-(x+value_w+3),12),1,GTextAlignmentLeft);
 }
 
 static void update_clock(struct tm*t){struct tm local;if(!t){time_t now=time(NULL);local=*localtime(&now);t=&local;}if(clock_is_24h_style())strftime(s_time_text,sizeof(s_time_text),"%H:%M",t);else{strftime(s_time_text,sizeof(s_time_text),"%I:%M",t);if(s_time_text[0]=='0')memmove(s_time_text,s_time_text+1,strlen(s_time_text));}}
@@ -410,7 +418,7 @@ static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,con
     ppf_draw_value(ctx,shown,x+vw,y,GColorWhite);
     if(suffix&&suffix[0]){
         s_ink=GColorWhite;
-        dot_text(ctx,suffix,GRect(x+vw+5,y+6,b.size.w-(x+vw+5)-4,12),1,GTextAlignmentLeft);
+        dot_text(ctx,suffix,GRect(x+vw+5,y+3,b.size.w-(x+vw+5)-4,24),2,GTextAlignmentLeft);
     }
 }
 
@@ -450,8 +458,8 @@ static void draw_timetable_duration(GContext*ctx,GRect b,const char*value,int y)
         int w=ppf_value_width(number);
         ppf_draw_value(ctx,number,x+w,y,GColorWhite);
         x+=w+4;
-        int label_w=text_w("STD",1);
-        dot_text(ctx,"STD",GRect(x,y+6,label_w,12),1,GTextAlignmentLeft);
+        int label_w=text_w("STD",2);
+        dot_text(ctx,"STD",GRect(x,y+3,label_w,24),2,GTextAlignmentLeft);
         x+=label_w+7;
     }
 
@@ -459,7 +467,7 @@ static void draw_timetable_duration(GContext*ctx,GRect b,const char*value,int y)
     int w=ppf_value_width(number);
     ppf_draw_value(ctx,number,x+w,y,GColorWhite);
     x+=w+4;
-    dot_text(ctx,"MIN",GRect(x,y+6,b.size.w-x-4,12),1,GTextAlignmentLeft);
+    dot_text(ctx,"MIN",GRect(x,y+3,b.size.w-x-4,24),2,GTextAlignmentLeft);
 }
 
 static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
@@ -476,13 +484,12 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     graphics_context_set_fill_color(ctx,timeline);
     graphics_context_set_stroke_width(ctx,2);
 
-    /* Past is below the stop and orange; future is above and white. */
+    /* All timeline segments use the same orange color. */
+    graphics_context_set_stroke_color(ctx,timeline);
     if(!v->is_goal){
-        graphics_context_set_stroke_color(ctx,GColorWhite);
         graphics_draw_line(ctx,GPoint(line_x,top),GPoint(line_x,stop_y-TIMETABLE_STOP_RADIUS));
     }
     if(!v->is_start){
-        graphics_context_set_stroke_color(ctx,timeline);
         graphics_draw_line(ctx,GPoint(line_x,stop_y+TIMETABLE_STOP_RADIUS),GPoint(line_x,bottom));
     }
 
@@ -518,14 +525,14 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
 
     char p[16]="--";
     if(v->percent>=0)snprintf(p,sizeof(p),"%ld",(long)clamp_i((int)v->percent,0,100));
-    draw_timetable_value(ctx,b,p,TIMETABLE_PROGRESS_Y+off,"%");
+    draw_timetable_value(ctx,b,p,TIMETABLE_PROGRESS_Y+off,NULL);
 
     char temp[16]="--";
     if(metric_known(s_temp_current)){
         int rounded=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;
         snprintf(temp,sizeof(temp),"%d",rounded);
     }
-    draw_timetable_value(ctx,b,temp,TIMETABLE_TEMP_Y+off,"C");
+    draw_timetable_value(ctx,b,temp,TIMETABLE_TEMP_Y+off,NULL);
 }
 
 static int stop_offset_px(void){return (int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);}
