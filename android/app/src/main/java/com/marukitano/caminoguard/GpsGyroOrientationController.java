@@ -89,6 +89,7 @@ public final class GpsGyroOrientationController
 
     private MapLibreMap map;
     private GeoJsonSource posSource;
+    private CircleLayer positionDotLayer;
     private SymbolLayer arrowLayer;
     private CaminoTrackingService.Snapshot state;
     private final LiveNavigationCameraController liveNavigationCameraController;
@@ -171,8 +172,8 @@ public final class GpsGyroOrientationController
     public void onStyleLoaded(Style style){
         posSource=new GeoJsonSource(POS_SRC); style.addSource(posSource);
 
-        CircleLayer dot=new CircleLayer(DOT,POS_SRC);
-        dot.setProperties(
+        positionDotLayer=new CircleLayer(DOT,POS_SRC);
+        positionDotLayer.setProperties(
                 /*
                  * Keep the position source/layer intact for the proven GPS
                  * pipeline, but do not render the old debug position dot.
@@ -182,7 +183,7 @@ public final class GpsGyroOrientationController
                 PropertyFactory.circleColor(Color.parseColor("#F5C98E")),
                 PropertyFactory.circleStrokeColor(Color.parseColor("#3D332C")),
                 PropertyFactory.circleStrokeWidth(2.2f));
-        style.addLayer(dot);
+        style.addLayer(positionDotLayer);
 
         style.addImage(
                 ARROW_IMG,
@@ -201,7 +202,54 @@ public final class GpsGyroOrientationController
                 PropertyFactory.iconOpacity(0f));
         style.addLayer(arrowLayer);
 
-        render(state!=null?state:CaminoTrackingService.snapshot());
+        CaminoTrackingService.Snapshot currentState =
+                state != null
+                        ? state
+                        : CaminoTrackingService.snapshot();
+
+        /* Re-seed a newly-created MapLibre style even when its GPS timestamp
+         * was already rendered before the style recreation. */
+        seedPositionSource(currentState);
+        render(currentState);
+    }
+
+    private void seedPositionSource(
+            CaminoTrackingService.Snapshot snapshot
+    ) {
+        if (posSource == null
+                || snapshot == null
+                || snapshot.location == null) {
+            return;
+        }
+
+        LatLng position =
+                new LatLng(
+                        snapshot.location.getLatitude(),
+                        snapshot.location.getLongitude()
+                );
+
+        posSource.setGeoJson(
+                Feature.fromGeometry(
+                        Point.fromLngLat(
+                                position.getLongitude(),
+                                position.getLatitude()
+                        )
+                )
+        );
+
+        displayedPosition = position;
+        if (snapshot.courseDeg != null) {
+            displayedBearing = (double) snapshot.courseDeg;
+        }
+    }
+
+    private void setPositionDotVisible(boolean visible) {
+        if (positionDotLayer == null) {
+            return;
+        }
+        positionDotLayer.setProperties(
+                PropertyFactory.circleOpacity(visible ? 1f : 0f)
+        );
     }
 
     boolean isForegroundDirectionReady() {
@@ -453,6 +501,7 @@ public final class GpsGyroOrientationController
          * that we deliberately do not trust yet.
          */
         if (!foregroundDirectionReady) {
+            setPositionDotVisible(state.location != null);
             arrowLayer.setProperties(
                     PropertyFactory.iconImage(
                             ARROW_IMG
@@ -480,6 +529,7 @@ public final class GpsGyroOrientationController
         }
 
         if (baseCourse == null) {
+            setPositionDotVisible(state.location != null);
             arrowLayer.setProperties(
                     PropertyFactory.iconImage(
                             ARROW_IMG
@@ -548,6 +598,7 @@ public final class GpsGyroOrientationController
         lastTraceScreenAngleDeg =
                 screenAngle;
 
+        setPositionDotVisible(false);
         arrowLayer.setProperties(
                 PropertyFactory.iconImage(
                         ARROW_IMG

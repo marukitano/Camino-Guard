@@ -6,6 +6,7 @@ import android.os.SystemClock;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
@@ -794,6 +795,10 @@ final class CaminoPebbleRoutePublisher
                     );
         }
 
+        boolean passed =
+                Double.isFinite(stop.chainageM)
+                        && stop.chainageM <= currentChainageM + 0.5;
+
         int endpointFlags =
                 (selectedStopIndex
                         == stops.size() - 1
@@ -801,6 +806,9 @@ final class CaminoPebbleRoutePublisher
                         : 0)
                         | (selectedStopIndex == 0
                         ? 0x2
+                        : 0)
+                        | (passed
+                        ? 0x4
                         : 0);
 
         forceStopSend =
@@ -808,8 +816,9 @@ final class CaminoPebbleRoutePublisher
 
         bridge.sendTimetableStop(
                 stop.name,
-                formatArrivalTime(
-                        stop.arrivalMinutesOfDay
+                formatRemainingDuration(
+                        stop,
+                        currentChainageM
                 ),
                 formatDistance(
                         Math.abs(
@@ -1719,23 +1728,36 @@ final class CaminoPebbleRoutePublisher
         );
     }
 
-    private static String formatArrivalTime(
-            int minutesOfDay
+    private static String formatRemainingDuration(
+            CaminoTimetableStop stop,
+            double currentChainageM
     ) {
-        int normalized =
-                minutesOfDay
-                        % (24 * 60);
+        if (stop == null
+                || !Double.isFinite(stop.chainageM)
+                || !Double.isFinite(currentChainageM)) {
+            return "--";
+        }
 
-        if (normalized < 0) {
-            normalized +=
-                    24 * 60;
+        if (stop.chainageM <= currentChainageM + 0.5) {
+            return "0:00";
+        }
+
+        Calendar now = Calendar.getInstance();
+        int nowMinutes =
+                now.get(Calendar.HOUR_OF_DAY) * 60
+                        + now.get(Calendar.MINUTE);
+        int remainingMinutes =
+                stop.arrivalMinutesOfDay - nowMinutes;
+
+        if (remainingMinutes < 0) {
+            remainingMinutes += 24 * 60;
         }
 
         return String.format(
                 Locale.US,
-                "%02d:%02d",
-                normalized / 60,
-                normalized % 60
+                "%d:%02d",
+                remainingMinutes / 60,
+                remainingMinutes % 60
         );
     }
 

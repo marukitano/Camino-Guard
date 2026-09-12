@@ -81,6 +81,7 @@ typedef struct {
     int32_t percent;
     bool is_goal;
     bool is_start;
+    bool is_passed;
 } StopView;
 
 enum DashboardIcon {
@@ -119,8 +120,8 @@ static int32_t s_elevation_min = UNKNOWN_METRIC;
 static int32_t s_elevation_max = UNKNOWN_METRIC;
 static int32_t s_route_progress_percent = UNKNOWN_METRIC;
 
-static StopView s_stop = {"--", "--", "--", -1, false, false};
-static StopView s_stop_previous = {"--", "--", "--", -1, false, false};
+static StopView s_stop = {"--", "--", "--", -1, false, false, false};
+static StopView s_stop_previous = {"--", "--", "--", -1, false, false, false};
 static bool s_stop_request_pending;
 static int s_stop_request_delta;
 static int s_stop_queued_delta;
@@ -330,6 +331,19 @@ static int metric_bar(GContext *ctx,int y,int fraction,GColor color,GRect b,int 
 static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b,const char *suffix){int row_y=y+2,value_w=ppf_value_width(value),suffix_w=suffix&&suffix[0]?text_w(suffix,1):0,suffix_gap=suffix_w?2:0;int limit=b.size.w-2-value_w-suffix_gap-suffix_w-4;if(limit<30)limit=30;int bar_w=metric_bar(ctx,row_y,fraction,color,b,limit);draw_dashboard_icon(ctx,kind,row_y);int value_x=bar_w+2;ppf_draw_value(ctx,value,value_x+value_w,row_y,GColorWhite);if(suffix_w){int x=value_x+value_w+suffix_gap;s_ink=GColorWhite;dot_text(ctx,suffix,GRect(x,row_y+6,b.size.w-x,12),1,GTextAlignmentLeft);}}
 static void format_int_value(int32_t v,char*d,size_t n){if(!d||!n)return;if(!metric_known(v))snprintf(d,n,"--");else snprintf(d,n,"%ld",(long)v);}
 
+static void progress_row(GContext*ctx,int y,int32_t percent,GColor color,GRect b){
+    int row_y=y+2;
+    int clamped=metric_known(percent)?clamp_i((int)percent,0,100):0;
+    int w=b.size.w*clamped/100;
+    if(w>0){graphics_context_set_fill_color(ctx,color);graphics_fill_rect(ctx,GRect(0,row_y,w,PPF_VALUE_HEIGHT),0,GCornerNone);}
+    char value[16]="--";
+    if(metric_known(percent))snprintf(value,sizeof(value),"%d",clamped);
+    int value_w=ppf_value_width(value),x=4;
+    ppf_draw_value(ctx,value,x+value_w,row_y,GColorWhite);
+    s_ink=GColorWhite;
+    dot_text(ctx,"%",GRect(x+value_w+3,row_y+6,b.size.w-(x+value_w+3),12),1,GTextAlignmentLeft);
+}
+
 static void update_clock(struct tm*t){struct tm local;if(!t){time_t now=time(NULL);local=*localtime(&now);t=&local;}if(clock_is_24h_style())strftime(s_time_text,sizeof(s_time_text),"%H:%M",t);else{strftime(s_time_text,sizeof(s_time_text),"%I:%M",t);if(s_time_text[0]=='0')memmove(s_time_text,s_time_text+1,strlen(s_time_text));}}
 static int current_minutes_of_day(void){time_t now=time(NULL);struct tm*l=localtime(&now);return l?l->tm_hour*60+l->tm_min:0;}
 static void update_steps(void){
@@ -381,12 +395,12 @@ static void stop_compass_sampling(void){}
 static void update_compass_sampling(void){if(s_page==PAGE_MAP)start_compass_sampling();else stop_compass_sampling();}
 
 static void draw_dashboard(GContext *ctx,GRect b){
-    char heart[16]="--",glucose[16]="--",age[8]="",speed[16]="--",temp[16]="--",steps[16]="--",elev[16]="--",progress[16]="--";
+    char heart[16]="--",glucose[16]="--",age[8]="",speed[16]="--",temp[16]="--",steps[16]="--",elev[16]="--";
     if(s_heart_rate>0)snprintf(heart,sizeof(heart),"%d",s_heart_rate);int gt=0,st=0;bool hg=parse_tenths(s_glucose_text,&gt),hs=parse_tenths(s_speed_text,&st);
     if(hg)snprintf(glucose,sizeof(glucose),"%d.%d",gt/10,gt%10);if(hs)snprintf(speed,sizeof(speed),"%d.%d",st/10,st%10);format_age_short(parse_age_minutes(s_glucose_text),age,sizeof(age));
-    if(metric_known(s_temp_current)){int r=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;snprintf(temp,sizeof(temp),"%d",r);}if(s_steps>=0)snprintf(steps,sizeof(steps),"%d",s_steps);format_int_value(s_elevation_current,elev,sizeof(elev));if(metric_known(s_route_progress_percent))snprintf(progress,sizeof(progress),"%ld",(long)clamp_i((int)s_route_progress_percent,0,100));
-    int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0,gf=hg?(clamp_i(gt,20,140)-20)*1000/120:0,sf=hs?clamp_i(st,0,80)*1000/80:0,tf=fraction_between(s_temp_current,s_temp_min,s_temp_max),stepf=s_steps<0?0:clamp_i(s_steps,0,10000)*1000/10000,timef=fraction_between(current_minutes_of_day(),s_sunrise_minutes,s_sunset_minutes),elevf=fraction_between(s_elevation_current,s_elevation_min,s_elevation_max),pf=metric_known(s_route_progress_percent)?clamp_i((int)s_route_progress_percent,0,100)*10:0;
-    live_row(ctx,1,DASH_ICON_HEART,heart,hf,s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed,b,NULL);live_row(ctx,29,DASH_ICON_GLUCOSE,glucose,gf,hg?glucose_bar_color(gt):GColorGreen,b,age);live_row(ctx,57,DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL);live_row(ctx,85,DASH_ICON_TEMP,temp,tf,GColorOrange,b,NULL);live_row(ctx,113,DASH_ICON_STEPS,steps,stepf,GColorGreen,b,NULL);live_row(ctx,141,DASH_ICON_TIME,s_time_text,timef,GColorYellow,b,NULL);live_row(ctx,169,DASH_ICON_ELEVATION,elev,elevf,GColorCyan,b,NULL);live_row(ctx,197,DASH_ICON_PROGRESS,progress,pf,GColorBlue,b,"%");
+    if(metric_known(s_temp_current)){int r=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;snprintf(temp,sizeof(temp),"%d",r);}if(s_steps>=0)snprintf(steps,sizeof(steps),"%d",s_steps);format_int_value(s_elevation_current,elev,sizeof(elev));
+    int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0,gf=hg?(clamp_i(gt,20,140)-20)*1000/120:0,sf=hs?clamp_i(st,0,80)*1000/80:0,tf=fraction_between(s_temp_current,s_temp_min,s_temp_max),stepf=s_steps<0?0:clamp_i(s_steps,0,10000)*1000/10000,timef=fraction_between(current_minutes_of_day(),s_sunrise_minutes,s_sunset_minutes),elevf=fraction_between(s_elevation_current,s_elevation_min,s_elevation_max);
+    live_row(ctx,1,DASH_ICON_HEART,heart,hf,s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed,b,NULL);live_row(ctx,29,DASH_ICON_GLUCOSE,glucose,gf,hg?glucose_bar_color(gt):GColorGreen,b,age);live_row(ctx,57,DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL);live_row(ctx,85,DASH_ICON_TEMP,temp,tf,GColorOrange,b,NULL);live_row(ctx,113,DASH_ICON_STEPS,steps,stepf,GColorGreen,b,NULL);live_row(ctx,141,DASH_ICON_TIME,s_time_text,timef,GColorYellow,b,NULL);live_row(ctx,169,DASH_ICON_ELEVATION,elev,elevf,GColorCyan,b,NULL);progress_row(ctx,197,s_route_progress_percent,GColorBlue,b);
 }
 
 static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,const char*suffix){
@@ -400,8 +414,36 @@ static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,con
     }
 }
 
+static void draw_timetable_duration(GContext*ctx,GRect b,const char*value,int y){
+    int hours=0,minutes=0;
+    if(!value||sscanf(value,"%d:%d",&hours,&minutes)!=2||hours<0||minutes<0){
+        draw_timetable_value(ctx,b,value,y,NULL);
+        return;
+    }
+
+    int x=TIMETABLE_CONTENT_X;
+    char number[12];
+    s_ink=GColorWhite;
+
+    if(hours>0){
+        snprintf(number,sizeof(number),"%d",hours);
+        int w=ppf_value_width(number);
+        ppf_draw_value(ctx,number,x+w,y,GColorWhite);
+        x+=w+4;
+        int label_w=text_w("STD",1);
+        dot_text(ctx,"STD",GRect(x,y+6,label_w,12),1,GTextAlignmentLeft);
+        x+=label_w+7;
+    }
+
+    snprintf(number,sizeof(number),"%d",minutes);
+    int w=ppf_value_width(number);
+    ppf_draw_value(ctx,number,x+w,y,GColorWhite);
+    x+=w+4;
+    dot_text(ctx,"MIN",GRect(x,y+6,b.size.w-x-4,12),1,GTextAlignmentLeft);
+}
+
 static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
-    StopView fallback={"--","--","--",-1,false,false};
+    StopView fallback={"--","--","--",-1,false,false,false};
     if(!v)v=&fallback;
 
     GColor timeline=GColorFromHEX(0xFFDD69);
@@ -411,20 +453,22 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     int bottom=b.origin.y+b.size.h-1+off;
 
     graphics_context_set_antialiased(ctx,true);
-    graphics_context_set_stroke_color(ctx,timeline);
     graphics_context_set_fill_color(ctx,timeline);
     graphics_context_set_stroke_width(ctx,2);
 
-    /* Start has no past below; goal has no future above. */
+    /* Past is below the stop and yellow; future is above and white. */
     if(!v->is_goal){
+        graphics_context_set_stroke_color(ctx,GColorWhite);
         graphics_draw_line(ctx,GPoint(line_x,top),GPoint(line_x,stop_y-TIMETABLE_STOP_RADIUS));
     }
     if(!v->is_start){
+        graphics_context_set_stroke_color(ctx,timeline);
         graphics_draw_line(ctx,GPoint(line_x,stop_y+TIMETABLE_STOP_RADIUS),GPoint(line_x,bottom));
     }
 
+    graphics_context_set_fill_color(ctx,timeline);
     graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS);
-    if(!v->is_goal&&!v->is_start){
+    if(!v->is_goal&&!v->is_start&&!v->is_passed){
         graphics_context_set_fill_color(ctx,GColorBlack);
         graphics_fill_circle(ctx,GPoint(line_x,stop_y),TIMETABLE_STOP_RADIUS-3);
     }
@@ -450,7 +494,7 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     graphics_draw_text(ctx,name,f,name_box,GTextOverflowModeWordWrap,GTextAlignmentLeft,NULL);
 
     draw_timetable_value(ctx,b,v->distance,TIMETABLE_DISTANCE_Y+off,"KM");
-    draw_timetable_value(ctx,b,v->time,TIMETABLE_TIME_Y+off,NULL);
+    draw_timetable_duration(ctx,b,v->time,TIMETABLE_TIME_Y+off);
 
     char p[16]="--";
     if(v->percent>=0)snprintf(p,sizeof(p),"%ld",(long)clamp_i((int)v->percent,0,100));
@@ -663,7 +707,7 @@ static void copy_stop_fields(DictionaryIterator*it,StopView*v){
     if(!v)return;
     copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);
     Tuple*endpoint=dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);
-    if(endpoint){int32_t flags=endpoint->value->int32;v->is_goal=(flags&0x1)!=0;v->is_start=(flags&0x2)!=0;}
+    if(endpoint){int32_t flags=endpoint->value->int32;v->is_goal=(flags&0x1)!=0;v->is_start=(flags&0x2)!=0;v->is_passed=(flags&0x4)!=0;}
 }
 static void inbox_received(DictionaryIterator*it,void*c){
     copy_text(it,MESSAGE_KEY_GLUCOSE,s_glucose_text,sizeof(s_glucose_text));copy_text(it,MESSAGE_KEY_CURRENT_SPEED,s_speed_text,sizeof(s_speed_text));copy_int32(it,MESSAGE_KEY_TEMP_CURRENT_TENTHS,&s_temp_current);copy_int32(it,MESSAGE_KEY_TEMP_MIN_TENTHS,&s_temp_min);copy_int32(it,MESSAGE_KEY_TEMP_MAX_TENTHS,&s_temp_max);copy_int32(it,MESSAGE_KEY_SUNRISE_MINUTES,&s_sunrise_minutes);copy_int32(it,MESSAGE_KEY_SUNSET_MINUTES,&s_sunset_minutes);copy_int32(it,MESSAGE_KEY_ELEVATION_CURRENT,&s_elevation_current);copy_int32(it,MESSAGE_KEY_ELEVATION_MIN,&s_elevation_min);copy_int32(it,MESSAGE_KEY_ELEVATION_MAX,&s_elevation_max);copy_int32(it,MESSAGE_KEY_ROUTE_PROGRESS_PERCENT,&s_route_progress_percent);

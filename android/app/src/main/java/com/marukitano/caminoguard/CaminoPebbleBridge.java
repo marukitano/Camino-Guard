@@ -297,11 +297,11 @@ final class CaminoPebbleBridge
                 temperatureCurrentTenths
         );
 
-        /* Bit 0 = goal, bit 1 = start. The message key stays wire-compatible. */
+        /* Bit 0 = goal, bit 1 = start, bit 2 = already passed. */
         putOptionalInt32(
                 dictionary,
                 KEY_STOP_IS_GOAL,
-                endpointFlags & 0x3
+                endpointFlags & 0x7
         );
 
         sendDictionary(
