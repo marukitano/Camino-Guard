@@ -416,7 +416,27 @@ static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,con
 
 static void draw_timetable_duration(GContext*ctx,GRect b,const char*value,int y){
     int hours=0,minutes=0;
-    if(!value||sscanf(value,"%d:%d",&hours,&minutes)!=2||hours<0||minutes<0){
+    bool valid=value!=NULL;
+    const char*p=value;
+    bool have_hour=false,have_minute=false;
+    if(valid){
+        while(*p>='0'&&*p<='9'){
+            have_hour=true;hours=hours*10+(*p-'0');
+            if(hours>999){valid=false;break;}
+            p++;
+        }
+        if(valid&&(!have_hour||*p!=':'))valid=false;
+    }
+    if(valid){
+        p++;
+        while(*p>='0'&&*p<='9'){
+            have_minute=true;minutes=minutes*10+(*p-'0');
+            if(minutes>59){valid=false;break;}
+            p++;
+        }
+        if(valid&&(!have_minute||*p!='\0'))valid=false;
+    }
+    if(!valid){
         draw_timetable_value(ctx,b,value,y,NULL);
         return;
     }
