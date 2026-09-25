@@ -57,8 +57,9 @@
 #define TIMETABLE_NAME_H 60
 #define TIMETABLE_DISTANCE_Y 70
 #define TIMETABLE_TIME_Y 108
-#define TIMETABLE_PROGRESS_Y 146
 #define TIMETABLE_TEMP_Y 184
+#define MAP_FORWARD_OFFSET_DEG 45
+#define MAP_ZOOM_LEVEL_COUNT 3
 
 #if defined(PBL_TOUCH)
 typedef enum {
@@ -78,7 +79,7 @@ typedef struct {
     char name[48];
     char time[24];
     char distance[24];
-    int32_t percent;
+    int32_t progress_percent;
     bool is_goal;
     bool is_start;
     bool is_passed;
@@ -91,8 +92,7 @@ enum DashboardIcon {
     DASH_ICON_TEMP,
     DASH_ICON_STEPS,
     DASH_ICON_TIME,
-    DASH_ICON_ELEVATION,
-    DASH_ICON_PROGRESS
+    DASH_ICON_ELEVATION
 };
 
 static Window *s_window;
@@ -141,6 +141,12 @@ static int s_map_position_east;
 static int s_map_position_north;
 static int32_t s_map_sine;
 static int32_t s_map_cosine = TRIG_MAX_RATIO;
+static const int16_t s_map_zoom_q8[MAP_ZOOM_LEVEL_COUNT] = {
+    7 * SCROLL_Q8 / 8,
+    SCROLL_Q8,
+    3 * SCROLL_Q8 / 2
+};
+static int s_map_zoom_level = 1;
 static uint8_t s_road_mask[MAP_ROAD_BYTES];
 static uint8_t s_road_compressed[MAP_ROAD_COMPRESSED_MAX];
 static size_t s_road_compressed_len;
@@ -159,13 +165,6 @@ static int s_road_received_chunks;
 static GBitmap *s_map_frame_bitmap;
 static bool s_map_frame_valid;
 static bool s_map_frame_dirty = true;
-
-static GPath *s_marker_outline_path;
-static GPath *s_marker_fill_path;
-static GPoint s_marker_outline_points[] = {{0,-13},{-8,9},{0,5},{8,9}};
-static GPoint s_marker_fill_points[] = {{0,-10},{-5,6},{0,3},{5,6}};
-static const GPathInfo s_marker_outline_info = {.num_points=4,.points=s_marker_outline_points};
-static const GPathInfo s_marker_fill_info = {.num_points=4,.points=s_marker_fill_points};
 
 static PageScrollMode s_page_scroll_mode = PAGE_SCROLL_IDLE;
 static int s_page_neighbor = -1;
@@ -322,34 +321,44 @@ static void draw_temperature_icon(GContext *ctx,GRect r){graphics_context_set_st
 static void draw_steps_icon(GContext *ctx,GRect r){graphics_context_set_fill_color(ctx,GColorBlack);graphics_fill_rect(ctx,GRect(r.origin.x+4,r.origin.y+3,6,9),2,GCornersAll);graphics_fill_circle(ctx,GPoint(r.origin.x+6,r.origin.y+14),2);graphics_fill_rect(ctx,GRect(r.origin.x+12,r.origin.y+9,6,8),2,GCornersAll);graphics_fill_circle(ctx,GPoint(r.origin.x+16,r.origin.y+5),2);}
 static void draw_clock_icon(GContext *ctx,GRect r){graphics_context_set_stroke_color(ctx,GColorBlack);graphics_context_set_stroke_width(ctx,2);GPoint c=GPoint(r.origin.x+10,r.origin.y+10);graphics_draw_circle(ctx,c,8);graphics_draw_line(ctx,c,GPoint(c.x,c.y-5));graphics_draw_line(ctx,c,GPoint(c.x+4,c.y+2));graphics_context_set_stroke_width(ctx,1);}
 static void draw_elevation_icon(GContext *ctx,GRect r){graphics_context_set_stroke_color(ctx,GColorBlack);graphics_context_set_stroke_width(ctx,2);graphics_draw_line(ctx,GPoint(r.origin.x+1,r.origin.y+17),GPoint(r.origin.x+8,r.origin.y+7));graphics_draw_line(ctx,GPoint(r.origin.x+8,r.origin.y+7),GPoint(r.origin.x+12,r.origin.y+12));graphics_draw_line(ctx,GPoint(r.origin.x+12,r.origin.y+12),GPoint(r.origin.x+16,r.origin.y+4));graphics_draw_line(ctx,GPoint(r.origin.x+16,r.origin.y+4),GPoint(r.origin.x+20,r.origin.y+17));graphics_context_set_stroke_width(ctx,1);}
-static void draw_progress_icon(GContext *ctx,GRect r){graphics_context_set_stroke_color(ctx,GColorBlack);graphics_context_set_fill_color(ctx,GColorBlack);graphics_context_set_stroke_width(ctx,2);graphics_draw_line(ctx,GPoint(r.origin.x+5,r.origin.y+16),GPoint(r.origin.x+15,r.origin.y+4));graphics_fill_circle(ctx,GPoint(r.origin.x+6,r.origin.y+5),2);graphics_fill_circle(ctx,GPoint(r.origin.x+14,r.origin.y+15),2);graphics_context_set_stroke_width(ctx,1);}
-static void draw_dashboard_icon(GContext *ctx,int kind,int y){GRect r=GRect(4,y,20,20);if(kind==DASH_ICON_HEART)draw_bitmap_icon(ctx,s_icon_heart,r);else if(kind==DASH_ICON_GLUCOSE)draw_bitmap_icon(ctx,s_icon_blood,r);else if(kind==DASH_ICON_SPEED)draw_bitmap_icon(ctx,s_icon_shoe,r);else if(kind==DASH_ICON_TEMP)draw_temperature_icon(ctx,r);else if(kind==DASH_ICON_STEPS)draw_steps_icon(ctx,r);else if(kind==DASH_ICON_TIME)draw_clock_icon(ctx,r);else if(kind==DASH_ICON_ELEVATION)draw_elevation_icon(ctx,r);else draw_progress_icon(ctx,r);}
+static void draw_dashboard_icon(GContext *ctx,int kind,int y){GRect r=GRect(4,y,20,20);if(kind==DASH_ICON_HEART)draw_bitmap_icon(ctx,s_icon_heart,r);else if(kind==DASH_ICON_GLUCOSE)draw_bitmap_icon(ctx,s_icon_blood,r);else if(kind==DASH_ICON_SPEED)draw_bitmap_icon(ctx,s_icon_shoe,r);else if(kind==DASH_ICON_TEMP)draw_temperature_icon(ctx,r);else if(kind==DASH_ICON_STEPS)draw_steps_icon(ctx,r);else if(kind==DASH_ICON_TIME)draw_clock_icon(ctx,r);else if(kind==DASH_ICON_ELEVATION)draw_elevation_icon(ctx,r);}
 
 static GColor glucose_bar_color(int v){if(v<30)return GColorRed;if(v<39)return GColorYellow;if(v<=100)return GColorGreen;if(v<140)return GColorYellow;return GColorRed;}
 static GColor heart_rate_bar_color(int bpm){int a=180*70/100,b=180*85/100;if(bpm<a)return GColorGreen;if(bpm<=b)return GColorYellow;return GColorRed;}
 static int metric_bar(GContext *ctx,int y,int fraction,GColor color,GRect b,int limit){const int min_w=30,value_lane=84;int base=b.size.w-value_lane,w=base*clamp_i(fraction,0,1000)/1000;if(w<min_w)w=min_w;int cap=limit>0?limit:base;if(cap>base)cap=base;if(cap<min_w)cap=min_w;if(w>cap)w=cap;graphics_context_set_fill_color(ctx,color);graphics_fill_rect(ctx,GRect(0,y,w,PPF_VALUE_HEIGHT),0,GCornerNone);return w;}
-static void live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b,const char *suffix){int row_y=y+2,value_w=ppf_value_width(value),suffix_w=suffix&&suffix[0]?text_w(suffix,1):0,suffix_gap=suffix_w?2:0;int limit=b.size.w-2-value_w-suffix_gap-suffix_w-4;if(limit<30)limit=30;int bar_w=metric_bar(ctx,row_y,fraction,color,b,limit);draw_dashboard_icon(ctx,kind,row_y);int value_x=bar_w+2;ppf_draw_value(ctx,value,value_x+value_w,row_y,GColorWhite);if(suffix_w){int x=value_x+value_w+suffix_gap;s_ink=GColorWhite;dot_text(ctx,suffix,GRect(x,row_y+6,b.size.w-x,12),1,GTextAlignmentLeft);}}
+static int live_row(GContext *ctx,int y,int kind,const char *value,int fraction,GColor color,GRect b,const char *suffix,int reserve){
+    int row_y=y+2,value_w=ppf_value_width(value),suffix_w=suffix&&suffix[0]?text_w(suffix,1):0,suffix_gap=suffix_w?2:0;
+    int limit=b.size.w-2-value_w-suffix_gap-suffix_w-reserve-4;
+    if(limit<30)limit=30;
+    int bar_w=metric_bar(ctx,row_y,fraction,color,b,limit);
+    draw_dashboard_icon(ctx,kind,row_y);
+    int value_x=bar_w+2;
+    ppf_draw_value(ctx,value,value_x+value_w,row_y,GColorWhite);
+    if(suffix_w){
+        int x=value_x+value_w+suffix_gap;
+        s_ink=GColorWhite;
+        dot_text(ctx,suffix,GRect(x,row_y+6,b.size.w-x,12),1,GTextAlignmentLeft);
+    }
+    return value_x+value_w;
+}
 static void format_int_value(int32_t v,char*d,size_t n){if(!d||!n)return;if(!metric_known(v))snprintf(d,n,"--");else snprintf(d,n,"%ld",(long)v);}
 
 static void progress_row(GContext*ctx,int y,int32_t percent,GColor color,GRect b){
-    int row_y=y+2;
-    int clamped=metric_known(percent)?clamp_i((int)percent,0,100):0;
-
+    int row_y=y+2,clamped=metric_known(percent)?clamp_i((int)percent,0,100):0;
     char value[16]="--";
     if(metric_known(percent))snprintf(value,sizeof(value),"%d",clamped);
 
-    int value_w=ppf_value_width(value);
-    int min_w=value_w+8;
+    int x=4,value_w=ppf_value_width(value);
+    int percent_x=x+value_w+4;
+    int min_w=percent_x+PPF_PERCENT_SYMBOL_WIDTH+4;
     int w=b.size.w*clamped/100;
-
     if(w<min_w)w=min_w;
     if(w>b.size.w)w=b.size.w;
 
     graphics_context_set_fill_color(ctx,color);
     graphics_fill_rect(ctx,GRect(0,row_y,w,PPF_VALUE_HEIGHT),0,GCornerNone);
-
-    int x=4;
     ppf_draw_value(ctx,value,x+value_w,row_y,GColorWhite);
+    ppf_draw_percent_symbol(ctx,percent_x,row_y,GColorWhite);
 }
 
 static void update_clock(struct tm*t){struct tm local;if(!t){time_t now=time(NULL);local=*localtime(&now);t=&local;}if(clock_is_24h_style())strftime(s_time_text,sizeof(s_time_text),"%H:%M",t);else{strftime(s_time_text,sizeof(s_time_text),"%I:%M",t);if(s_time_text[0]=='0')memmove(s_time_text,s_time_text+1,strlen(s_time_text));}}
@@ -404,14 +413,39 @@ static void update_compass_sampling(void){if(s_page==PAGE_MAP)start_compass_samp
 
 static void draw_dashboard(GContext *ctx,GRect b){
     char heart[16]="--",glucose[16]="--",age[8]="",speed[16]="--",temp[16]="--",steps[16]="--",elev[16]="--";
-    if(s_heart_rate>0)snprintf(heart,sizeof(heart),"%d",s_heart_rate);int gt=0,st=0;bool hg=parse_tenths(s_glucose_text,&gt),hs=parse_tenths(s_speed_text,&st);
-    if(hg)snprintf(glucose,sizeof(glucose),"%d.%d",gt/10,gt%10);if(hs)snprintf(speed,sizeof(speed),"%d.%d",st/10,st%10);format_age_short(parse_age_minutes(s_glucose_text),age,sizeof(age));
-    if(metric_known(s_temp_current)){int r=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;snprintf(temp,sizeof(temp),"%d",r);}if(s_steps>=0)snprintf(steps,sizeof(steps),"%d",s_steps);format_int_value(s_elevation_current,elev,sizeof(elev));
-    int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0,gf=hg?(clamp_i(gt,20,140)-20)*1000/120:0,sf=hs?clamp_i(st,0,80)*1000/80:0,tf=fraction_between(s_temp_current,s_temp_min,s_temp_max),stepf=s_steps<0?0:clamp_i(s_steps,0,10000)*1000/10000,timef=fraction_between(current_minutes_of_day(),s_sunrise_minutes,s_sunset_minutes),elevf=fraction_between(s_elevation_current,s_elevation_min,s_elevation_max);
-    live_row(ctx,1,DASH_ICON_HEART,heart,hf,s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed,b,NULL);live_row(ctx,29,DASH_ICON_GLUCOSE,glucose,gf,hg?glucose_bar_color(gt):GColorGreen,b,age);live_row(ctx,57,DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL);live_row(ctx,85,DASH_ICON_TEMP,temp,tf,GColorOrange,b,NULL);live_row(ctx,113,DASH_ICON_STEPS,steps,stepf,GColorGreen,b,NULL);live_row(ctx,141,DASH_ICON_TIME,s_time_text,timef,GColorYellow,b,NULL);live_row(ctx,169,DASH_ICON_ELEVATION,elev,elevf,GColorCyan,b,NULL);progress_row(ctx,197,s_route_progress_percent,GColorBlue,b);
+    if(s_heart_rate>0)snprintf(heart,sizeof(heart),"%d",s_heart_rate);
+    int gt=0,st=0;
+    bool hg=parse_tenths(s_glucose_text,&gt),hs=parse_tenths(s_speed_text,&st);
+    if(hg)snprintf(glucose,sizeof(glucose),"%d.%d",gt/10,gt%10);
+    if(hs)snprintf(speed,sizeof(speed),"%d.%d",st/10,st%10);
+    format_age_short(parse_age_minutes(s_glucose_text),age,sizeof(age));
+    if(metric_known(s_temp_current)){
+        int r=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;
+        snprintf(temp,sizeof(temp),"%d",r);
+    }
+    if(s_steps>=0)snprintf(steps,sizeof(steps),"%d",s_steps);
+    format_int_value(s_elevation_current,elev,sizeof(elev));
+
+    int hf=s_heart_rate>0?(clamp_i(s_heart_rate,40,180)-40)*1000/140:0;
+    int gf=hg?(clamp_i(gt,20,140)-20)*1000/120:0;
+    int sf=hs?clamp_i(st,0,80)*1000/80:0;
+    int tf=fraction_between(s_temp_current,s_temp_min,s_temp_max);
+    int stepf=s_steps<0?0:clamp_i(s_steps,0,10000)*1000/10000;
+    int timef=fraction_between(current_minutes_of_day(),s_sunrise_minutes,s_sunset_minutes);
+    int elevf=fraction_between(s_elevation_current,s_elevation_min,s_elevation_max);
+
+    live_row(ctx,1,DASH_ICON_HEART,heart,hf,s_heart_rate>0?heart_rate_bar_color(s_heart_rate):GColorRed,b,NULL,0);
+    live_row(ctx,29,DASH_ICON_GLUCOSE,glucose,gf,hg?glucose_bar_color(gt):GColorGreen,b,age,0);
+    live_row(ctx,57,DASH_ICON_SPEED,speed,sf,GColorBlue,b,NULL,0);
+    int temp_end=live_row(ctx,85,DASH_ICON_TEMP,temp,tf,GColorOrange,b,NULL,PPF_DEGREE_SYMBOL_WIDTH+4);
+    ppf_draw_degree_symbol(ctx,temp_end+3,87,GColorWhite);
+    live_row(ctx,113,DASH_ICON_STEPS,steps,stepf,GColorGreen,b,NULL,0);
+    live_row(ctx,141,DASH_ICON_TIME,s_time_text,timef,GColorYellow,b,NULL,0);
+    live_row(ctx,169,DASH_ICON_ELEVATION,elev,elevf,GColorCyan,b,NULL,0);
+    progress_row(ctx,197,s_route_progress_percent,GColorBlue,b);
 }
 
-static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,const char*suffix){
+static int draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,const char*suffix){
     const char*shown=value&&value[0]?value:"--";
     int vw=ppf_value_width(shown);
     int x=TIMETABLE_CONTENT_X;
@@ -420,6 +454,7 @@ static void draw_timetable_value(GContext*ctx,GRect b,const char*value,int y,con
         s_ink=GColorWhite;
         dot_text(ctx,suffix,GRect(x+vw+5,y+3,b.size.w-(x+vw+5)-4,24),2,GTextAlignmentLeft);
     }
+    return x+vw;
 }
 
 static void draw_timetable_duration(GContext*ctx,GRect b,const char*value,int y){
@@ -484,13 +519,20 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     graphics_context_set_fill_color(ctx,timeline);
     graphics_context_set_stroke_width(ctx,2);
 
-    /* All timeline segments use the same orange color. */
     graphics_context_set_stroke_color(ctx,timeline);
     if(!v->is_goal){
         graphics_draw_line(ctx,GPoint(line_x,top),GPoint(line_x,stop_y-TIMETABLE_STOP_RADIUS));
     }
     if(!v->is_start){
         graphics_draw_line(ctx,GPoint(line_x,stop_y+TIMETABLE_STOP_RADIUS),GPoint(line_x,bottom));
+    }
+
+    if(!v->is_start&&v->progress_percent>=0){
+        int progress=clamp_i((int)v->progress_percent,0,100);
+        int track_bottom=bottom-3;
+        int dot_y=track_bottom-(track_bottom-stop_y)*progress/100;
+        graphics_context_set_fill_color(ctx,GColorYellow);
+        graphics_fill_circle(ctx,GPoint(line_x,dot_y),3);
     }
 
     graphics_context_set_fill_color(ctx,timeline);
@@ -523,16 +565,13 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
     draw_timetable_value(ctx,b,v->distance,TIMETABLE_DISTANCE_Y+off,"KM");
     draw_timetable_duration(ctx,b,v->time,TIMETABLE_TIME_Y+off);
 
-    char p[16]="--";
-    if(v->percent>=0)snprintf(p,sizeof(p),"%ld",(long)clamp_i((int)v->percent,0,100));
-    draw_timetable_value(ctx,b,p,TIMETABLE_PROGRESS_Y+off,NULL);
-
     char temp[16]="--";
     if(metric_known(s_temp_current)){
         int rounded=s_temp_current>=0?(s_temp_current+5)/10:(s_temp_current-5)/10;
         snprintf(temp,sizeof(temp),"%d",rounded);
     }
-    draw_timetable_value(ctx,b,temp,TIMETABLE_TEMP_Y+off,NULL);
+    int temp_end=draw_timetable_value(ctx,b,temp,TIMETABLE_TEMP_Y+off,NULL);
+    ppf_draw_degree_symbol(ctx,temp_end+3,TIMETABLE_TEMP_Y+off,GColorWhite);
 }
 
 static int stop_offset_px(void){return (int)((s_stop_position_q8+(s_stop_position_q8>=0?SCROLL_Q8/2:-SCROLL_Q8/2))/SCROLL_Q8);}
@@ -553,13 +592,21 @@ static void update_map_position_from_payload(void){
     }
 }
 
+static int map_zoom_q8(void){return s_map_zoom_q8[s_map_zoom_level];}
+
+static int map_scale_px(int meters){
+    return (int)((int64_t)meters*map_zoom_q8()/SCROLL_Q8);
+}
+
 static void prepare_map_transform(void){
     s_map_sine=0;
     s_map_cosine=TRIG_MAX_RATIO;
 #if defined(PBL_COMPASS)
     if(s_heading_valid){
-        int32_t clockwise=TRIG_MAX_ANGLE-s_heading;
+        int32_t clockwise=(int32_t)(TRIG_MAX_ANGLE-s_heading);
         if(clockwise>=TRIG_MAX_ANGLE)clockwise-=TRIG_MAX_ANGLE;
+        clockwise-=DEG_TO_TRIGANGLE(MAP_FORWARD_OFFSET_DEG);
+        if(clockwise<0)clockwise+=TRIG_MAX_ANGLE;
         s_map_sine=sin_lookup(clockwise);
         s_map_cosine=cos_lookup(clockwise);
     }
@@ -573,7 +620,7 @@ static GPoint map_point(GRect b,int east,int north){
     int forward=(int)(((int64_t)local_east*s_map_sine+(int64_t)local_north*s_map_cosine)/TRIG_MAX_RATIO);
     int cx=b.origin.x+b.size.w/2;
     int cy=b.origin.y+b.size.h/2;
-    return GPoint(cx+right,cy-forward);
+    return GPoint(cx+map_scale_px(right),cy-map_scale_px(forward));
 }
 
 static bool road_mask_at(int x,int y){
@@ -594,23 +641,32 @@ static void draw_road_bitmap(GContext*ctx,GRect b){
     GRect frame=layer_get_frame(s_page_layers[PAGE_MAP]);
     int left=frame.origin.x+b.origin.x-fbounds.origin.x;
     int top=frame.origin.y+b.origin.y-fbounds.origin.y;
-    if(!data||left<0||top<0||left+b.size.w>fbounds.size.w||top+b.size.h>fbounds.size.h){graphics_release_frame_buffer(ctx,framebuffer);return;}
+    if(!data||left<0||top<0||left+b.size.w>fbounds.size.w||top+b.size.h>fbounds.size.h){
+        graphics_release_frame_buffer(ctx,framebuffer);
+        return;
+    }
+
     const int64_t ratio=TRIG_MAX_RATIO,q16=65536;
-    const int64_t road_x_denom=2LL*MAP_ROAD_HALF_WIDTH_M*ratio,road_y_denom=2LL*MAP_ROAD_HALF_HEIGHT_M*ratio;
-    const int64_t sx_step=((int64_t)s_map_cosine*(MAP_ROAD_WIDTH-1)*q16)/road_x_denom;
-    const int64_t sy_step=((int64_t)s_map_sine*(MAP_ROAD_HEIGHT-1)*q16)/road_y_denom;
-    const int cx=b.size.w/2,cy=b.size.h/2;const uint8_t road_color=GColorDarkGray.argb;
+    const int64_t road_x_denom=2LL*MAP_ROAD_HALF_WIDTH_M*ratio;
+    const int64_t road_y_denom=2LL*MAP_ROAD_HALF_HEIGHT_M*ratio;
+    const int64_t zoom=map_zoom_q8();
+    const int64_t sx_step=(int64_t)s_map_cosine*SCROLL_Q8*(MAP_ROAD_WIDTH-1)*q16/(zoom*road_x_denom);
+    const int64_t sy_step=(int64_t)s_map_sine*SCROLL_Q8*(MAP_ROAD_HEIGHT-1)*q16/(zoom*road_y_denom);
+    const int cx=b.size.w/2,cy=b.size.h/2;
+    const uint8_t road_color=GColorDarkGray.argb;
+
     for(int y=0;y<b.size.h;y++){
         int right=-cx,forward=cy-y;
-        int64_t east_num=(int64_t)right*s_map_cosine+(int64_t)forward*s_map_sine+(int64_t)s_map_position_east*ratio;
-        int64_t north_num=-(int64_t)right*s_map_sine+(int64_t)forward*s_map_cosine+(int64_t)s_map_position_north*ratio;
+        int64_t east_num=((int64_t)right*SCROLL_Q8*s_map_cosine+(int64_t)forward*SCROLL_Q8*s_map_sine)/zoom+(int64_t)s_map_position_east*ratio;
+        int64_t north_num=(-(int64_t)right*SCROLL_Q8*s_map_sine+(int64_t)forward*SCROLL_Q8*s_map_cosine)/zoom+(int64_t)s_map_position_north*ratio;
         int64_t sx_q16=((east_num+(int64_t)MAP_ROAD_HALF_WIDTH_M*ratio)*(MAP_ROAD_WIDTH-1)*q16)/road_x_denom;
         int64_t sy_q16=(((int64_t)MAP_ROAD_HALF_HEIGHT_M*ratio-north_num)*(MAP_ROAD_HEIGHT-1)*q16)/road_y_denom;
         uint8_t*row=data+(top+y)*stride+left;
         for(int x=0;x<b.size.w;x++){
             int sx=(int)((sx_q16+q16/2)/q16),sy=(int)((sy_q16+q16/2)/q16);
             if(road_mask_thick_at(sx,sy))row[x]=road_color;
-            sx_q16+=sx_step;sy_q16+=sy_step;
+            sx_q16+=sx_step;
+            sy_q16+=sy_step;
         }
     }
     graphics_release_frame_buffer(ctx,framebuffer);
@@ -618,9 +674,14 @@ static void draw_road_bitmap(GContext*ctx,GRect b){
 
 static void draw_distance_grid(GContext*ctx,GRect b){
     int cx=b.origin.x+b.size.w/2,cy=b.origin.y+b.size.h/2;
-    graphics_context_set_stroke_color(ctx,GColorDarkGray);graphics_context_set_stroke_width(ctx,1);
-    for(int m=-100;m<=100;m+=25){int x=cx+m;if(x>=b.origin.x&&x<b.origin.x+b.size.w)graphics_draw_line(ctx,GPoint(x,b.origin.y),GPoint(x,b.origin.y+b.size.h-1));}
-    for(int m=-100;m<=100;m+=25){int y=cy-m;if(y>=b.origin.y&&y<b.origin.y+b.size.h)graphics_draw_line(ctx,GPoint(b.origin.x,y),GPoint(b.origin.x+b.size.w-1,y));}
+    graphics_context_set_stroke_color(ctx,GColorDarkGray);
+    graphics_context_set_stroke_width(ctx,1);
+    for(int m=-200;m<=200;m+=25){
+        int x=cx+map_scale_px(m);
+        if(x>=b.origin.x&&x<b.origin.x+b.size.w)graphics_draw_line(ctx,GPoint(x,b.origin.y),GPoint(x,b.origin.y+b.size.h-1));
+        int y=cy-map_scale_px(m);
+        if(y>=b.origin.y&&y<b.origin.y+b.size.h)graphics_draw_line(ctx,GPoint(b.origin.x,y),GPoint(b.origin.x+b.size.w-1,y));
+    }
 }
 
 static void draw_map_polyline(GContext*ctx,GRect b,size_t offset,int pairs,bool breaks,GColor color,int width){
@@ -708,9 +769,17 @@ static void begin_stop_bounce(int d){if(!d)return;s_stop_bouncing=true;s_stop_bo
 static void stop_request_timeout(void*c){s_stop_request_timeout_timer=NULL;if(!s_stop_request_pending)return;s_stop_request_pending=false;s_stop_request_delta=0;if(s_stop_queued_delta){int d=s_stop_queued_delta>0?1:-1;s_stop_queued_delta-=d;change_stop(d);}}
 static void change_stop(int d){if(s_page!=PAGE_TIMETABLE||!d)return;d=d<0?-1:1;if(s_stop_request_pending||s_stop_animating){s_stop_queued_delta=clamp_i(s_stop_queued_delta+d,-3,3);return;}s_stop_previous=s_stop;s_stop_request_pending=true;s_stop_request_delta=d;cancel_stop_request_timeout();s_stop_request_timeout_timer=app_timer_register(STOP_REQUEST_TIMEOUT_MS,stop_request_timeout,NULL);send_control(MESSAGE_KEY_WATCH_STOP_DELTA,d);}
 
+static void change_map_zoom(int delta){
+    int next=clamp_i(s_map_zoom_level+delta,0,MAP_ZOOM_LEVEL_COUNT-1);
+    if(next==s_map_zoom_level)return;
+    s_map_zoom_level=next;
+    s_map_frame_dirty=true;
+    if(s_page_layers[PAGE_MAP])layer_mark_dirty(s_page_layers[PAGE_MAP]);
+}
+
 static void select_click_handler(ClickRecognizerRef r,void*c){if(s_page_scroll_mode==PAGE_SCROLL_IDLE)animate_to_page((s_page+1)%PAGE_COUNT,1);}
-static void up_click_handler(ClickRecognizerRef r,void*c){if(s_page==PAGE_TIMETABLE)change_stop(-1);else animate_to_page(s_page-1,-1);}
-static void down_click_handler(ClickRecognizerRef r,void*c){if(s_page==PAGE_TIMETABLE)change_stop(1);else animate_to_page(s_page+1,1);}
+static void up_click_handler(ClickRecognizerRef r,void*c){if(s_page==PAGE_TIMETABLE)change_stop(-1);else if(s_page==PAGE_MAP)change_map_zoom(1);else animate_to_page(s_page-1,-1);}
+static void down_click_handler(ClickRecognizerRef r,void*c){if(s_page==PAGE_TIMETABLE)change_stop(1);else if(s_page==PAGE_MAP)change_map_zoom(-1);else animate_to_page(s_page+1,1);}
 static void click_config_provider(void*c){window_single_click_subscribe(BUTTON_ID_SELECT,select_click_handler);window_single_click_subscribe(BUTTON_ID_UP,up_click_handler);window_single_click_subscribe(BUTTON_ID_DOWN,down_click_handler);}
 
 #if defined(PBL_TOUCH)
@@ -732,7 +801,7 @@ static void copy_road_chunk(DictionaryIterator*it){Tuple*data=dict_find(it,MESSA
 static bool stop_fields_present(DictionaryIterator*it){return dict_find(it,MESSAGE_KEY_STOP_NAME)||dict_find(it,MESSAGE_KEY_STOP_TIME)||dict_find(it,MESSAGE_KEY_STOP_DISTANCE)||dict_find(it,MESSAGE_KEY_STOP_PERCENT)||dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);}
 static void copy_stop_fields(DictionaryIterator*it,StopView*v){
     if(!v)return;
-    copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->percent);
+    copy_text(it,MESSAGE_KEY_STOP_NAME,v->name,sizeof(v->name));copy_text(it,MESSAGE_KEY_STOP_TIME,v->time,sizeof(v->time));copy_text(it,MESSAGE_KEY_STOP_DISTANCE,v->distance,sizeof(v->distance));copy_int32(it,MESSAGE_KEY_STOP_PERCENT,&v->progress_percent);
     Tuple*endpoint=dict_find(it,MESSAGE_KEY_STOP_IS_GOAL);
     if(endpoint){int32_t flags=endpoint->value->int32;v->is_goal=(flags&0x1)!=0;v->is_start=(flags&0x2)!=0;v->is_passed=(flags&0x4)!=0;}
 }
@@ -751,7 +820,7 @@ static void inbox_received(DictionaryIterator*it,void*c){
 static void inbox_dropped(AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage dropped: %d",(int)r);}
 static void outbox_failed(DictionaryIterator*it,AppMessageResult r,void*c){APP_LOG(APP_LOG_LEVEL_WARNING,"AppMessage control failed: %d",(int)r);}
 
-static void window_load(Window*w){Layer*root=window_get_root_layer(w);GRect b=layer_get_bounds(root);s_icon_heart=gbitmap_create_with_resource(RESOURCE_ID_ICON_HEART);s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));s_marker_outline_path=gpath_create(&s_marker_outline_info);s_marker_fill_path=gpath_create(&s_marker_fill_info);s_map_frame_bitmap=gbitmap_create_blank(GSize(MAP_FRAME_WIDTH,MAP_FRAME_HEIGHT),GBitmapFormat8Bit);s_map_frame_valid=false;s_map_frame_dirty=true;s_page_layers[0]=layer_create(b);s_page_layers[1]=layer_create(b);s_page_layers[2]=layer_create(b);if(s_page_layers[0])layer_set_update_proc(s_page_layers[0],dashboard_update_proc);if(s_page_layers[1])layer_set_update_proc(s_page_layers[1],timetable_update_proc);if(s_page_layers[2])layer_set_update_proc(s_page_layers[2],map_update_proc);for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i])layer_add_child(root,s_page_layers[i]);reset_page_layers();window_set_background_color(w,GColorBlack);window_set_click_config_provider(w,click_config_provider);update_clock(NULL);update_steps();update_heart_rate();}
+static void window_load(Window*w){Layer*root=window_get_root_layer(w);GRect b=layer_get_bounds(root);s_icon_heart=gbitmap_create_with_resource(RESOURCE_ID_ICON_HEART);s_icon_blood=gbitmap_create_with_resource(RESOURCE_ID_ICON_BLOOD);s_icon_shoe=gbitmap_create_with_resource(RESOURCE_ID_ICON_SHOE);s_font_megafont_14=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_14));s_font_megafont_18=fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_MEGAFONT_18));s_map_frame_bitmap=gbitmap_create_blank(GSize(MAP_FRAME_WIDTH,MAP_FRAME_HEIGHT),GBitmapFormat8Bit);s_map_frame_valid=false;s_map_frame_dirty=true;s_page_layers[0]=layer_create(b);s_page_layers[1]=layer_create(b);s_page_layers[2]=layer_create(b);if(s_page_layers[0])layer_set_update_proc(s_page_layers[0],dashboard_update_proc);if(s_page_layers[1])layer_set_update_proc(s_page_layers[1],timetable_update_proc);if(s_page_layers[2])layer_set_update_proc(s_page_layers[2],map_update_proc);for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i])layer_add_child(root,s_page_layers[i]);reset_page_layers();window_set_background_color(w,GColorBlack);window_set_click_config_provider(w,click_config_provider);update_clock(NULL);update_steps();update_heart_rate();}
 static void window_appear(Window*w){
 #if defined(PBL_TOUCH)
     if(!s_touch_subscribed&&touch_service_is_enabled()){touch_service_subscribe(touch_handler,NULL);s_touch_subscribed=true;}
@@ -763,7 +832,7 @@ static void window_disappear(Window*w){cancel_page_scroll_timer();if(s_stop_anim
     if(s_touch_subscribed){touch_service_unsubscribe();s_touch_subscribed=false;reset_touch_state();}
 #endif
 }
-static void window_unload(Window*w){for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i]){layer_destroy(s_page_layers[i]);s_page_layers[i]=NULL;}if(s_map_frame_bitmap){gbitmap_destroy(s_map_frame_bitmap);s_map_frame_bitmap=NULL;}if(s_marker_outline_path){gpath_destroy(s_marker_outline_path);s_marker_outline_path=NULL;}if(s_marker_fill_path){gpath_destroy(s_marker_fill_path);s_marker_fill_path=NULL;}gbitmap_destroy(s_icon_heart);s_icon_heart=NULL;gbitmap_destroy(s_icon_blood);s_icon_blood=NULL;gbitmap_destroy(s_icon_shoe);s_icon_shoe=NULL;if(s_font_megafont_14){fonts_unload_custom_font(s_font_megafont_14);s_font_megafont_14=NULL;}if(s_font_megafont_18){fonts_unload_custom_font(s_font_megafont_18);s_font_megafont_18=NULL;}}
+static void window_unload(Window*w){for(int i=0;i<PAGE_COUNT;i++)if(s_page_layers[i]){layer_destroy(s_page_layers[i]);s_page_layers[i]=NULL;}if(s_map_frame_bitmap){gbitmap_destroy(s_map_frame_bitmap);s_map_frame_bitmap=NULL;}gbitmap_destroy(s_icon_heart);s_icon_heart=NULL;gbitmap_destroy(s_icon_blood);s_icon_blood=NULL;gbitmap_destroy(s_icon_shoe);s_icon_shoe=NULL;if(s_font_megafont_14){fonts_unload_custom_font(s_font_megafont_14);s_font_megafont_14=NULL;}if(s_font_megafont_18){fonts_unload_custom_font(s_font_megafont_18);s_font_megafont_18=NULL;}}
 
 static void init(void){s_window=window_create();window_set_window_handlers(s_window,(WindowHandlers){.load=window_load,.appear=window_appear,.disappear=window_disappear,.unload=window_unload});window_stack_push(s_window,true);tick_timer_service_subscribe(MINUTE_UNIT,tick_handler);
 #if defined(PBL_HEALTH)
