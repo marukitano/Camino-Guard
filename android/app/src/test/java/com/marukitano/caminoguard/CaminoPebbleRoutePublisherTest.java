@@ -30,6 +30,39 @@ public final class CaminoPebbleRoutePublisherTest {
     }
 
     @Test
+    public void progressDotIsVisibleOnlyForCurrentStopScreen() {
+        assertEquals(
+                50,
+                CaminoPebbleRoutePublisher.visibleStopProgressPercent(
+                        stops(),
+                        1,
+                        1,
+                        500.0
+                )
+        );
+
+        assertEquals(
+                -1,
+                CaminoPebbleRoutePublisher.visibleStopProgressPercent(
+                        stops(),
+                        2,
+                        1,
+                        500.0
+                )
+        );
+
+        assertEquals(
+                -1,
+                CaminoPebbleRoutePublisher.visibleStopProgressPercent(
+                        stops(),
+                        0,
+                        1,
+                        500.0
+                )
+        );
+    }
+
+    @Test
     public void futureSegmentStaysAtZeroUntilItsStart() {
         assertEquals(
                 0,
