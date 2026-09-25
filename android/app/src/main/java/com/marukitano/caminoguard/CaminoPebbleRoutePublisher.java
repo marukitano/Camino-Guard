@@ -16,7 +16,7 @@ import java.util.Locale;
  *
  * Android remains the single authority for route geometry, progress and ETA.
  * The watchapp only requests one of three presentation pages: dashboard,
- * timetable stop browser, or a small north-up local route map.
+ * timetable stop browser, or a small heading-oriented local route map.
  */
 final class CaminoPebbleRoutePublisher
         implements CaminoPebbleSession.Listener {
@@ -768,32 +768,12 @@ final class CaminoPebbleRoutePublisher
                         ? 0.0
                         : latestTimetableState.currentChainageM;
 
-        /* Fixed percentage of the whole locked route at this stop. */
-        int percent =
-                -1;
-
-        if (latestLocked != null
-                && latestLocked.path != null
-                && Double.isFinite(latestLocked.path.distanceM)
-                && latestLocked.path.distanceM > 0.0
-                && Double.isFinite(stop.chainageM)) {
-
-            percent =
-                    (int) Math.round(
-                            100.0
-                                    * stop.chainageM
-                                    / latestLocked.path.distanceM
-                    );
-
-            percent =
-                    Math.max(
-                            0,
-                            Math.min(
-                                    100,
-                                    percent
-                            )
-                    );
-        }
+        int progressPercent =
+                stopProgressPercent(
+                        stops,
+                        selectedStopIndex,
+                        currentChainageM
+                );
 
         boolean passed =
                 Double.isFinite(stop.chainageM)
@@ -826,7 +806,7 @@ final class CaminoPebbleRoutePublisher
                                         - currentChainageM
                         )
                 ),
-                percent,
+                progressPercent,
                 temperatureCurrent,
                 endpointFlags,
                 delivered -> {
@@ -1710,6 +1690,61 @@ final class CaminoPebbleRoutePublisher
                         second
                 );
     }
+
+    static int stopProgressPercent(
+            List<CaminoTimetableStop> stops,
+            int stopIndex,
+            double currentChainageM
+    ) {
+        if (stops == null
+                || stopIndex < 0
+                || stopIndex >= stops.size()
+                || !Double.isFinite(currentChainageM)) {
+            return -1;
+        }
+
+        CaminoTimetableStop stop =
+                stops.get(stopIndex);
+
+        if (stop == null
+                || !Double.isFinite(stop.chainageM)) {
+            return -1;
+        }
+
+        double startM =
+                stopIndex > 0
+                        && stops.get(stopIndex - 1) != null
+                        && Double.isFinite(
+                                stops.get(stopIndex - 1).chainageM
+                        )
+                        ? stops.get(stopIndex - 1).chainageM
+                        : 0.0;
+
+        double spanM =
+                stop.chainageM - startM;
+
+        if (spanM <= 0.01) {
+            return currentChainageM + 0.5 >= stop.chainageM
+                    ? 100
+                    : 0;
+        }
+
+        int percent =
+                (int) Math.round(
+                        100.0
+                                * (currentChainageM - startM)
+                                / spanM
+                );
+
+        return Math.max(
+                0,
+                Math.min(
+                        100,
+                        percent
+                )
+        );
+    }
+
 
     private static String formatDistance(
             double distanceM
