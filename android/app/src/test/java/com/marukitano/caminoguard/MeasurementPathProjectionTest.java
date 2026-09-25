@@ -491,6 +491,39 @@ public final class MeasurementPathProjectionTest {
     }
 
 
+    @Test
+    public void pointAtChainageInterpolatesRouteCoordinate() {
+        MeasurementPath path =
+                simplePath(
+                        200.0,
+                        1200.0,
+                        1000.0
+                );
+
+        LatLng point =
+                MeasurementPathProjection.pointAtChainage(
+                        path,
+                        700.0
+                );
+
+        assertNotNull(
+                point
+        );
+
+        assertEquals(
+                47.0005,
+                point.getLatitude(),
+                0.000001
+        );
+
+        assertEquals(
+                8.0,
+                point.getLongitude(),
+                0.000001
+        );
+    }
+
+
     private void assertSameProjection(
             MeasurementPathProjection.Result expected,
             MeasurementPathProjection.Result actual
