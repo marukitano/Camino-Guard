@@ -383,6 +383,114 @@ final class MeasurementPathProjection {
     }
 
 
+    static LatLng pointAtChainage(
+            MeasurementPath path,
+            double chainageM
+    ) {
+        if (path == null
+                || path.profilePoints == null
+                || path.profilePoints.isEmpty()
+                || !Double.isFinite(
+                        chainageM
+                )) {
+
+            return null;
+        }
+
+        ProfilePoint previous =
+                null;
+
+        for (ProfilePoint current
+                : path.profilePoints) {
+
+            if (current == null
+                    || current.point == null
+                    || !Double.isFinite(
+                            current.distanceM
+                    )) {
+
+                continue;
+            }
+
+            if (previous == null) {
+                previous =
+                        current;
+
+                if (chainageM
+                        <= current.distanceM) {
+
+                    return current.point;
+                }
+
+                continue;
+            }
+
+            if (chainageM
+                    > current.distanceM) {
+
+                previous =
+                        current;
+
+                continue;
+            }
+
+            double spanM =
+                    current.distanceM
+                            - previous.distanceM;
+
+            if (current.breakBefore
+                    || !Double.isFinite(
+                            spanM
+                    )
+                    || spanM <= 0.001) {
+
+                return Math.abs(
+                        chainageM
+                                - previous.distanceM
+                )
+                        <= Math.abs(
+                        current.distanceM
+                                - chainageM
+                )
+                        ? previous.point
+                        : current.point;
+            }
+
+            double t =
+                    Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    (
+                                            chainageM
+                                                    - previous.distanceM
+                                    )
+                                            / spanM
+                            )
+                    );
+
+            return new LatLng(
+                    previous.point.getLatitude()
+                            + (
+                            current.point.getLatitude()
+                                    - previous.point.getLatitude()
+                    )
+                            * t,
+                    previous.point.getLongitude()
+                            + (
+                            current.point.getLongitude()
+                                    - previous.point.getLongitude()
+                    )
+                            * t
+            );
+        }
+
+        return previous == null
+                ? null
+                : previous.point;
+    }
+
+
     private static double normalizedFraction(
             List<ProfilePoint> points,
             double distanceM
