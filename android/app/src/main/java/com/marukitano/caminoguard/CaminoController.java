@@ -102,6 +102,9 @@ public final class CaminoController {
 
     private MeasurementPath currentMeasurementPath;
 
+    private LatLng projectedRoutePosition;
+    private LatLng heightProfileCursorPosition;
+
     /*
      * An explicit two-point selection is immutable until one of these input
      * objects is replaced by selection/drag/stage logic.
@@ -234,7 +237,8 @@ public final class CaminoController {
                         activity,
                         mapView,
                         infoPresenter,
-                        routes
+                        routes,
+                        this::onHeightProfileCursorChanged
                 );
 
         this.selectionController =
@@ -873,6 +877,10 @@ public final class CaminoController {
                 lockedProjection == null
                         ? null
                         : lockedProjection.heightProfile;
+
+        updateProjectedRoutePosition(
+                routeProjection
+        );
 
         /*
          * The compact stats card belongs only to an explicit two-point
@@ -1663,6 +1671,70 @@ public final class CaminoController {
     }
 
 
+    private void onHeightProfileCursorChanged(
+            LatLng point
+    ) {
+        heightProfileCursorPosition =
+                point;
+
+        renderRouteProjectionMarker();
+    }
+
+
+    private void updateProjectedRoutePosition(
+            MeasurementPathProjection.Result routeProjection
+    ) {
+        if (!selectionLocked
+                || !hasMarkedSelection()
+                || currentMeasurementPath == null
+                || dummyPosition == null) {
+
+            projectedRoutePosition =
+                    null;
+
+            renderRouteProjectionMarker();
+            return;
+        }
+
+        MeasurementPathProjection.Result visualProjection =
+                routeProjection;
+
+        if (visualProjection == null
+                || !Double.isFinite(
+                        visualProjection.offsetM
+                )
+                || visualProjection.offsetM
+                > LOCKED_ROUTE_MAX_OFFSET_M) {
+
+            visualProjection =
+                    MeasurementPathProjection.projectWithin(
+                            currentMeasurementPath,
+                            dummyPosition,
+                            Double.MAX_VALUE
+                    );
+        }
+
+        projectedRoutePosition =
+                visualProjection == null
+                        ? null
+                        : MeasurementPathProjection.pointAtChainage(
+                                currentMeasurementPath,
+                                visualProjection.chainageM
+                        );
+
+        renderRouteProjectionMarker();
+    }
+
+
+    private void renderRouteProjectionMarker() {
+        interactionRenderer.updateRouteProjectionPosition(
+                heightProfileCursorPosition != null
+                        ? heightProfileCursorPosition
+                        : projectedRoutePosition
+        );
+    }
+
+
     boolean isOffRoute() {
         return lockedNavigationSession.isOffRoute();
     }
@@ -1797,6 +1869,11 @@ public final class CaminoController {
                     false
             );
 
+            projectedRoutePosition =
+                    null;
+
+            renderRouteProjectionMarker();
+
             heightProfileController.setLockedSelectionPosition(
                     null,
                     false,
@@ -1838,6 +1915,10 @@ public final class CaminoController {
                 lockedProjection == null
                         ? null
                         : lockedProjection.heightProfile;
+
+        updateProjectedRoutePosition(
+                routeProjection
+        );
 
         selectionStatsOverlay.update(
                 currentMeasurementPath,
