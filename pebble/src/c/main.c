@@ -528,10 +528,10 @@ static void draw_timetable_view(GContext*ctx,GRect b,const StopView*v,int off){
 
     if(!v->is_start&&v->progress_percent>=0){
         int progress=clamp_i((int)v->progress_percent,0,100);
-        int track_bottom=bottom-3;
+        int track_bottom=bottom-(TIMETABLE_STOP_RADIUS-3);
         int dot_y=track_bottom-(track_bottom-stop_y)*progress/100;
         graphics_context_set_fill_color(ctx,GColorYellow);
-        graphics_fill_circle(ctx,GPoint(line_x,dot_y),3);
+        graphics_fill_circle(ctx,GPoint(line_x,dot_y),TIMETABLE_STOP_RADIUS-3);
     }
 
     graphics_context_set_fill_color(ctx,timeline);
