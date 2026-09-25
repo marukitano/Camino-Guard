@@ -98,6 +98,12 @@ final class CaminoPebbleRoutePublisher
     private boolean forceStopSend =
             true;
 
+    private int lastSentStopIndex =
+            Integer.MIN_VALUE;
+
+    private int lastSentStopProgressPercent =
+            Integer.MIN_VALUE;
+
     private boolean forceMapSend =
             true;
 
@@ -192,6 +198,12 @@ final class CaminoPebbleRoutePublisher
             forceStopSend =
                     true;
 
+            lastSentStopIndex =
+                    Integer.MIN_VALUE;
+
+            lastSentStopProgressPercent =
+                    Integer.MIN_VALUE;
+
             forceMapSend =
                     true;
 
@@ -283,6 +295,12 @@ final class CaminoPebbleRoutePublisher
 
         forceStopSend =
                 true;
+
+        lastSentStopIndex =
+                Integer.MIN_VALUE;
+
+        lastSentStopProgressPercent =
+                Integer.MIN_VALUE;
 
         forceMapSend =
                 true;
@@ -768,12 +786,25 @@ final class CaminoPebbleRoutePublisher
                         ? 0.0
                         : latestTimetableState.currentChainageM;
 
+        int currentStopIndex =
+                findNextStopIndex(
+                        latestTimetableState
+                );
+
         int progressPercent =
-                stopProgressPercent(
+                visibleStopProgressPercent(
                         stops,
                         selectedStopIndex,
+                        currentStopIndex,
                         currentChainageM
                 );
+
+        Integer progressDelta =
+                selectedStopIndex != lastSentStopIndex
+                        || progressPercent
+                        != lastSentStopProgressPercent
+                        ? progressPercent
+                        : null;
 
         boolean passed =
                 Double.isFinite(stop.chainageM)
@@ -806,15 +837,21 @@ final class CaminoPebbleRoutePublisher
                                         - currentChainageM
                         )
                 ),
-                progressPercent,
+                progressDelta,
                 temperatureCurrent,
                 endpointFlags,
                 delivered -> {
-                    if (delivered) {
-                        return;
-                    }
-
                     synchronized (CaminoPebbleRoutePublisher.this) {
+                        if (delivered) {
+                            lastSentStopIndex =
+                                    selectedStopIndex;
+
+                            lastSentStopProgressPercent =
+                                    progressPercent;
+
+                            return;
+                        }
+
                         forceStopSend =
                                 true;
                     }
@@ -1690,6 +1727,24 @@ final class CaminoPebbleRoutePublisher
                         second
                 );
     }
+
+    static int visibleStopProgressPercent(
+            List<CaminoTimetableStop> stops,
+            int selectedStopIndex,
+            int currentStopIndex,
+            double currentChainageM
+    ) {
+        if (selectedStopIndex != currentStopIndex) {
+            return -1;
+        }
+
+        return stopProgressPercent(
+                stops,
+                selectedStopIndex,
+                currentChainageM
+        );
+    }
+
 
     static int stopProgressPercent(
             List<CaminoTimetableStop> stops,
