@@ -26,6 +26,12 @@ import java.util.List;
  */
 final class CaminoHeightProfileController {
 
+    interface CursorListener {
+        void onCursorChanged(
+                LatLng point
+        );
+    }
+
     private static final long REFRESH_DELAY_MS =
             CaminoConfig.get().longValue(
                     "measurement.heightProfileRefreshDelayMs"
@@ -58,6 +64,7 @@ final class CaminoHeightProfileController {
     private final CaminoInfoPresenter infoPresenter;
     private final List<CaminoRoute> routes;
     private final CaminoSettlementTimetableSource settlementSource;
+    private final CursorListener cursorListener;
 
     private MapLibreMap map;
     private CaminoHeightProfileView view;
@@ -109,7 +116,8 @@ final class CaminoHeightProfileController {
             Activity activity,
             MapView mapView,
             CaminoInfoPresenter infoPresenter,
-            List<CaminoRoute> routes
+            List<CaminoRoute> routes,
+            CursorListener cursorListener
     ) {
         this.activity =
                 activity;
@@ -122,6 +130,9 @@ final class CaminoHeightProfileController {
 
         this.routes =
                 routes;
+
+        this.cursorListener =
+                cursorListener;
 
         this.settlementSource =
                 new CaminoSettlementTimetableSource(
@@ -157,6 +168,16 @@ final class CaminoHeightProfileController {
          */
         view.setVisibility(
                 android.view.View.VISIBLE
+        );
+
+        view.setCursorListener(
+                point -> {
+                    if (cursorListener != null) {
+                        cursorListener.onCursorChanged(
+                                point
+                        );
+                    }
+                }
         );
 
         view.setProfileVisibilityListener(
@@ -873,7 +894,8 @@ final class CaminoHeightProfileController {
                                     points,
                                     index
                             ),
-                            reversedBreakBefore
+                            reversedBreakBefore,
+                            point.point
                     )
             );
 
@@ -1531,7 +1553,12 @@ final class CaminoHeightProfileController {
                                         track.baseChainageM
                                                 + trackDistanceM
                                                 + segmentLengthM
-                                                * t
+                                                * t,
+                                        interpolatePoint(
+                                                pointA,
+                                                pointB,
+                                                t
+                                        )
                                 );
                     }
                 }
@@ -1639,7 +1666,12 @@ final class CaminoHeightProfileController {
                                 track.baseChainageM
                                         + trackDistanceM
                                         + segmentLengthM
-                                        * t
+                                        * t,
+                                interpolatePoint(
+                                        pointA,
+                                        pointB,
+                                        t
+                                )
                         );
             }
 
@@ -1701,7 +1733,8 @@ final class CaminoHeightProfileController {
                             candidate.elevationM,
                             candidate.distanceM,
                             slopePercent,
-                            breakBefore
+                            breakBefore,
+                            candidate.mapPoint
                     )
             );
 
@@ -1931,6 +1964,46 @@ final class CaminoHeightProfileController {
     }
 
 
+    private static LatLng interpolatePoint(
+            LatLng a,
+            LatLng b,
+            double t
+    ) {
+        if (a == null
+                || b == null
+                || !Double.isFinite(
+                        t
+                )) {
+
+            return null;
+        }
+
+        double clamped =
+                Math.max(
+                        0.0,
+                        Math.min(
+                                1.0,
+                                t
+                        )
+                );
+
+        return new LatLng(
+                a.getLatitude()
+                        + (
+                        b.getLatitude()
+                                - a.getLatitude()
+                )
+                        * clamped,
+                a.getLongitude()
+                        + (
+                        b.getLongitude()
+                                - a.getLongitude()
+                )
+                        * clamped
+        );
+    }
+
+
     private static final class ScanCandidate {
 
         final RouteTrack track;
@@ -1939,6 +2012,7 @@ final class CaminoHeightProfileController {
         final float screenY;
         final double elevationM;
         final double distanceM;
+        final LatLng mapPoint;
 
         ScanCandidate(
                 RouteTrack track,
@@ -1946,7 +2020,8 @@ final class CaminoHeightProfileController {
                 float screenX,
                 float screenY,
                 double elevationM,
-                double distanceM
+                double distanceM,
+                LatLng mapPoint
         ) {
             this.track =
                     track;
@@ -1965,6 +2040,9 @@ final class CaminoHeightProfileController {
 
             this.distanceM =
                     distanceM;
+
+            this.mapPoint =
+                    mapPoint;
         }
     }
 }
