@@ -15,6 +15,8 @@ import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
 
+import org.maplibre.android.geometry.LatLng;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -37,6 +39,12 @@ final class CaminoHeightProfileView extends View {
         );
     }
 
+    interface CursorListener {
+        void onCursorChanged(
+                LatLng point
+        );
+    }
+
     static final class Sample {
         final float screenXFraction;
         final float screenYFraction;
@@ -44,6 +52,7 @@ final class CaminoHeightProfileView extends View {
         final double distanceM;
         final double slopePercent;
         final boolean breakBefore;
+        final LatLng mapPoint;
 
         Sample(
                 float screenXFraction,
@@ -52,6 +61,26 @@ final class CaminoHeightProfileView extends View {
                 double distanceM,
                 double slopePercent,
                 boolean breakBefore
+        ) {
+            this(
+                    screenXFraction,
+                    screenYFraction,
+                    elevationM,
+                    distanceM,
+                    slopePercent,
+                    breakBefore,
+                    null
+            );
+        }
+
+        Sample(
+                float screenXFraction,
+                float screenYFraction,
+                double elevationM,
+                double distanceM,
+                double slopePercent,
+                boolean breakBefore,
+                LatLng mapPoint
         ) {
             this.screenXFraction =
                     screenXFraction;
@@ -70,6 +99,9 @@ final class CaminoHeightProfileView extends View {
 
             this.breakBefore =
                     breakBefore;
+
+            this.mapPoint =
+                    mapPoint;
         }
     }
 
@@ -243,12 +275,38 @@ final class CaminoHeightProfileView extends View {
 
     private ValueAnimator revealAnimator;
     private ProfileVisibilityListener profileVisibilityListener;
+    private CursorListener cursorListener;
 
     void setProfileVisibilityListener(
             ProfileVisibilityListener listener
     ) {
         this.profileVisibilityListener =
                 listener;
+    }
+
+    void setCursorListener(
+            CursorListener listener
+    ) {
+        cursorListener =
+                listener;
+    }
+
+    private void notifyCursor() {
+        if (cursorListener == null) {
+            return;
+        }
+
+        LatLng point =
+                cursorIndex >= 0
+                        && cursorIndex < samples.size()
+                        ? samples.get(
+                                cursorIndex
+                        ).mapPoint
+                        : null;
+
+        cursorListener.onCursorChanged(
+                point
+        );
     }
 
     boolean isProfileHidden() {
@@ -317,6 +375,8 @@ final class CaminoHeightProfileView extends View {
 
             touchMode =
                     TOUCH_NONE;
+
+            notifyCursor();
 
             setVisibility(
                     INVISIBLE
@@ -679,6 +739,8 @@ final class CaminoHeightProfileView extends View {
         cursorIndex =
                 -1;
 
+        notifyCursor();
+
         lockedPositionSample =
                 null;
 
@@ -789,6 +851,8 @@ final class CaminoHeightProfileView extends View {
                                 getHeight()
                         );
 
+                notifyCursor();
+
                 getParent()
                         .requestDisallowInterceptTouchEvent(
                                 true
@@ -802,12 +866,21 @@ final class CaminoHeightProfileView extends View {
                 if (touchMode
                         == TOUCH_CURSOR) {
 
-                    cursorIndex =
+                    int nextCursorIndex =
                             model.findNearestSample(
                                     samples,
                                     event.getY(),
                                     getHeight()
                             );
+
+                    if (cursorIndex
+                            != nextCursorIndex) {
+
+                        cursorIndex =
+                                nextCursorIndex;
+
+                        notifyCursor();
+                    }
 
                     invalidate();
 
@@ -856,6 +929,8 @@ final class CaminoHeightProfileView extends View {
                     cursorIndex =
                             -1;
 
+                    notifyCursor();
+
                     touchMode =
                             TOUCH_NONE;
 
@@ -883,6 +958,8 @@ final class CaminoHeightProfileView extends View {
 
                 cursorIndex =
                         -1;
+
+                notifyCursor();
 
                 touchMode =
                         TOUCH_NONE;
@@ -928,6 +1005,8 @@ final class CaminoHeightProfileView extends View {
 
         cursorIndex =
                 -1;
+
+        notifyCursor();
 
         revealAnimator =
                 ValueAnimator.ofFloat(
