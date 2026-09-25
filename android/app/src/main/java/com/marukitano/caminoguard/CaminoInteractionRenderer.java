@@ -54,6 +54,15 @@ final class CaminoInteractionRenderer {
     private static final String SELECTED_LAYER =
             "camino-selected-position";
 
+    private static final String ROUTE_PROJECTION_SOURCE =
+            "camino-route-projection-source";
+
+    private static final String ROUTE_PROJECTION_OUTER_LAYER =
+            "camino-route-projection-outer";
+
+    private static final String ROUTE_PROJECTION_INNER_LAYER =
+            "camino-route-projection-inner";
+
     private static final String SELECTED_STAGE_SOURCE =
             "camino-selected-stage-source";
 
@@ -76,6 +85,7 @@ final class CaminoInteractionRenderer {
     private CircleLayer dummyLayer;
     private GeoJsonSource startSnapSource;
     private GeoJsonSource selectedSource;
+    private GeoJsonSource routeProjectionSource;
     private GeoJsonSource selectedStageSource;
     private GeoJsonSource routeGapSource;
 
@@ -366,6 +376,62 @@ final class CaminoInteractionRenderer {
                 selected
         );
 
+        routeProjectionSource =
+                new GeoJsonSource(
+                        ROUTE_PROJECTION_SOURCE,
+                        emptyFeatures()
+                );
+
+        style.addSource(
+                routeProjectionSource
+        );
+
+        CircleLayer projectedOuter =
+                new CircleLayer(
+                        ROUTE_PROJECTION_OUTER_LAYER,
+                        ROUTE_PROJECTION_SOURCE
+                );
+
+        projectedOuter.setProperties(
+                PropertyFactory.circleRadius(
+                        6.0f
+                ),
+                PropertyFactory.circleColor(
+                        Color.rgb(
+                                36,
+                                86,
+                                143
+                        )
+                )
+        );
+
+        style.addLayer(
+                projectedOuter
+        );
+
+        CircleLayer projectedInner =
+                new CircleLayer(
+                        ROUTE_PROJECTION_INNER_LAYER,
+                        ROUTE_PROJECTION_SOURCE
+                );
+
+        projectedInner.setProperties(
+                PropertyFactory.circleRadius(
+                        3.8f
+                ),
+                PropertyFactory.circleColor(
+                        Color.rgb(
+                                166,
+                                218,
+                                248
+                        )
+                )
+        );
+
+        style.addLayer(
+                projectedInner
+        );
+
         selectedStageSource =
                 new GeoJsonSource(
                         SELECTED_STAGE_SOURCE,
@@ -623,6 +689,29 @@ final class CaminoInteractionRenderer {
                 )
         );
     }
+
+    void updateRouteProjectionPosition(
+            LatLng point
+    ) {
+        if (routeProjectionSource == null) {
+            return;
+        }
+
+        if (point == null) {
+            routeProjectionSource.setGeoJson(
+                    emptyFeatures()
+            );
+            return;
+        }
+
+        routeProjectionSource.setGeoJson(
+                Point.fromLngLat(
+                        point.getLongitude(),
+                        point.getLatitude()
+                )
+        );
+    }
+
 
     void updateSelectedStage(
             LatLng stagePoint,
