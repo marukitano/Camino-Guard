@@ -14,7 +14,6 @@
 #endif
 
 #define PPF_VALUE_HEIGHT 21
-#define PPF_SMALL_HEIGHT 11
 #define PPF_DEGREE_SYMBOL_WIDTH 6
 #define PPF_PERCENT_SYMBOL_WIDTH 17
 
@@ -22,5 +21,3 @@ int ppf_value_width(const char *text);
 void ppf_draw_value(GContext *ctx, const char *text, int right_x, int y, GColor color);
 void ppf_draw_degree_symbol(GContext *ctx, int x, int y, GColor color);
 void ppf_draw_percent_symbol(GContext *ctx, int x, int y, GColor color);
-int ppf_small_value_width(const char *text);
-void ppf_draw_small_value_centered(GContext *ctx, const char *text, GRect box, GColor color);
