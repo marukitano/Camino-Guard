@@ -83,6 +83,36 @@ void ppf_draw_value(GContext *ctx, const char *text, int right_x, int y, GColor 
   }
 }
 
+static const uint8_t DEGREE_ROWS[6] = {
+  0x3Fu, 0x3Fu, 0x33u, 0x33u, 0x3Fu, 0x3Fu
+};
+
+void ppf_draw_degree_symbol(GContext *ctx, int x, int y, GColor color) {
+  if (!ctx) return;
+  graphics_context_set_fill_color(ctx, color);
+  for (int row = 0; row < 6; ++row) {
+    int run = -1;
+    for (int col = 0; col <= 6; ++col) {
+      bool set = col < 6 && (DEGREE_ROWS[row] & (1u << (5 - col)));
+      if (set && run < 0) run = col;
+      if (!set && run >= 0) {
+        graphics_fill_rect(ctx, GRect(x + run, y + row, col - run, 1), 0, GCornerNone);
+        run = -1;
+      }
+    }
+  }
+}
+
+void ppf_draw_percent_symbol(GContext *ctx, int x, int y, GColor color) {
+  if (!ctx) return;
+  ppf_draw_degree_symbol(ctx, x, y + 1, color);
+  ppf_draw_degree_symbol(ctx, x + 11, y + 14, color);
+  graphics_context_set_stroke_color(ctx, color);
+  graphics_context_set_stroke_width(ctx, 2);
+  graphics_draw_line(ctx, GPoint(x + 5, y + 18), GPoint(x + 12, y + 3));
+  graphics_context_set_stroke_width(ctx, 1);
+}
+
 static int small_char_width(char c) {
   int w = char_width(c);
   return w ? (w + 1) / 2 : 0;
