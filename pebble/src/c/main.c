@@ -282,7 +282,6 @@ static const uint8_t *glyph(char c){
         case ':':{static const uint8_t r[7]={0,12,12,0,12,12,0};return r;}
         case '-':{static const uint8_t r[7]={0,0,0,31,0,0,0};return r;}
         case '/':{static const uint8_t r[7]={1,2,2,4,8,8,16};return r;}
-        case '%':{static const uint8_t r[7]={17,2,4,8,16,0,17};return r;}
         case ' ':return blank; default:return q;
     }
 }
