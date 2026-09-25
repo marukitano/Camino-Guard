@@ -825,6 +825,12 @@ final class CaminoPebbleRoutePublisher
         forceStopSend =
                 false;
 
+        final int sentStopIndex =
+                selectedStopIndex;
+
+        final int sentProgressPercent =
+                progressPercent;
+
         bridge.sendTimetableStop(
                 stop.name,
                 formatRemainingDuration(
@@ -844,10 +850,10 @@ final class CaminoPebbleRoutePublisher
                     synchronized (CaminoPebbleRoutePublisher.this) {
                         if (delivered) {
                             lastSentStopIndex =
-                                    selectedStopIndex;
+                                    sentStopIndex;
 
                             lastSentStopProgressPercent =
-                                    progressPercent;
+                                    sentProgressPercent;
 
                             return;
                         }
