@@ -1,13 +1,12 @@
 # Camino Guard
 
-Camino Guard is a Camino de Santiago companion app project for the Pebble Time 2.
+Camino Guard is an offline navigation project for the Camino de Santiago, built around the complete official Camino network in Spain and Portugal.
 
-The watch is intended to act as a lightweight hiking instrument rather than a map:
-current progress on the Camino, distance to the next place and daily destination,
-elevation profile, walking statistics, and off-route warnings. GPS comes from the
-connected phone.
+The main application is designed to provide offline maps, route data, GPS-based route matching and navigation without depending on a network connection while walking the Camino.
 
-The project is currently starting with the offline route-data pipeline.
+Support for the Pebble Time 2 is an optional companion extension rather than the core of the project. The watch is intended to act as a lightweight walking cockpit for information such as current route progress, distance to the next place or daily destination, elevation data, walking statistics and off-route warnings, while the phone handles GPS, maps and navigation.
+
+The project is currently building the offline route-data and navigation pipeline.
 
 ## Repository layout
 
