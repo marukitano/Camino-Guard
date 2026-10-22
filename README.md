@@ -1,5 +1,11 @@
 # Camino Guard
 
+<p align="center">
+  <a href="https://github.com/marukitano/Camino-Guard">
+    <img src="Screenshot_20261022-212448_Camino%20Guard.png" width="360" alt="Camino Guard screenshot">
+  </a>
+</p>
+
 Camino Guard is an offline navigation project for the Camino de Santiago, built around the complete official Camino network in Spain and Portugal.
 
 The main application is designed to provide offline maps, route data, GPS-based route matching and navigation without depending on a network connection while walking the Camino.
